@@ -213,32 +213,54 @@ class SeleniumEventScraper:
         
         return event_data
     
-    def scrape_events(self, db: SpeakerDatabase, limit=None):
+    def scrape_events(self, db: SpeakerDatabase, limit=None, max_pages=1):
         """
         Main scraping workflow using Selenium
-        
+
         Args:
             db: SpeakerDatabase instance
             limit: Maximum number of events to scrape
+            max_pages: Maximum number of listing pages to fetch (None for all)
         """
         print("="*70)
         print("Starting Selenium-based scrape of Asia Society Switzerland events")
         print("="*70)
-        
+
         try:
-            # Fetch events listing page
-            print(f"\n1. Fetching events listing page: {self.base_url}")
-            html = self.fetch_page(self.base_url)
-            
-            if not html:
-                print("❌ Failed to fetch events page")
-                return 0
-            
-            # Extract event links
-            print("\n2. Extracting event links...")
-            event_links = self.extract_event_links(html)
-            print(f"   Found {len(event_links)} potential event links")
-            
+            # Fetch events from listing pages (with pagination)
+            all_event_links = []
+            page = 0
+
+            print(f"\n1. Fetching events listing pages...")
+            while True:
+                page_url = f"{self.base_url}?page={page}"
+                print(f"   Page {page + 1}: {page_url}")
+                html = self.fetch_page(page_url)
+
+                if not html:
+                    print("   ❌ Failed to fetch page")
+                    break
+
+                # Extract event links from this page
+                page_links = self.extract_event_links(html)
+                if not page_links:
+                    print("   No more events found")
+                    break
+
+                new_links = [l for l in page_links if l not in all_event_links]
+                all_event_links.extend(new_links)
+                print(f"   Found {len(new_links)} events (total: {len(all_event_links)})")
+
+                page += 1
+                if max_pages and page >= max_pages:
+                    print(f"   Reached max pages limit ({max_pages})")
+                    break
+
+                time.sleep(1)  # Brief pause between listing pages
+
+            event_links = all_event_links
+            print(f"\n2. Total events found: {len(event_links)}")
+
             if limit:
                 event_links = event_links[:limit]
                 print(f"   Limiting to {limit} events for this run")

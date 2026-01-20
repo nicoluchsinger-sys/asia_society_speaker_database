@@ -3,6 +3,7 @@ Main script to scrape events and extract speaker information (Selenium version)
 """
 
 import os
+import argparse
 from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
@@ -24,14 +25,14 @@ def load_api_key():
     return os.getenv('ANTHROPIC_API_KEY')
 
 
-def scrape_events(limit=None, headless=True):
+def scrape_events(limit=None, headless=True, max_pages=1):
     """Step 1: Scrape events from website using Selenium and save to database"""
     print("\n" + "🌐 STEP 1: SCRAPING EVENTS FROM WEBSITE (SELENIUM)")
     print("="*70)
-    
+
     with SpeakerDatabase() as db:
         scraper = SeleniumEventScraper(headless=headless)
-        count = scraper.scrape_events(db, limit=limit)
+        count = scraper.scrape_events(db, limit=limit, max_pages=max_pages)
         
         stats = db.get_statistics()
         print(f"\n📊 Current Database Status:")
@@ -90,6 +91,7 @@ def extract_speakers():
                         name=speaker_data.get('name'),
                         title=speaker_data.get('title'),
                         affiliation=speaker_data.get('affiliation'),
+                        primary_affiliation=speaker_data.get('primary_affiliation'),
                         bio=speaker_data.get('bio')
                     )
                     
@@ -184,65 +186,86 @@ def export_speakers_to_csv():
 
 def main():
     """Main workflow"""
+    parser = argparse.ArgumentParser(
+        description='Asia Society Switzerland - Speaker Database Builder (Selenium Version)'
+    )
+    parser.add_argument('-e', '--events', type=str, default='5',
+                        help='Number of events to scrape (number or "all", default: 5)')
+    parser.add_argument('--headless', action='store_true', default=True,
+                        help='Run browser in headless mode (default)')
+    parser.add_argument('--no-headless', dest='headless', action='store_false',
+                        help='Show browser window while scraping')
+    parser.add_argument('--extract', action='store_true', default=True,
+                        help='Extract speakers using AI (default)')
+    parser.add_argument('--no-extract', dest='extract', action='store_false',
+                        help='Skip speaker extraction')
+    parser.add_argument('--export', action='store_true', default=False,
+                        help='Export speakers to CSV')
+    parser.add_argument('--skip-scrape', action='store_true', default=False,
+                        help='Skip scraping, only run extraction/export on existing data')
+    parser.add_argument('-p', '--pages', type=str, default='1',
+                        help='Number of listing pages to scrape (number or "all", default: 1)')
+
+    args = parser.parse_args()
+
+    # Parse events limit
+    if args.skip_scrape:
+        limit = 0
+    elif args.events.lower() == 'all':
+        limit = None
+    else:
+        try:
+            limit = int(args.events)
+        except ValueError:
+            limit = 5
+            print(f"Invalid events value, using default: {limit}")
+
+    # Parse pages limit
+    if args.pages.lower() == 'all':
+        max_pages = None
+    else:
+        try:
+            max_pages = int(args.pages)
+        except ValueError:
+            max_pages = 1
+            print(f"Invalid pages value, using default: {max_pages}")
+
     print("="*70)
     print("ASIA SOCIETY SWITZERLAND - SPEAKER DATABASE BUILDER")
     print("(Selenium Version - bypasses 403 errors)")
     print("="*70)
-    
+
     print("\nThis tool will:")
     print("1. Scrape event pages using Selenium (real browser)")
     print("2. Use AI to extract speaker information")
     print("3. Store everything in a SQLite database")
-    
-    # Check if Chrome is available
+
     print("\n" + "-"*70)
     print("NOTE: This requires Chrome browser to be installed.")
-    print("The scraper will open Chrome in the background.")
     print("-"*70)
-    
+
     # Step 1: Scrape events
-    print("\n")
-    response = input("How many events to scrape? (Enter number or 'all'): ").strip()
-    
-    if response.lower() == 'all':
-        limit = None
+    if args.skip_scrape:
+        print("\nSkipping scraping (--skip-scrape)")
+        scraped = 0
     else:
-        try:
-            limit = int(response)
-        except ValueError:
-            limit = 5
-            print(f"Invalid input, using default: {limit}")
-    
-    # Ask if they want to watch the browser
-    watch = input("\nWatch the browser work? (y/n, default=n): ").strip().lower()
-    headless = (watch != 'y')
-    
-    scraped = scrape_events(limit=limit, headless=headless)
-    
-    if scraped == 0:
-        print("\n⚠ No events were scraped. Exiting.")
-        return
-    
+        scraped = scrape_events(limit=limit, headless=args.headless, max_pages=max_pages)
+        if scraped == 0:
+            print("\n⚠ No new events were scraped.")
+
     # Step 2: Extract speakers
-    print("\n" + "-"*70)
-    response = input("\nProceed with speaker extraction using AI? (y/n): ").strip().lower()
-    
-    if response == 'y':
-        extracted = extract_speakers()
+    if args.extract:
+        extract_speakers()
     else:
-        print("\nSkipping speaker extraction. Run this script again to process events.")
-        return
-    
+        print("\nSkipping speaker extraction.")
+
     # Show results
     show_statistics()
-    
+
     # Export option
-    print("\n" + "-"*70)
-    response = input("\nExport speakers to CSV? (y/n): ").strip().lower()
-    
-    if response == 'y':
+    if args.export:
         export_speakers_to_csv()
-    
+
     print("\n" + "="*70)
     print("✓ COMPLETE")
     print("="*70)

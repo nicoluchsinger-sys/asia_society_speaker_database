@@ -40,12 +40,21 @@ class SpeakerDatabase:
                 name TEXT NOT NULL,
                 title TEXT,
                 affiliation TEXT,
+                primary_affiliation TEXT,
                 bio TEXT,
                 first_seen TEXT,
                 last_updated TEXT,
-                UNIQUE(name, affiliation)
+                UNIQUE(name, primary_affiliation)
             )
         ''')
+
+        # Migration: add primary_affiliation column if it doesn't exist
+        cursor.execute("PRAGMA table_info(speakers)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'primary_affiliation' not in columns:
+            cursor.execute('ALTER TABLE speakers ADD COLUMN primary_affiliation TEXT')
+            # Copy affiliation to primary_affiliation for existing records
+            cursor.execute('UPDATE speakers SET primary_affiliation = affiliation WHERE primary_affiliation IS NULL')
         
         # Event-Speaker relationship table
         cursor.execute('''
@@ -90,30 +99,34 @@ class SpeakerDatabase:
         ''')
         return cursor.fetchall()
     
-    def add_speaker(self, name, title=None, affiliation=None, bio=None):
-        """Add a speaker or return existing speaker_id"""
+    def add_speaker(self, name, title=None, affiliation=None, primary_affiliation=None, bio=None):
+        """Add a speaker or return existing speaker_id. Deduplicates on (name, primary_affiliation)."""
         cursor = self.conn.cursor()
         now = datetime.now().isoformat()
-        
+
+        # Use affiliation as primary_affiliation fallback
+        if primary_affiliation is None:
+            primary_affiliation = affiliation
+
         try:
             cursor.execute('''
-                INSERT INTO speakers (name, title, affiliation, bio, first_seen, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (name, title, affiliation, bio, now, now))
+                INSERT INTO speakers (name, title, affiliation, primary_affiliation, bio, first_seen, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (name, title, affiliation, primary_affiliation, bio, now, now))
             self.conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
             # Speaker already exists, get their ID
             cursor.execute('''
-                SELECT speaker_id FROM speakers 
-                WHERE name = ? AND (affiliation = ? OR (affiliation IS NULL AND ? IS NULL))
-            ''', (name, affiliation, affiliation))
+                SELECT speaker_id FROM speakers
+                WHERE name = ? AND (primary_affiliation = ? OR (primary_affiliation IS NULL AND ? IS NULL))
+            ''', (name, primary_affiliation, primary_affiliation))
             result = cursor.fetchone()
             if result:
-                # Update last_updated
+                # Update last_updated and potentially update affiliation with more complete info
                 cursor.execute('''
-                    UPDATE speakers SET last_updated = ? WHERE speaker_id = ?
-                ''', (now, result[0]))
+                    UPDATE speakers SET last_updated = ?, affiliation = COALESCE(?, affiliation) WHERE speaker_id = ?
+                ''', (now, affiliation, result[0]))
                 self.conn.commit()
                 return result[0]
     

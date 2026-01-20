@@ -38,6 +38,7 @@ with SpeakerDatabase() as db:
                     name=speaker_data.get('name'),
                     title=speaker_data.get('title'),
                     affiliation=speaker_data.get('affiliation'),
+                    primary_affiliation=speaker_data.get('primary_affiliation'),
                     bio=speaker_data.get('bio')
                 )
                 

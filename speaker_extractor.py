@@ -36,9 +36,10 @@ Event Description:
 Please extract ALL speakers/participants mentioned in this event description. For each person, provide:
 1. Full name
 2. Title/role (e.g., "CEO", "Professor", "Director")
-3. Affiliation/organization (e.g., company, university, institution)
-4. Role in the event (e.g., "keynote speaker", "panelist", "moderator", "host")
-5. Any relevant biographical information mentioned
+3. Affiliation/organization (full list of all organizations mentioned)
+4. Primary affiliation (single main organization for deduplication)
+5. Role in the event (e.g., "keynote speaker", "panelist", "moderator", "host")
+6. Any relevant biographical information mentioned
 
 Return your response as a JSON object with this structure:
 {{
@@ -46,7 +47,8 @@ Return your response as a JSON object with this structure:
         {{
             "name": "Full Name",
             "title": "Their professional title",
-            "affiliation": "Organization they represent",
+            "affiliation": "All organizations they represent (comma-separated if multiple)",
+            "primary_affiliation": "Their single main/primary organization",
             "role_in_event": "Their role in this specific event",
             "bio": "Any biographical information mentioned"
         }}
@@ -57,6 +59,7 @@ Return your response as a JSON object with this structure:
 Important guidelines:
 - Only include people who are SPEAKERS/PARTICIPANTS in the event, not people who are just mentioned in passing
 - If title, affiliation, or bio information is not mentioned, use null for that field
+- primary_affiliation should be ONE organization (the most relevant/current one) for deduplication purposes
 - Be thorough - extract all participants, not just the main speakers
 - If someone has multiple roles (e.g., "moderator and panelist"), include both in role_in_event
 - Return ONLY the JSON, no other text"""
