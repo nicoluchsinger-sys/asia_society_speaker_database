@@ -1,0 +1,5 @@
+.env
+speakers.db
+*.csv
+__pycache__/
+*.pyc
