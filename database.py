@@ -69,7 +69,27 @@ class SpeakerDatabase:
                 UNIQUE(event_id, speaker_id)
             )
         ''')
-        
+
+        # Speaker tags table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_tags (
+                tag_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                speaker_id INTEGER NOT NULL,
+                tag_text TEXT NOT NULL,
+                confidence_score REAL,
+                source TEXT,
+                created_at TEXT,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id),
+                UNIQUE(speaker_id, tag_text)
+            )
+        ''')
+
+        # Add tagging_status column to speakers table if it doesn't exist
+        cursor.execute("PRAGMA table_info(speakers)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'tagging_status' not in columns:
+            cursor.execute('ALTER TABLE speakers ADD COLUMN tagging_status TEXT DEFAULT "pending"')
+
         self.conn.commit()
     
     def add_event(self, url, title, body_text, raw_html=None, event_date=None, location='Switzerland'):
@@ -195,22 +215,92 @@ class SpeakerDatabase:
     def get_statistics(self):
         """Get database statistics"""
         cursor = self.conn.cursor()
-        
+
         stats = {}
-        
+
         cursor.execute('SELECT COUNT(*) FROM events')
         stats['total_events'] = cursor.fetchone()[0]
-        
+
         cursor.execute('SELECT COUNT(*) FROM events WHERE processing_status = "completed"')
         stats['processed_events'] = cursor.fetchone()[0]
-        
+
         cursor.execute('SELECT COUNT(*) FROM speakers')
         stats['total_speakers'] = cursor.fetchone()[0]
-        
+
         cursor.execute('SELECT COUNT(*) FROM event_speakers')
         stats['total_connections'] = cursor.fetchone()[0]
-        
+
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_tags')
+        stats['tagged_speakers'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speaker_tags')
+        stats['total_tags'] = cursor.fetchone()[0]
+
         return stats
+
+    def add_speaker_tag(self, speaker_id, tag_text, confidence=None, source='web_search'):
+        """Add a tag to a speaker"""
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        try:
+            cursor.execute('''
+                INSERT INTO speaker_tags (speaker_id, tag_text, confidence_score, source, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (speaker_id, tag_text.lower().strip(), confidence, source, now))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # Tag already exists for this speaker
+            return None
+
+    def get_speaker_tags(self, speaker_id):
+        """Get all tags for a speaker"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT tag_text, confidence_score, source, created_at
+            FROM speaker_tags
+            WHERE speaker_id = ?
+            ORDER BY confidence_score DESC
+        ''', (speaker_id,))
+        return cursor.fetchall()
+
+    def get_untagged_speakers(self):
+        """Get all speakers that haven't been tagged yet"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT speaker_id, name, title, affiliation, primary_affiliation, bio
+            FROM speakers
+            WHERE tagging_status = 'pending' OR tagging_status IS NULL
+        ''')
+        return cursor.fetchall()
+
+    def mark_speaker_tagged(self, speaker_id, status='completed'):
+        """Mark a speaker's tagging status"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE speakers
+            SET tagging_status = ?
+            WHERE speaker_id = ?
+        ''', (status, speaker_id))
+        self.conn.commit()
+
+    def get_speaker_by_id(self, speaker_id):
+        """Get a speaker by ID"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT speaker_id, name, title, affiliation, primary_affiliation, bio
+            FROM speakers
+            WHERE speaker_id = ?
+        ''', (speaker_id,))
+        return cursor.fetchone()
+
+    def reset_speaker_tagging_status(self):
+        """Reset all speakers to pending tagging status"""
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE speakers SET tagging_status = 'pending'")
+        cursor.execute("DELETE FROM speaker_tags")
+        self.conn.commit()
     
     def close(self):
         """Close database connection"""

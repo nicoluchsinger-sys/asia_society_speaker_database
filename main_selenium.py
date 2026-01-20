@@ -7,6 +7,7 @@ import argparse
 from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
+from speaker_tagger import SpeakerTagger
 import json
 
 def load_api_key():
@@ -115,8 +116,46 @@ def extract_speakers():
         
         print("\n" + "="*70)
         print(f"✓ Extraction complete: {total_speakers} speaker records created")
-        
+
         return total_speakers
+
+
+def tag_speakers(limit=None):
+    """Step 3: Tag speakers with expertise tags using web search and Claude AI"""
+    print("\n\n" + "🏷️  STEP 3: TAGGING SPEAKERS WITH AI")
+    print("="*70)
+
+    # Load API key
+    api_key = load_api_key()
+    if not api_key:
+        print("❌ ERROR: ANTHROPIC_API_KEY not found!")
+        return 0
+
+    print("✓ API key loaded")
+
+    with SpeakerDatabase() as db:
+        untagged = db.get_untagged_speakers()
+
+        if not untagged:
+            print("\n✓ All speakers have been tagged!")
+            return 0
+
+        if limit:
+            print(f"\nLimiting to {limit} speaker(s)")
+
+        print(f"\nFound {len(untagged)} untagged speaker(s)")
+        print("-"*70)
+
+        # Initialize tagger
+        tagger = SpeakerTagger(api_key=api_key)
+
+        # Tag speakers
+        results = tagger.tag_all_speakers(db, limit=limit)
+
+        print("\n" + "="*70)
+        print(f"✓ Tagging complete: {results['successful']} speakers tagged")
+
+        return results['successful']
 
 
 def show_statistics():
@@ -134,6 +173,8 @@ def show_statistics():
         
         print(f"\nSpeakers:")
         print(f"  Total unique speakers: {stats['total_speakers']}")
+        print(f"  Tagged speakers: {stats['tagged_speakers']}")
+        print(f"  Total tags: {stats['total_tags']}")
         print(f"  Total speaker-event connections: {stats['total_connections']}")
         
         # Show some sample speakers
@@ -159,28 +200,33 @@ def export_speakers_to_csv():
     """Export all speakers to a CSV file"""
     import csv
     from datetime import datetime
-    
+
     print("\n\n" + "💾 EXPORTING SPEAKERS TO CSV")
     print("="*70)
-    
+
     with SpeakerDatabase() as db:
         speakers = db.get_all_speakers()
-        
+
         if not speakers:
             print("No speakers to export")
             return
-        
+
         filename = f"speakers_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        
+
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['ID', 'Name', 'Title', 'Affiliation', 'Bio', 'First Seen', 'Last Updated', 'Number of Events'])
-            
+            writer.writerow(['ID', 'Name', 'Title', 'Affiliation', 'Bio', 'Tags', 'First Seen', 'Last Updated', 'Number of Events'])
+
             for speaker in speakers:
                 speaker_id, name, title, affiliation, bio, first_seen, last_updated = speaker
                 events = db.get_speaker_events(speaker_id)
-                writer.writerow([speaker_id, name, title or '', affiliation or '', bio or '', first_seen, last_updated, len(events)])
-        
+
+                # Get tags for this speaker
+                tags = db.get_speaker_tags(speaker_id)
+                tags_str = '; '.join([t[0] for t in tags]) if tags else ''
+
+                writer.writerow([speaker_id, name, title or '', affiliation or '', bio or '', tags_str, first_seen, last_updated, len(events)])
+
         print(f"✓ Exported {len(speakers)} speakers to {filename}")
 
 
@@ -205,6 +251,10 @@ def main():
                         help='Skip scraping, only run extraction/export on existing data')
     parser.add_argument('-p', '--pages', type=str, default='1',
                         help='Number of listing pages to scrape (number or "all", default: 1)')
+    parser.add_argument('--tag', action='store_true', default=False,
+                        help='Tag speakers with expertise tags after extraction')
+    parser.add_argument('--tag-limit', type=int, default=None,
+                        help='Limit number of speakers to tag (for testing)')
 
     args = parser.parse_args()
 
@@ -238,7 +288,8 @@ def main():
     print("\nThis tool will:")
     print("1. Scrape event pages using Selenium (real browser)")
     print("2. Use AI to extract speaker information")
-    print("3. Store everything in a SQLite database")
+    print("3. Optionally tag speakers with expertise tags (--tag)")
+    print("4. Store everything in a SQLite database")
 
     print("\n" + "-"*70)
     print("NOTE: This requires Chrome browser to be installed.")
@@ -258,6 +309,12 @@ def main():
         extract_speakers()
     else:
         print("\nSkipping speaker extraction.")
+
+    # Step 3: Tag speakers (optional)
+    if args.tag:
+        tag_speakers(limit=args.tag_limit)
+    else:
+        print("\nSkipping speaker tagging. Use --tag to enable.")
 
     # Show results
     show_statistics()
