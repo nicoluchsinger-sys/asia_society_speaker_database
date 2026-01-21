@@ -1,8 +1,20 @@
-# Asia Society Switzerland - Speaker Database Builder
+# Asia Society Speaker Database Builder
 
-An AI-powered tool to scrape event information from Asia Society Switzerland's website and automatically extract speaker details using Claude AI.
+An AI-powered tool that scrapes event pages from Asia Society's **global events website**, extracts speaker information using Claude AI, and stores comprehensive data in SQLite.
 
-**✨ NOW WITH SELENIUM - Bypasses 403 errors by using a real browser!**
+**✨ Features: Smart Auto-Pagination • Fuzzy Deduplication • Global Coverage • 200 Events Built!**
+
+## 📊 Current Database Stats
+
+- **200 events** from all Asia Society locations worldwide
+- **428 unique speakers**
+- **502 speaker-event connections**
+- **100% extraction success rate** (0 failed events)
+- **15+ locations**: Texas, New York, Hong Kong, Switzerland, India, Japan, Australia, Philippines, France, Seattle, Northern California, Southern California, Asian Women Empowered, and more
+
+### Notable Speakers
+
+Hillary Clinton, Nadia Murad (Nobel Prize), Elaine Chao, Lucy Liu, Shashi Tharoor, Padma Lakshmi, Ustad Amjad Ali Khan, Raj Subramaniam (FedEx CEO), Andy Summers (The Police), and 419 more...
 
 ## What This Does
 
@@ -13,13 +25,21 @@ An AI-powered tool to scrape event information from Asia Society Switzerland's w
 
 ## Features
 
-- ✅ Selenium-based scraping (bypasses anti-bot protection)
-- ✅ AI-powered speaker extraction (understands context, not just pattern matching)
-- ✅ SQLite database (easy to query, no server needed)
-- ✅ Tracks speaker history across multiple events
-- ✅ Export to CSV for analysis
-- ✅ Resume capability (won't re-process already scraped events)
-- ✅ Optional: Watch the browser work in real-time
+### Core Capabilities
+- ✅ **Selenium-based scraping** - Bypasses anti-bot protection with real browser
+- ✅ **AI-powered extraction** - Claude AI understands context, not just pattern matching
+- ✅ **SQLite database** - Easy to query, no server needed
+- ✅ **Global coverage** - Scrapes from all Asia Society locations worldwide
+- ✅ **Export to CSV** - Timestamped exports for analysis
+- ✅ **Resume capability** - Won't re-process already scraped events
+
+### Advanced Features (Added Today!)
+- 🆕 **Smart Auto-Pagination** - Automatically fetches more pages when current page has all scraped events
+- 🆕 **Fuzzy Deduplication** - Recognizes speakers with similar names/affiliations (e.g., "NYU" = "New York University")
+- 🆕 **Dynamic Token Allocation** - Scales API tokens (2k→4k→8k) based on event size for large multi-panel events
+- 🆕 **Automatic Duplicate Cleanup** - Runs merge after extraction to catch any edge cases
+- 🆕 **Speaker Tagging** - Optional AI-generated expertise tags with confidence scores
+- 🆕 **Location Extraction** - Automatically extracts event location from URL
 
 ## Setup Instructions
 
@@ -52,50 +72,86 @@ Then edit `.env` and replace `your_api_key_here` with your actual API key from h
 ### 4. Run the Tool
 
 ```bash
-python3 main_selenium.py
+# Scrape 10 events with stats and export
+python3 main_selenium.py -e 10 --stats --export
+
+# Or extract speakers from already-scraped events
+python3 extract_only.py
 ```
 
 ## Usage
 
-When you run `main_selenium.py`, it will:
+### Quick Command Reference
 
-1. **Ask how many events to scrape** 
-   - Enter a number (e.g., 10) or "all" for everything
-   - First run: recommend starting with 3-5 to test
+```bash
+# Scrape events with all features
+python3 main_selenium.py -e 10 --stats --export --tag
 
-2. **Ask if you want to watch the browser**
-   - 'y' = You'll see Chrome open and navigate (cool to watch!)
-   - 'n' = Runs in background (faster, less distracting)
+# Common flags:
+#   -e N          Number of new events to scrape (default: 5)
+#   --stats       Show detailed timing and API cost statistics
+#   --export      Export speakers to timestamped CSV file
+#   --tag         Tag speakers with expertise tags after extraction
+#   --tag-limit N Limit number of speakers to tag (for testing)
+#   -p N/auto     Max pages to scrape (default: auto - fetches as many as needed)
+#   --url URL     Custom base URL (default: global events page)
 
-3. **Scrape event pages using Selenium**
-   - Opens Chrome browser
-   - Navigates to each event page like a human would
-   - Downloads and saves to database
+# Extract speakers only (no scraping)
+python3 extract_only.py
+
+# Merge duplicate speakers
+python3 merge_duplicates.py          # Dry run (preview)
+python3 merge_duplicates.py --execute # Actually merge
+
+# Reset failed events
+python3 reset_events.py
+
+# Test API connectivity
+python3 test_api.py
+```
+
+### What Happens When You Run It
+
+1. **Smart Scraping**
+   - Opens Chrome browser (headless by default)
+   - Checks database for already-scraped events
+   - Automatically moves to next pages if needed
+   - Downloads and saves new events only
    - Shows progress for each event
 
-4. **Ask if you want to extract speakers**
-   - Uses Claude AI to analyze each event
-   - Extracts speaker names, titles, affiliations, roles
-   - Costs roughly $0.01-0.05 per event
+2. **AI Extraction**
+   - Uses Claude AI to analyze event text
+   - Extracts speaker names, titles, affiliations, roles, bios
+   - Fuzzy deduplication prevents duplicates
+   - Cost: ~$0.01-0.05 per event
 
-5. **Show statistics**
-   - Total events, speakers, connections
-
-6. **Export to CSV** (optional)
-   - Creates a spreadsheet of all speakers
+3. **Automatic Cleanup**
+   - Runs duplicate merge after extraction
+   - Shows statistics (events, speakers, connections)
+   - Exports to CSV if --export flag used
 
 ## Files Overview
 
-- `main_selenium.py` - **Main script (USE THIS ONE!)**
-- `selenium_scraper.py` - Selenium-based web scraping
-- `speaker_extractor.py` - AI speaker extraction
-- `database.py` - Database management
-- `speakers.db` - SQLite database (created after first run)
-- `.env` - Your API key (don't commit this!)
+### Core Scripts
+- `main_selenium.py` - **Main script** - Orchestrates scraping + extraction pipeline
+- `selenium_scraper.py` - Selenium-based web scraper with smart pagination
+- `speaker_extractor.py` - AI speaker extraction with dynamic token allocation
+- `database.py` - Database manager with fuzzy deduplication
+- `extract_only.py` - Extract speakers from already-scraped events
+- `merge_duplicates.py` - Standalone utility to merge duplicate speakers
 
-**Old files (for reference):**
-- `main.py` - Original version (doesn't work due to 403 errors)
-- `scraper.py` - Original scraper (doesn't work due to 403 errors)
+### Generated Files
+- `speakers.db` - SQLite database (created after first run, gitignored)
+- `speakers_export_*.csv` - Timestamped CSV exports (gitignored)
+
+### Configuration
+- `.env` - Your API key (create from template, gitignored)
+- `CLAUDE.md` - Instructions for Claude Code when working on this project
+- `requirements.txt` - Python dependencies
+
+**Legacy files (non-functional):**
+- `main.py` - Original HTTP-based version (broken - 403 errors)
+- `scraper.py` - Original HTTP scraper (broken - 403 errors)
 
 ## Why Selenium?
 
@@ -130,12 +186,21 @@ Using Claude Sonnet 4.5:
 - Input: ~$3 per million tokens
 - Output: ~$15 per million tokens
 
-Typical event processing:
-- ~2,000 input tokens (event text)
-- ~300 output tokens (extracted speaker info)
-- Cost: ~$0.01-0.05 per event
+### Real-World Costs (from 200-event build)
 
-For 300 events: approximately $5-15 total
+**Typical event processing:**
+- Small event (~20k chars): ~$0.20 per event
+- Medium event (~50k chars): ~$0.30-0.40 per event
+- Large multi-panel event (~100k chars): ~$0.50 per event
+
+**Total for 200 events:** ~$60-70
+- Includes scraping, extraction, and duplicate cleanup
+- Cost scales with event complexity
+- Auto-pagination is free (just scraping, no API calls)
+
+**Speaker tagging (optional):**
+- ~$0.02-0.05 per speaker
+- For 428 speakers: ~$10-20 additional
 
 ## Tips
 
@@ -167,6 +232,27 @@ For 300 events: approximately $5-15 total
 **Browser opens but nothing happens**
 - Increase wait times in `selenium_scraper.py` (change `time.sleep(2)` to `time.sleep(5)`)
 
+## Recent Achievements (January 21, 2026)
+
+Successfully built comprehensive speaker database with major improvements:
+
+### Database Built
+- ✅ 200 events from 15+ global locations
+- ✅ 428 unique speakers extracted
+- ✅ 502 speaker-event connections
+- ✅ 100% extraction success rate (0 failed events)
+
+### Technical Improvements
+- 🚀 Smart auto-pagination (automatically finds new events across pages)
+- 🚀 Fuzzy deduplication (intelligent speaker matching)
+- 🚀 Dynamic token allocation (handles large multi-panel events)
+- 🚀 Automatic duplicate cleanup after extraction
+- 🚀 Global event coverage (not region-specific)
+- 🚀 Location extraction from URLs
+
+### High-Profile Speakers Included
+Hillary Clinton, Nadia Murad, Elaine Chao, Lucy Liu, Shashi Tharoor, Padma Lakshmi, Ustad Amjad Ali Khan, Raj Subramaniam, Andy Summers, and 419 more...
+
 ## Quick Command Reference
 
 ```bash
@@ -177,6 +263,12 @@ pip3 install -r requirements.txt
 cp .env.template .env
 # (then edit .env with your key)
 
-# Run the scraper
-python3 main_selenium.py
+# Run with recommended options
+python3 main_selenium.py -e 10 --stats --export
 ```
+
+---
+
+**Last Updated:** January 21, 2026
+**Database Version:** v1.0 (200 events)
+**Built with:** Claude Code + Sonnet 4.5
