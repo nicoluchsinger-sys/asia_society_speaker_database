@@ -142,7 +142,7 @@ def scrape_events(db, limit=None, headless=True, max_pages=1, base_url=None, sta
         stats.start_step("1. Scraping")
 
     if base_url is None:
-        base_url = "https://asiasociety.org/switzerland/events/past"
+        base_url = "https://asiasociety.org/events/past"
 
     scraper = SeleniumEventScraper(base_url=base_url, headless=headless)
     count = scraper.scrape_events(db, limit=limit, max_pages=max_pages)
@@ -417,7 +417,7 @@ def main():
     parser.add_argument('--tag-limit', type=int, default=None,
                         help='Limit number of speakers to tag (for testing)')
     parser.add_argument('--url', type=str, default=None,
-                        help='Base URL for events (default: Switzerland events)')
+                        help='Base URL for events (default: global events from all Asia Society locations)')
     parser.add_argument('--stats', action='store_true', default=False,
                         help='Show timing and API cost statistics at the end')
 

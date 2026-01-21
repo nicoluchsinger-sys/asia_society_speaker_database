@@ -92,7 +92,7 @@ class SpeakerDatabase:
 
         self.conn.commit()
     
-    def add_event(self, url, title, body_text, raw_html=None, event_date=None, location='Switzerland'):
+    def add_event(self, url, title, body_text, raw_html=None, event_date=None, location='Unknown'):
         """Add a new event to the database"""
         cursor = self.conn.cursor()
         scraped_at = datetime.now().isoformat()

@@ -19,13 +19,13 @@ from database import SpeakerDatabase
 
 
 class SeleniumEventScraper:
-    def __init__(self, base_url="https://asiasociety.org/switzerland/events/past", headless=True):
+    def __init__(self, base_url="https://asiasociety.org/events/past", headless=True):
         """
         Initialize Selenium scraper
 
         Args:
-            base_url: Starting URL for events. Can be:
-                - https://asiasociety.org/events/past (global)
+            base_url: Starting URL for events (default: global events from all Asia Society locations)
+                - https://asiasociety.org/events/past (global - all locations)
                 - https://asiasociety.org/switzerland/events/past (Switzerland only)
                 - https://asiasociety.org/new-york/events/past (New York only)
             headless: If True, browser runs in background. If False, you can watch it work.

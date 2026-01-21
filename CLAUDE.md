@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Asia Society Switzerland Speaker Database Builder - an AI-powered tool that scrapes event pages from Asia Society Switzerland's website using Selenium, extracts speaker information using Claude AI, and stores data in SQLite.
+Asia Society Speaker Database Builder - an AI-powered tool that scrapes event pages from Asia Society's global events website using Selenium, extracts speaker information using Claude AI, and stores data in SQLite. Covers events from all Asia Society locations worldwide.
 
 ## Commands
 
@@ -30,7 +30,7 @@ pip3 install -r requirements.txt
 ### Core Modules
 
 - **main_selenium.py** - Interactive CLI orchestrating the scraping and extraction pipeline
-- **selenium_scraper.py** - Selenium-based web scraper with anti-bot detection measures; scrapes from `https://asiasociety.org/switzerland/events/past`
+- **selenium_scraper.py** - Selenium-based web scraper with anti-bot detection measures; scrapes from `https://asiasociety.org/events/past` (global events from all locations)
 - **speaker_extractor.py** - Claude API client using `claude-sonnet-4-20250514` for intelligent speaker extraction from event text
 - **database.py** - SQLite database manager with context manager support (`SpeakerDatabase`)
 
