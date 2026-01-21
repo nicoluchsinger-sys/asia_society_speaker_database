@@ -9,11 +9,22 @@ Asia Society Speaker Database Builder - an AI-powered tool that scrapes event pa
 ## Commands
 
 ```bash
-# Run main workflow (scrape events + extract speakers)
-python3 main_selenium.py
+# Run main workflow with typical options
+python3 main_selenium.py -e 10 --stats --export
+
+# Common flags:
+#   -e N          Scrape N new events (default: 5)
+#   --stats       Show timing and API cost statistics
+#   --export      Export speakers to CSV
+#   -p N/auto     Max pages to scrape (default: auto - fetches as many pages as needed)
+#   --tag         Tag speakers with expertise tags after extraction
+#   --url URL     Custom base URL (default: global events page)
 
 # Extract speakers from already-scraped events only
 python3 extract_only.py
+
+# Merge duplicate speakers (standalone utility)
+python3 merge_duplicates.py --execute
 
 # Test Claude API connectivity
 python3 test_api.py
@@ -44,8 +55,17 @@ pip3 install -r requirements.txt
 ### Database Schema (speakers.db)
 
 - **events** - Scraped event pages with `processing_status` (pending/completed/failed)
-- **speakers** - Deduplicated by (name, affiliation) unique constraint
+- **speakers** - Deduplicated with fuzzy affiliation matching (name + affiliation overlap)
 - **event_speakers** - Junction table linking speakers to events with `role_in_event`
+- **speaker_tags** - Expertise tags for speakers with confidence scores
+
+### Key Features
+
+- **Smart Auto-Pagination** - Automatically fetches additional pages when current page has all scraped events
+- **Fuzzy Deduplication** - Matches speakers by name + affiliation overlap (e.g., "NYU" matches "New York University")
+- **Dynamic Token Allocation** - Scales max_tokens (2k→4k→8k) based on event size for large multi-panel events
+- **Automatic Cleanup** - Runs `merge_duplicates()` after extraction to catch any deduplication edge cases
+- **Location Extraction** - Automatically extracts event location from URL (Switzerland, New York, Hong Kong, Texas, etc.)
 
 ### Legacy Code (Non-functional)
 
