@@ -120,6 +120,12 @@ Return ONLY the JSON, no other text."""
                 ]
             )
 
+            # Track token usage
+            self._last_usage = {
+                'input_tokens': message.usage.input_tokens,
+                'output_tokens': message.usage.output_tokens
+            }
+
             response_text = message.content[0].text.strip()
 
             # Remove markdown code fences if present

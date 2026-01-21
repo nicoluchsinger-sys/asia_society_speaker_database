@@ -72,7 +72,13 @@ Important guidelines:
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
+            # Track token usage
+            self._last_usage = {
+                'input_tokens': message.usage.input_tokens,
+                'output_tokens': message.usage.output_tokens
+            }
+
             # Extract the response text
             response_text = message.content[0].text
             
