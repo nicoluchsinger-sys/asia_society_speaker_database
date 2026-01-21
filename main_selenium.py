@@ -410,8 +410,8 @@ def main():
                         help='Export speakers to CSV')
     parser.add_argument('--skip-scrape', action='store_true', default=False,
                         help='Skip scraping, only run extraction/export on existing data')
-    parser.add_argument('-p', '--pages', type=str, default='1',
-                        help='Number of listing pages to scrape (number or "all", default: 1)')
+    parser.add_argument('-p', '--pages', type=str, default='auto',
+                        help='Number of listing pages to scrape (number, "all", or "auto", default: auto)')
     parser.add_argument('--tag', action='store_true', default=False,
                         help='Tag speakers with expertise tags after extraction')
     parser.add_argument('--tag-limit', type=int, default=None,
@@ -438,6 +438,12 @@ def main():
     # Parse pages limit
     if args.pages.lower() == 'all':
         max_pages = None
+    elif args.pages.lower() == 'auto':
+        # Auto mode: unlimited pages when event limit is set, 1 page when scraping all
+        if limit is None:
+            max_pages = 1  # Scraping all events, limit to 1 page by default
+        else:
+            max_pages = None  # Event limit set, fetch as many pages as needed
     else:
         try:
             max_pages = int(args.pages)

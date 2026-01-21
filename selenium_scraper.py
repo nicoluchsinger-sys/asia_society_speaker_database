@@ -390,6 +390,13 @@ class SeleniumEventScraper:
             page = 0
 
             print(f"\n1. Fetching events listing pages...")
+
+            # Get already-scraped URLs from database
+            cursor = db.conn.cursor()
+            cursor.execute('SELECT url FROM events')
+            already_scraped = set(row[0] for row in cursor.fetchall())
+            print(f"   Database contains {len(already_scraped)} already-scraped events")
+
             while True:
                 page_url = f"{self.base_url}?page={page}"
                 print(f"   Page {page + 1}: {page_url}")
@@ -407,21 +414,38 @@ class SeleniumEventScraper:
 
                 new_links = [l for l in page_links if l not in all_event_links]
                 all_event_links.extend(new_links)
-                print(f"   Found {len(new_links)} events (total: {len(all_event_links)})")
+
+                # Count how many are actually new (not in DB)
+                new_unscraped = [l for l in all_event_links if l not in already_scraped]
+                print(f"   Found {len(new_links)} events on page (total: {len(all_event_links)}, new: {len(new_unscraped)})")
 
                 page += 1
+
+                # Stop conditions (in priority order):
+                # 1. Have enough new events to meet the limit (if set) - stop early
+                # 2. Reached max pages limit (if set) - hard stop
+                if limit and len(new_unscraped) >= limit:
+                    print(f"   Found {len(new_unscraped)} new events, meeting limit of {limit}")
+                    break
+
                 if max_pages and page >= max_pages:
                     print(f"   Reached max pages limit ({max_pages})")
                     break
 
                 time.sleep(1)  # Brief pause between listing pages
 
-            event_links = all_event_links
-            print(f"\n2. Total unique events found: {len(event_links)}")
+            # Filter to only new events
+            new_event_links = [l for l in all_event_links if l not in already_scraped]
+            print(f"\n2. Total unique events found: {len(all_event_links)} ({len(new_event_links)} new)")
 
-            if limit:
+            event_links = new_event_links
+            if limit and len(event_links) > limit:
                 event_links = event_links[:limit]
-                print(f"   Limiting to {limit} events for this run")
+                print(f"   Limiting to {limit} new events for this run")
+            elif len(event_links) == 0:
+                print(f"   No new events to scrape!")
+            else:
+                print(f"   Will scrape {len(event_links)} new events")
 
             # Scrape each event
             print(f"\n3. Scraping individual event pages...")
