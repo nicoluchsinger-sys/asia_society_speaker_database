@@ -64,10 +64,20 @@ Important guidelines:
 - If someone has multiple roles (e.g., "moderator and panelist"), include both in role_in_event
 - Return ONLY the JSON, no other text"""
 
+        # Dynamically set max_tokens based on event size
+        # Large events with many speakers need more tokens for the JSON response
+        event_size = len(event_text)
+        if event_size > 80000:
+            max_tokens = 8000  # Very large multi-panel events
+        elif event_size > 30000:
+            max_tokens = 4000  # Medium-large events
+        else:
+            max_tokens = 2000  # Standard events
+
         try:
             message = self.client.messages.create(
                 model=self.model,
-                max_tokens=2000,
+                max_tokens=max_tokens,
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
