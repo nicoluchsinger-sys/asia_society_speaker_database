@@ -57,5 +57,10 @@ with SpeakerDatabase() as db:
             print(f"   ❌ Error: {result['error']}")
             db.mark_event_processed(event_id, 'failed')
     
+    # Clean up any duplicates that slipped through fuzzy matching
+    merged = db.merge_duplicates(verbose=True)
+
     print("\n" + "="*70)
     print(f"✓ Complete: {total_speakers} speaker records created")
+    if merged:
+        print(f"✓ Merged {merged} duplicate speaker(s)")

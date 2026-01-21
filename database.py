@@ -119,8 +119,61 @@ class SpeakerDatabase:
         ''')
         return cursor.fetchall()
     
+    def _normalize_text(self, text):
+        """Normalize text for comparison: lowercase, remove punctuation, split into words"""
+        if not text:
+            return set()
+        import re
+        # Lowercase and remove punctuation
+        text = re.sub(r'[^\w\s]', ' ', text.lower())
+        # Split into words and filter short ones
+        words = set(w for w in text.split() if len(w) > 2)
+        return words
+
+    def _affiliations_overlap(self, aff1, aff2):
+        """Check if two affiliations likely refer to the same person"""
+        # If both are empty/None, consider them matching
+        if not aff1 and not aff2:
+            return True
+        # If one is empty, be lenient and match
+        if not aff1 or not aff2:
+            return True
+
+        words1 = self._normalize_text(aff1)
+        words2 = self._normalize_text(aff2)
+
+        if not words1 or not words2:
+            return True
+
+        # Check for significant word overlap
+        overlap = words1 & words2
+        # If any meaningful words overlap, consider it a match
+        # Exclude very common words
+        common_words = {'the', 'and', 'for', 'university', 'center', 'institute', 'school', 'college'}
+        meaningful_overlap = overlap - common_words
+
+        if meaningful_overlap:
+            return True
+
+        # Also check if one contains a significant portion of the other
+        min_words = min(len(words1), len(words2))
+        if min_words > 0 and len(overlap) >= min_words * 0.5:
+            return True
+
+        return False
+
+    def find_existing_speaker(self, name):
+        """Find an existing speaker by name, returns (speaker_id, affiliation) or None"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT speaker_id, affiliation, primary_affiliation
+            FROM speakers
+            WHERE LOWER(name) = LOWER(?)
+        ''', (name,))
+        return cursor.fetchall()
+
     def add_speaker(self, name, title=None, affiliation=None, primary_affiliation=None, bio=None):
-        """Add a speaker or return existing speaker_id. Deduplicates on (name, primary_affiliation)."""
+        """Add a speaker or return existing speaker_id. Uses fuzzy matching on name + affiliation."""
         cursor = self.conn.cursor()
         now = datetime.now().isoformat()
 
@@ -128,6 +181,41 @@ class SpeakerDatabase:
         if primary_affiliation is None:
             primary_affiliation = affiliation
 
+        # First, check if a speaker with the same name exists
+        existing = self.find_existing_speaker(name)
+
+        if existing:
+            # Check each existing speaker for affiliation overlap
+            for speaker_id, existing_aff, existing_primary_aff in existing:
+                # Compare affiliations
+                new_aff = affiliation or primary_affiliation or ''
+                old_aff = existing_aff or existing_primary_aff or ''
+
+                if self._affiliations_overlap(new_aff, old_aff):
+                    # Found a match - update the existing record with any new info
+                    # Merge affiliations if new one has more info
+                    merged_affiliation = existing_aff
+                    if affiliation and (not existing_aff or len(affiliation) > len(existing_aff)):
+                        merged_affiliation = affiliation
+
+                    merged_bio = bio
+                    cursor.execute('SELECT bio FROM speakers WHERE speaker_id = ?', (speaker_id,))
+                    existing_bio = cursor.fetchone()[0]
+                    if existing_bio and (not bio or len(existing_bio) > len(bio)):
+                        merged_bio = existing_bio
+
+                    cursor.execute('''
+                        UPDATE speakers
+                        SET last_updated = ?,
+                            affiliation = COALESCE(?, affiliation),
+                            bio = COALESCE(?, bio),
+                            title = COALESCE(?, title)
+                        WHERE speaker_id = ?
+                    ''', (now, merged_affiliation, merged_bio, title, speaker_id))
+                    self.conn.commit()
+                    return speaker_id
+
+        # No matching speaker found - create new one
         try:
             cursor.execute('''
                 INSERT INTO speakers (name, title, affiliation, primary_affiliation, bio, first_seen, last_updated)
@@ -136,18 +224,18 @@ class SpeakerDatabase:
             self.conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
-            # Speaker already exists, get their ID
+            # Race condition or exact match - get existing ID
             cursor.execute('''
                 SELECT speaker_id FROM speakers
                 WHERE name = ? AND (primary_affiliation = ? OR (primary_affiliation IS NULL AND ? IS NULL))
             ''', (name, primary_affiliation, primary_affiliation))
             result = cursor.fetchone()
             if result:
-                # Update last_updated and potentially update affiliation with more complete info
-                cursor.execute('''
-                    UPDATE speakers SET last_updated = ?, affiliation = COALESCE(?, affiliation) WHERE speaker_id = ?
-                ''', (now, affiliation, result[0]))
-                self.conn.commit()
+                return result[0]
+            # Fallback: just get any speaker with this name
+            cursor.execute('SELECT speaker_id FROM speakers WHERE LOWER(name) = LOWER(?)', (name,))
+            result = cursor.fetchone()
+            if result:
                 return result[0]
     
     def link_speaker_to_event(self, event_id, speaker_id, role_in_event=None, extracted_info=None):
@@ -301,7 +389,118 @@ class SpeakerDatabase:
         cursor.execute("UPDATE speakers SET tagging_status = 'pending'")
         cursor.execute("DELETE FROM speaker_tags")
         self.conn.commit()
-    
+
+    def merge_duplicates(self, verbose=False):
+        """
+        Find and merge duplicate speakers (same name, different records).
+        Returns the number of duplicates merged.
+        """
+        cursor = self.conn.cursor()
+
+        # Find duplicate groups
+        cursor.execute('''
+            SELECT LOWER(name) as normalized_name, GROUP_CONCAT(speaker_id) as ids
+            FROM speakers
+            GROUP BY LOWER(name)
+            HAVING COUNT(*) > 1
+        ''')
+        duplicate_groups = cursor.fetchall()
+
+        if not duplicate_groups:
+            return 0
+
+        merged_count = 0
+
+        for normalized_name, id_str in duplicate_groups:
+            speaker_ids = [int(x) for x in id_str.split(',')]
+
+            # Get details for all speakers in this group
+            speakers = []
+            for sid in speaker_ids:
+                cursor.execute('''
+                    SELECT speaker_id, name, title, affiliation, primary_affiliation, bio
+                    FROM speakers WHERE speaker_id = ?
+                ''', (sid,))
+                speakers.append(cursor.fetchone())
+
+            # Score by completeness (longer affiliation/bio = more info)
+            def completeness_score(s):
+                score = 0
+                if s[2]: score += 1  # title
+                if s[3]: score += len(s[3])  # affiliation length
+                if s[4]: score += 1  # primary_affiliation
+                if s[5]: score += len(s[5]) if s[5] else 0  # bio length
+                return score
+
+            speakers_sorted = sorted(speakers, key=completeness_score, reverse=True)
+            primary = speakers_sorted[0]
+            primary_id = primary[0]
+            duplicates = speakers_sorted[1:]
+
+            if verbose:
+                print(f"Merging '{primary[1]}': keeping ID={primary_id}, merging {len(duplicates)} duplicates")
+
+            # Merge info from duplicates into primary
+            merged_title = primary[2]
+            merged_affiliation = primary[3]
+            merged_primary_aff = primary[4]
+            merged_bio = primary[5]
+
+            for dup in duplicates:
+                if dup[2] and (not merged_title or len(dup[2]) > len(merged_title)):
+                    merged_title = dup[2]
+                if dup[3] and (not merged_affiliation or len(dup[3]) > len(merged_affiliation)):
+                    merged_affiliation = dup[3]
+                if dup[4] and not merged_primary_aff:
+                    merged_primary_aff = dup[4]
+                if dup[5] and (not merged_bio or len(dup[5]) > len(merged_bio)):
+                    merged_bio = dup[5]
+
+            # Update primary speaker with merged info
+            cursor.execute('''
+                UPDATE speakers
+                SET title = ?, affiliation = ?, primary_affiliation = ?, bio = ?, last_updated = datetime('now')
+                WHERE speaker_id = ?
+            ''', (merged_title, merged_affiliation, merged_primary_aff, merged_bio, primary_id))
+
+            # Reassign event links and delete duplicates
+            for dup in duplicates:
+                dup_id = dup[0]
+
+                # Get event links for the duplicate
+                cursor.execute('''
+                    SELECT event_id, role_in_event, extracted_info
+                    FROM event_speakers WHERE speaker_id = ?
+                ''', (dup_id,))
+                event_links = cursor.fetchall()
+
+                for event_id, role, info in event_links:
+                    # Check if primary already linked to this event
+                    cursor.execute('''
+                        SELECT 1 FROM event_speakers
+                        WHERE event_id = ? AND speaker_id = ?
+                    ''', (event_id, primary_id))
+
+                    if cursor.fetchone():
+                        # Already linked, delete duplicate link
+                        cursor.execute('''
+                            DELETE FROM event_speakers
+                            WHERE event_id = ? AND speaker_id = ?
+                        ''', (event_id, dup_id))
+                    else:
+                        # Reassign to primary
+                        cursor.execute('''
+                            UPDATE event_speakers SET speaker_id = ?
+                            WHERE event_id = ? AND speaker_id = ?
+                        ''', (primary_id, event_id, dup_id))
+
+                # Delete the duplicate speaker record
+                cursor.execute('DELETE FROM speakers WHERE speaker_id = ?', (dup_id,))
+                merged_count += 1
+
+        self.conn.commit()
+        return merged_count
+
     def close(self):
         """Close database connection"""
         if self.conn:
