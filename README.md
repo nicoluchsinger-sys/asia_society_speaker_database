@@ -41,6 +41,146 @@ Hillary Clinton, Nadia Murad (Nobel Prize), Elaine Chao, Lucy Liu, Shashi Tharoo
 - 🆕 **Speaker Tagging** - Optional AI-generated expertise tags with confidence scores
 - 🆕 **Location Extraction** - Automatically extracts event location from URL
 
+## 🔍 Natural Language Speaker Search
+
+**NEW!** The database now supports natural language search powered by semantic embeddings and AI enrichment.
+
+### Quick Start
+
+```bash
+# 1. Set up Gemini API key for embeddings (FREE! Get from aistudio.google.com)
+# Add to .env file: GEMINI_API_KEY=your_key_here
+
+# 2. Generate embeddings for all speakers (one-time, FREE with Gemini!)
+python3 generate_embeddings.py
+
+# 3. Search naturally!
+python3 search_speakers.py "3 speakers on chinese economy, ideally women based in Europe"
+```
+
+**Note:** The system uses **Google Gemini embeddings** by default (FREE, 1500/day). You can also use OpenAI (`--provider openai`) or Voyage (`--provider voyage`) if preferred.
+
+### Search Examples
+
+```bash
+# Find experts by topic
+python3 search_speakers.py "climate policy experts"
+
+# With demographic preferences
+python3 search_speakers.py "women in tech policy"
+
+# Geographic filtering
+python3 search_speakers.py "5 geopolitics experts from Asia"
+
+# Language requirements
+python3 search_speakers.py "mandarin-speaking economists"
+
+# With explanations
+python3 search_speakers.py "technology policy specialists" --explain
+
+# Show detailed speaker info
+python3 search_speakers.py --speaker "Condoleezza Rice"
+```
+
+### How It Works
+
+The search system combines three powerful technologies:
+
+1. **Query Parsing (Claude AI)**: Understands natural language queries and extracts structured criteria
+   - Distinguishes hard requirements ("need", "must") vs soft preferences ("ideally", "prefer")
+   - Extracts: count, expertise topics, demographics, location, languages
+
+2. **Semantic Search (Gemini Embeddings)**: Finds semantically similar speakers
+   - Converts speaker profiles → 768-dim vectors
+   - Uses cosine similarity to find relevant candidates
+   - Understands "chinese economy" matches "China trade policy expert"
+   - FREE with Google Gemini (or use OpenAI/Voyage)
+
+3. **Intelligent Ranking**: Scores candidates with bonuses for:
+   - High-confidence expertise tags (+20%)
+   - Complete biographical information (+10%)
+   - Active speaking history (+10%)
+   - Matching demographic preferences (up to +30-40%)
+
+### Optional: Speaker Enrichment
+
+Enhance search with demographics, location, and language data:
+
+```bash
+# Enrich speakers with demographics/location/languages
+# Uses web search + Claude AI extraction
+python3 enrich_speakers.py --limit 10  # Start with 10 speakers
+
+# Show enrichment statistics
+python3 enrich_speakers.py --stats
+
+# Search with enriched data
+python3 search_speakers.py "european experts on technology policy"
+python3 search_speakers.py "mandarin-speaking economists"
+```
+
+**Enrichment Features:**
+- Extracts: gender, nationality, location (city/country/region), languages
+- Confidence scores for all extracted data
+- ~$0.01-0.02 per speaker
+- Fully optional - search works without enrichment
+
+### Data Freshness Management
+
+Track and refresh stale speaker data:
+
+```bash
+# Update freshness scores for all speakers
+python3 freshness_manager.py --update
+
+# Show report of stale speakers
+python3 freshness_manager.py --report
+
+# Refresh high-priority stale speakers
+python3 freshness_manager.py --refresh-stale --limit 10
+```
+
+**Freshness Logic:**
+- Staleness calculated based on: days since enrichment, speaker prominence
+- High-profile speakers (10+ events) age 50% faster
+- Automatic priority scoring for refresh scheduling
+- Recommended: refresh top 5-10 speakers monthly (~$0.50/month)
+
+### Search System Costs
+
+**One-Time Setup:**
+- Generate embeddings: **FREE** with Gemini (or $0.02 with OpenAI, $0.05 with Voyage)
+- Initial enrichment: ~$5 (443 speakers × ~$0.01/speaker) - **OPTIONAL**
+
+**Ongoing Costs:**
+- Query parsing: ~$0.005 per search (Claude AI)
+- Embedding new speakers: **FREE** with Gemini
+- Data refresh: ~$0.01 per speaker (optional)
+
+**Monthly estimate: $0.50-1** (100 searches + occasional refreshes)
+
+**Provider Options:**
+- **Gemini** (default): FREE up to 1500/day ✅
+- **OpenAI**: $0.02 per 1M tokens
+- **Voyage**: $0.06 per 1M tokens
+
+### Advanced Search Options
+
+```bash
+# Search with options
+python3 search_speakers.py "climate experts" \
+  --limit 10 \         # Max results
+  --explain \          # Show why each matched
+  --stats              # Database statistics
+
+# List all speakers
+python3 search_speakers.py --list
+
+# View detailed speaker profile
+python3 search_speakers.py --speaker "Hillary Clinton"
+python3 search_speakers.py --id 42
+```
+
 ## Setup Instructions
 
 ### 1. Install Chrome Browser
@@ -132,13 +272,26 @@ python3 test_api.py
 
 ## Files Overview
 
-### Core Scripts
+### Core Scraping Scripts
 - `main_selenium.py` - **Main script** - Orchestrates scraping + extraction pipeline
 - `selenium_scraper.py` - Selenium-based web scraper with smart pagination
 - `speaker_extractor.py` - AI speaker extraction with dynamic token allocation
-- `database.py` - Database manager with fuzzy deduplication
+- `database.py` - Database manager with fuzzy deduplication and search support
 - `extract_only.py` - Extract speakers from already-scraped events
 - `merge_duplicates.py` - Standalone utility to merge duplicate speakers
+
+### Natural Language Search System (NEW!)
+- `search_speakers.py` - **Search CLI** - Natural language speaker search interface
+- `query_parser.py` - Parse natural language queries into structured criteria
+- `embedding_engine.py` - Generate and search semantic embeddings (Voyage AI)
+- `speaker_search.py` - Search engine with semantic matching and ranking
+- `generate_embeddings.py` - Generate embeddings for all speakers (one-time setup)
+
+### Speaker Enrichment (Optional)
+- `enrich_speakers.py` - Enrich speakers with demographics/location/languages
+- `speaker_enricher.py` - Web search + AI extraction for enrichment data
+- `freshness_manager.py` - Track data staleness and manage refreshes
+- `migrate_search_tables.py` - Database migration for search tables
 
 ### Generated Files
 - `speakers.db` - SQLite database (created after first run, gitignored)
@@ -166,19 +319,51 @@ It's a bit slower than simple HTTP requests, but it actually works!
 
 ## Database Structure
 
-### Events Table
+### Core Tables
+
+**Events Table**
 - Event ID, URL, title, date, location
 - Full body text and raw HTML
 - Processing status
 
-### Speakers Table
+**Speakers Table**
 - Speaker ID, name, title, affiliation
 - Biographical info
 - First seen / last updated dates
 
-### Event-Speakers Table
+**Event-Speakers Table**
 - Links speakers to events
 - Stores role in event (keynote, panelist, moderator, etc.)
+
+**Speaker Tags Table**
+- Expertise tags with confidence scores
+- Source tracking (web_search, manual, etc.)
+
+### Search System Tables (NEW!)
+
+**Speaker Embeddings**
+- Semantic embeddings for each speaker (1024-dim vectors)
+- Embedding text and model version
+- Used for semantic similarity search
+
+**Speaker Demographics**
+- Gender, nationality, birth year
+- Confidence scores for each field
+- Enrichment timestamp
+
+**Speaker Locations**
+- City, country, region
+- Location type (residence, workplace)
+- Primary location flag and confidence scores
+
+**Speaker Languages**
+- Languages spoken with proficiency levels
+- Confidence scores and source tracking
+
+**Speaker Freshness**
+- Staleness scores and refresh priorities
+- Last enrichment date and next refresh date
+- Automatic refresh scheduling
 
 ## Cost Estimation
 

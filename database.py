@@ -390,6 +390,162 @@ class SpeakerDatabase:
         cursor.execute("DELETE FROM speaker_tags")
         self.conn.commit()
 
+    # ========== Embedding Methods ==========
+
+    def save_speaker_embedding(self, speaker_id, embedding_blob, embedding_text, model='voyage-3'):
+        """Save embedding for a speaker"""
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        try:
+            cursor.execute('''
+                INSERT INTO speaker_embeddings (speaker_id, embedding_model, embedding, embedding_text, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (speaker_id, model, embedding_blob, embedding_text, now))
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            # Update existing embedding
+            cursor.execute('''
+                UPDATE speaker_embeddings
+                SET embedding = ?, embedding_text = ?, embedding_model = ?, created_at = ?
+                WHERE speaker_id = ?
+            ''', (embedding_blob, embedding_text, model, now, speaker_id))
+            self.conn.commit()
+            return True
+
+    def get_speaker_embedding(self, speaker_id):
+        """Get embedding for a specific speaker"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT embedding, embedding_text, embedding_model, created_at
+            FROM speaker_embeddings
+            WHERE speaker_id = ?
+        ''', (speaker_id,))
+        return cursor.fetchone()
+
+    def get_all_embeddings(self):
+        """Get all speaker embeddings (speaker_id, embedding pairs)"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT speaker_id, embedding
+            FROM speaker_embeddings
+        ''')
+        return cursor.fetchall()
+
+    def get_speakers_without_embeddings(self):
+        """Get all speakers that don't have embeddings yet"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT s.speaker_id, s.name, s.title, s.affiliation, s.primary_affiliation, s.bio
+            FROM speakers s
+            LEFT JOIN speaker_embeddings e ON s.speaker_id = e.speaker_id
+            WHERE e.speaker_id IS NULL
+        ''')
+        return cursor.fetchall()
+
+    def count_embeddings(self):
+        """Count how many speakers have embeddings"""
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
+        return cursor.fetchone()[0]
+
+    # ========== Enrichment Methods ==========
+
+    def save_speaker_demographics(self, speaker_id, gender=None, gender_confidence=None,
+                                  nationality=None, nationality_confidence=None, birth_year=None):
+        """Save demographic information for a speaker"""
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        try:
+            cursor.execute('''
+                INSERT INTO speaker_demographics
+                (speaker_id, gender, gender_confidence, nationality, nationality_confidence, birth_year, enriched_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (speaker_id, gender, gender_confidence, nationality, nationality_confidence, birth_year, now))
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            # Update existing
+            cursor.execute('''
+                UPDATE speaker_demographics
+                SET gender = ?, gender_confidence = ?, nationality = ?,
+                    nationality_confidence = ?, birth_year = ?, enriched_at = ?
+                WHERE speaker_id = ?
+            ''', (gender, gender_confidence, nationality, nationality_confidence, birth_year, now, speaker_id))
+            self.conn.commit()
+            return True
+
+    def get_speaker_demographics(self, speaker_id):
+        """Get demographic information for a speaker"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT gender, gender_confidence, nationality, nationality_confidence, birth_year, enriched_at
+            FROM speaker_demographics
+            WHERE speaker_id = ?
+        ''', (speaker_id,))
+        return cursor.fetchone()
+
+    def save_speaker_location(self, speaker_id, location_type, city=None, country=None,
+                             region=None, is_primary=False, confidence=None, source=None):
+        """Save location information for a speaker"""
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        cursor.execute('''
+            INSERT INTO speaker_locations
+            (speaker_id, location_type, city, country, region, is_primary, confidence, source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (speaker_id, location_type, city, country, region, is_primary, confidence, source, now))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_speaker_locations(self, speaker_id):
+        """Get all locations for a speaker"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT location_id, location_type, city, country, region, is_primary, confidence, source, created_at
+            FROM speaker_locations
+            WHERE speaker_id = ?
+            ORDER BY is_primary DESC, confidence DESC
+        ''', (speaker_id,))
+        return cursor.fetchall()
+
+    def save_speaker_language(self, speaker_id, language, proficiency=None, confidence=None, source=None):
+        """Save language information for a speaker"""
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        try:
+            cursor.execute('''
+                INSERT INTO speaker_languages
+                (speaker_id, language, proficiency, confidence, source, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (speaker_id, language, proficiency, confidence, source, now))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # Language already exists for this speaker, update it
+            cursor.execute('''
+                UPDATE speaker_languages
+                SET proficiency = ?, confidence = ?, source = ?, created_at = ?
+                WHERE speaker_id = ? AND language = ?
+            ''', (proficiency, confidence, source, now, speaker_id, language))
+            self.conn.commit()
+            return None
+
+    def get_speaker_languages(self, speaker_id):
+        """Get all languages for a speaker"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT language, proficiency, confidence, source, created_at
+            FROM speaker_languages
+            WHERE speaker_id = ?
+            ORDER BY confidence DESC
+        ''', (speaker_id,))
+        return cursor.fetchall()
+
     def merge_duplicates(self, verbose=False):
         """
         Find and merge duplicate speakers (same name, different records).
