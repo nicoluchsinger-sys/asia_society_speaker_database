@@ -6,6 +6,7 @@ Uses Claude API to parse queries into structured search criteria
 import anthropic
 import json
 import os
+import time
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -103,48 +104,66 @@ Guidelines:
 - Return ONLY valid JSON, no other text
 """
 
-        try:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=1000,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+        # Retry logic for API overload errors
+        max_retries = 3
+        base_delay = 2  # seconds
 
-            # Track token usage
-            self._last_usage = {
-                'input_tokens': message.usage.input_tokens,
-                'output_tokens': message.usage.output_tokens
-            }
+        for attempt in range(max_retries):
+            try:
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1000,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
 
-            # Extract response text
-            response_text = message.content[0].text.strip()
+                # Track token usage
+                self._last_usage = {
+                    'input_tokens': message.usage.input_tokens,
+                    'output_tokens': message.usage.output_tokens
+                }
 
-            # Remove markdown code fences if present
-            if response_text.startswith('```'):
-                lines = response_text.split('\n')
-                response_text = '\n'.join(lines[1:])
-                if response_text.endswith('```'):
-                    response_text = response_text[:-3]
+                # Extract response text
+                response_text = message.content[0].text.strip()
 
-            # Parse JSON
-            parsed = json.loads(response_text)
+                # Remove markdown code fences if present
+                if response_text.startswith('```'):
+                    lines = response_text.split('\n')
+                    response_text = '\n'.join(lines[1:])
+                    if response_text.endswith('```'):
+                        response_text = response_text[:-3]
 
-            # Validate and normalize the structure
-            result = {
-                'count': parsed.get('count'),
-                'hard_requirements': parsed.get('hard_requirements', []),
-                'soft_preferences': parsed.get('soft_preferences', []),
-                'original_query': parsed.get('original_query', query)
-            }
+                # Parse JSON
+                parsed = json.loads(response_text)
 
-            return result
+                # Validate and normalize the structure
+                result = {
+                    'count': parsed.get('count'),
+                    'hard_requirements': parsed.get('hard_requirements', []),
+                    'soft_preferences': parsed.get('soft_preferences', []),
+                    'original_query': parsed.get('original_query', query)
+                }
 
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse Claude's response as JSON: {e}\nResponse: {response_text}")
-        except Exception as e:
-            raise RuntimeError(f"Error parsing query: {e}")
+                return result
+
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Failed to parse Claude's response as JSON: {e}\nResponse: {response_text}")
+            except anthropic.APIError as e:
+                # Check if it's an overload error (529) or rate limit error
+                if hasattr(e, 'status_code') and e.status_code in [429, 529]:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+                        print(f"API overloaded (attempt {attempt + 1}/{max_retries}), retrying in {delay}s...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        raise RuntimeError(f"Error parsing query after {max_retries} retries: {e}")
+                else:
+                    # Other API errors, don't retry
+                    raise RuntimeError(f"Error parsing query: {e}")
+            except Exception as e:
+                raise RuntimeError(f"Error parsing query: {e}")
 
     def get_last_usage(self) -> Optional[Dict]:
         """Get token usage from last API call"""
