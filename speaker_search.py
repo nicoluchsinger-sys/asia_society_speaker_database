@@ -124,53 +124,57 @@ class SpeakerSearch:
         """
         Stage 2: Score and rank candidates
 
-        Scoring formula:
-        score = semantic_similarity * (1 + preference_bonuses)
+        New scoring formula (gives preferences meaningful weight):
+        final_score = ((semantic_score * 0.6) + (preference_score * 0.4)) * quality_multiplier
+
+        - Semantic score (60%): Topic relevance from embeddings
+        - Preference score (40%): Match on gender/location/language preferences
+        - Quality multiplier (1.0-1.5x): Boost for high-quality profiles
         """
         scored_candidates = []
 
         for candidate in candidates:
-            # Base score from semantic similarity (0.0 to 1.0)
-            base_score = candidate.get('semantic_similarity', 0.5)
+            # 1. Semantic similarity score (0.0 to 1.0) - topic relevance
+            semantic_score = candidate.get('semantic_similarity', 0.5)
 
-            # Calculate bonuses
-            bonus = 0.0
-            explanations = []
+            # 2. Preference match score (0.0 to 1.0)
+            preference_score, pref_explanations = self._calculate_preference_score(
+                candidate, parsed_query
+            )
 
-            # Tag quality bonuses
+            # 3. Quality multiplier (1.0 to 1.5)
+            quality_multiplier = 1.0
+            quality_explanations = []
+
             tags = candidate.get('tags', [])
             if tags:
                 # High confidence tags
                 high_conf_tags = [t for t in tags if t[1] > 0.8]
                 if high_conf_tags:
-                    bonus += 0.2
-                    explanations.append(f"High-confidence tags ({len(high_conf_tags)})")
+                    quality_multiplier += 0.15
+                    quality_explanations.append(f"High-confidence tags ({len(high_conf_tags)})")
 
-                # Multiple matching tags (rough heuristic)
+                # Multiple matching tags
                 if len(tags) >= 5:
-                    bonus += 0.1
-                    explanations.append(f"Multiple expertise tags ({len(tags)})")
+                    quality_multiplier += 0.1
+                    quality_explanations.append(f"Multiple expertise tags ({len(tags)})")
 
             # Bio completeness
             bio = candidate.get('bio', '')
             if bio and len(bio) > 200:
-                bonus += 0.1
-                explanations.append("Detailed bio available")
+                quality_multiplier += 0.1
+                quality_explanations.append("Detailed bio available")
 
-            # Recent events (placeholder - would need event date analysis)
+            # Active speaker
             event_count = candidate.get('event_count', 0)
             if event_count > 5:
-                bonus += 0.1
-                explanations.append(f"Active speaker ({event_count} events)")
-
-            # Apply soft preferences from query
-            pref_explanations = self._apply_preferences(candidate, parsed_query)
-            for pref_bonus, pref_explanation in pref_explanations:
-                bonus += pref_bonus
-                explanations.append(pref_explanation)
+                quality_multiplier += 0.15
+                quality_explanations.append(f"Active speaker ({event_count} events)")
 
             # Calculate final score
-            final_score = base_score * (1 + bonus)
+            # Topic relevance (60%) + Preference match (40%), boosted by quality
+            combined_score = (semantic_score * 0.6) + (preference_score * 0.4)
+            final_score = combined_score * quality_multiplier
 
             # Build result
             result = {
@@ -182,11 +186,19 @@ class SpeakerSearch:
                 'tags': tags,
                 'event_count': event_count,
                 'score': final_score,
-                'base_score': base_score,
-                'bonus': bonus
+                'semantic_score': semantic_score,
+                'preference_score': preference_score,
+                'quality_multiplier': quality_multiplier
             }
 
             if explain:
+                explanations = []
+                explanations.append(f"Topic relevance: {semantic_score:.2f}")
+                explanations.append(f"Preference match: {preference_score:.2f}")
+                if pref_explanations:
+                    explanations.extend(pref_explanations)
+                if quality_explanations:
+                    explanations.extend(quality_explanations)
                 result['explanation'] = explanations
 
             scored_candidates.append(result)
@@ -196,24 +208,35 @@ class SpeakerSearch:
 
         return scored_candidates
 
-    def _apply_preferences(
+    def _calculate_preference_score(
         self,
         speaker: Dict,
         parsed_query: Dict
-    ) -> List[Tuple[float, str]]:
+    ) -> Tuple[float, List[str]]:
         """
-        Apply soft preferences from query to speaker
+        Calculate preference match score (0.0 to 1.0)
 
-        Returns list of (bonus_value, explanation) tuples
+        Returns (score, explanations) tuple where:
+        - score: 0.0 (no matches) to 1.0 (all preferences matched)
+        - explanations: List of matched preference descriptions
         """
-        bonuses = []
-
         preferences = parsed_query.get('soft_preferences', [])
+
+        # If no preferences specified, return neutral score
+        if not preferences:
+            return 0.5, []
+
+        total_weight = 0.0
+        matched_weight = 0.0
+        explanations = []
 
         for pref in preferences:
             pref_type = pref['type']
             pref_value = pref['value']
             pref_weight = pref.get('weight', 0.5)
+
+            # Add to total weight (this is what we're measuring against)
+            total_weight += pref_weight
 
             if pref_type == 'gender':
                 # Check demographics
@@ -221,43 +244,74 @@ class SpeakerSearch:
                 if demographics:
                     gender = demographics[0]  # First field is gender
                     if gender and gender.lower() == pref_value.lower():
-                        bonus_value = 0.3 * pref_weight
-                        bonuses.append((bonus_value, f"Gender match ({pref_value})"))
+                        matched_weight += pref_weight
+                        explanations.append(f"✓ Gender: {pref_value}")
+                    else:
+                        explanations.append(f"✗ Gender: wanted {pref_value}, is {gender or 'unknown'}")
+                else:
+                    explanations.append(f"✗ Gender: wanted {pref_value}, no data")
 
             elif pref_type == 'location_region':
                 # Check locations
                 locations = self.db.get_speaker_locations(speaker['speaker_id'])
+                matched = False
                 if locations:
                     for loc in locations:
                         region = loc[4]  # Region is 5th field
                         if region and region.lower() == pref_value.lower():
-                            bonus_value = 0.4 * pref_weight
-                            bonuses.append((bonus_value, f"Region match ({pref_value})"))
+                            matched_weight += pref_weight
+                            explanations.append(f"✓ Region: {pref_value}")
+                            matched = True
                             break
+
+                if not matched:
+                    speaker_regions = [loc[4] for loc in locations if loc[4]] if locations else []
+                    actual = ', '.join(speaker_regions) if speaker_regions else 'unknown'
+                    explanations.append(f"✗ Region: wanted {pref_value}, is {actual}")
 
             elif pref_type == 'location_country':
                 # Check locations
                 locations = self.db.get_speaker_locations(speaker['speaker_id'])
+                matched = False
                 if locations:
                     for loc in locations:
                         country = loc[3]  # Country is 4th field
                         if country and country.lower() == pref_value.lower():
-                            bonus_value = 0.4 * pref_weight
-                            bonuses.append((bonus_value, f"Country match ({pref_value})"))
+                            matched_weight += pref_weight
+                            explanations.append(f"✓ Country: {pref_value}")
+                            matched = True
                             break
+
+                if not matched:
+                    speaker_countries = [loc[3] for loc in locations if loc[3]] if locations else []
+                    actual = ', '.join(speaker_countries) if speaker_countries else 'unknown'
+                    explanations.append(f"✗ Country: wanted {pref_value}, is {actual}")
 
             elif pref_type == 'language':
                 # Check languages
                 languages = self.db.get_speaker_languages(speaker['speaker_id'])
+                matched = False
                 if languages:
                     for lang in languages:
                         language = lang[0]  # Language is first field
                         if language and language.lower() == pref_value.lower():
-                            bonus_value = 0.2 * pref_weight
-                            bonuses.append((bonus_value, f"Language match ({pref_value})"))
+                            matched_weight += pref_weight
+                            explanations.append(f"✓ Language: {pref_value}")
+                            matched = True
                             break
 
-        return bonuses
+                if not matched:
+                    speaker_langs = [lang[0] for lang in languages if lang[0]] if languages else []
+                    actual = ', '.join(speaker_langs) if speaker_langs else 'unknown'
+                    explanations.append(f"✗ Language: wanted {pref_value}, speaks {actual}")
+
+        # Calculate normalized score (0.0 to 1.0)
+        if total_weight > 0:
+            preference_score = matched_weight / total_weight
+        else:
+            preference_score = 0.5  # Neutral if no preferences
+
+        return preference_score, explanations
 
     def _get_speaker_data(self, speaker_id: int) -> Optional[Dict]:
         """Get full data for a speaker"""
