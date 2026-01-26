@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ speaker.name }} - Asia Society{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="/" class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back to Search
+        </a>
+    </div>
+
+    <!-- Speaker Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ speaker.name }}</h1>
+        {% if speaker.title %}
+        <p class="text-xl text-gray-600 mb-1">{{ speaker.title }}</p>
+        {% endif %}
+        {% if speaker.affiliation %}
+        <p class="text-lg text-blue-600 font-medium">{{ speaker.affiliation }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Demographics -->
+    {% if demographics or locations or languages %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Demographics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if demographics %}
+            <div>
+                {% if demographics.gender %}
+                <div class="flex items-center mb-2">
+                    <span class="text-gray-600 font-medium w-32">Gender:</span>
+                    <span class="text-gray-800">{{ demographics.gender }}</span>
+                    {% if demographics.gender_confidence %}
+                    <span class="ml-2 text-xs text-gray-500">({{ (demographics.gender_confidence * 100) | round }}% conf.)</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if demographics.nationality %}
+                <div class="flex items-center mb-2">
+                    <span class="text-gray-600 font-medium w-32">Nationality:</span>
+                    <span class="text-gray-800">{{ demographics.nationality }}</span>
+                    {% if demographics.nationality_confidence %}
+                    <span class="ml-2 text-xs text-gray-500">({{ (demographics.nationality_confidence * 100) | round }}% conf.)</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if demographics.birth_year %}
+                <div class="flex items-center mb-2">
+                    <span class="text-gray-600 font-medium w-32">Birth Year:</span>
+                    <span class="text-gray-800">{{ demographics.birth_year }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div>
+                {% if locations %}
+                <div class="mb-3">
+                    <span class="text-gray-600 font-medium">Location(s):</span>
+                    {% for location in locations %}
+                    <div class="ml-2 mt-1">
+                        {% if location.is_primary %}
+                        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">PRIMARY</span>
+                        {% endif %}
+                        <span class="text-gray-800">
+                            {% if location.city %}{{ location.city }}, {% endif %}
+                            {% if location.country %}{{ location.country }}{% endif %}
+                            {% if location.region %} ({{ location.region }}){% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if languages %}
+                <div>
+                    <span class="text-gray-600 font-medium">Language(s):</span>
+                    {% for lang in languages %}
+                    <div class="ml-2 mt-1">
+                        <span class="text-gray-800">{{ lang.language }}</span>
+                        {% if lang.proficiency %}
+                        <span class="text-sm text-gray-600">({{ lang.proficiency }})</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Expertise Tags -->
+    {% if tags %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Expertise Tags</h2>
+        <div class="flex flex-wrap gap-2">
+            {% for tag in tags %}
+            <span class="tag-pill tag-{{ tag.color }} px-3 py-1 rounded-full text-sm font-medium">
+                {{ tag.text }}
+                {% if tag.confidence %}
+                <span class="text-xs opacity-75">({{ (tag.confidence * 100) | round }}%)</span>
+                {% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Biography -->
+    {% if speaker.bio %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Biography</h2>
+        <div class="text-gray-700 leading-relaxed prose max-w-none">
+            {{ speaker.bio }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Speaking Engagements -->
+    {% if events %}
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            Speaking Engagements ({{ events | length }})
+        </h2>
+        <div class="space-y-3">
+            {% for event in events %}
+            <div class="border-l-4 border-blue-500 pl-4 py-2 hover:bg-gray-50 transition">
+                {% if event.url %}
+                <a href="{{ event.url }}" target="_blank" class="text-blue-600 hover:text-blue-700 font-medium">
+                    {{ event.title }}
+                    <svg class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+                {% else %}
+                <p class="text-gray-800 font-medium">{{ event.title }}</p>
+                {% endif %}
+                <div class="flex items-center text-sm text-gray-600 mt-1">
+                    {% if event.event_date %}
+                    <span>{{ event.event_date }}</span>
+                    {% endif %}
+                    {% if event.role %}
+                    <span class="mx-2">•</span>
+                    <span>{{ event.role }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

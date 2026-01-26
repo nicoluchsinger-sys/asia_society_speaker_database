@@ -1,0 +1,207 @@
+"""
+Flask web application for speaker search
+"""
+
+from flask import Flask, render_template, request, jsonify
+import sys
+import os
+
+# Add parent directory to path to access modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from speaker_search import SpeakerSearch
+from database import SpeakerDatabase
+
+app = Flask(__name__)
+
+# Initialize search engine (reuse connection)
+search = None
+db = None
+
+def get_search():
+    """Lazy initialization of search engine"""
+    global search
+    if search is None:
+        # Use database in parent directory
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+        search = SpeakerSearch(db_path=db_path, provider='openai')
+    return search
+
+def get_db():
+    """Lazy initialization of database"""
+    global db
+    if db is None:
+        # Use database in parent directory
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+        db = SpeakerDatabase(db_path)
+    return db
+
+
+@app.route('/')
+def index():
+    """Homepage with search interface"""
+    return render_template('search.html')
+
+
+@app.route('/api/search', methods=['POST'])
+def api_search():
+    """Search API endpoint"""
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    limit = data.get('limit', 10)
+    explain = data.get('explain', False)
+
+    if not query:
+        return jsonify({
+            'success': False,
+            'error': 'Query cannot be empty'
+        }), 400
+
+    try:
+        search_engine = get_search()
+        results = search_engine.search(query, top_k=limit, explain=explain)
+
+        # Format results for JSON
+        formatted_results = []
+        for result in results:
+            formatted_result = {
+                'speaker_id': result['speaker_id'],
+                'name': result['name'],
+                'title': result.get('title'),
+                'affiliation': result.get('affiliation'),
+                'bio': result.get('bio'),
+                'tags': result.get('tags', []),
+                'event_count': result.get('event_count', 0),
+                'score': round(result['score'], 3),
+                'base_score': round(result.get('base_score', 0), 3),
+                'bonus': round(result.get('bonus', 0), 3)
+            }
+
+            if explain and 'explanation' in result:
+                formatted_result['explanation'] = result['explanation']
+
+            formatted_results.append(formatted_result)
+
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': formatted_results,
+            'count': len(formatted_results)
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Search error: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Search failed: {str(e)}'
+        }), 500
+
+
+@app.route('/speaker/<int:speaker_id>')
+def speaker_detail(speaker_id):
+    """Speaker detail page"""
+    database = get_db()
+
+    speaker_data = database.get_speaker_by_id(speaker_id)
+    if not speaker_data:
+        return "Speaker not found", 404
+
+    # Parse speaker data
+    speaker = {
+        'speaker_id': speaker_data[0],
+        'name': speaker_data[1],
+        'title': speaker_data[2],
+        'affiliation': speaker_data[3],
+        'primary_affiliation': speaker_data[4],
+        'bio': speaker_data[5]
+    }
+
+    # Get additional data
+    tags = database.get_speaker_tags(speaker_id)
+    events = database.get_speaker_events(speaker_id)
+    demographics = database.get_speaker_demographics(speaker_id)
+    locations = database.get_speaker_locations(speaker_id)
+    languages = database.get_speaker_languages(speaker_id)
+
+    # Format demographics
+    demographics_data = None
+    if demographics:
+        demographics_data = {
+            'gender': demographics[0],
+            'gender_confidence': demographics[1],
+            'nationality': demographics[2],
+            'nationality_confidence': demographics[3],
+            'birth_year': demographics[4],
+            'enriched_at': demographics[5]
+        }
+
+    # Format tags with confidence colors
+    formatted_tags = []
+    for tag in tags:
+        tag_text, confidence, source, created_at = tag
+        color = 'green' if confidence and confidence > 0.8 else 'blue' if confidence and confidence > 0.6 else 'gray'
+        formatted_tags.append({
+            'text': tag_text,
+            'confidence': confidence,
+            'color': color,
+            'source': source
+        })
+
+    # Format locations
+    formatted_locations = []
+    for loc in locations:
+        formatted_locations.append({
+            'location_id': loc[0],
+            'location_type': loc[1],
+            'city': loc[2],
+            'country': loc[3],
+            'region': loc[4],
+            'is_primary': loc[5],
+            'confidence': loc[6],
+            'source': loc[7]
+        })
+
+    # Format languages
+    formatted_languages = []
+    for lang in languages:
+        formatted_languages.append({
+            'language': lang[0],
+            'proficiency': lang[1],
+            'confidence': lang[2],
+            'source': lang[3]
+        })
+
+    # Format events
+    formatted_events = []
+    for event in events:
+        formatted_events.append({
+            'event_id': event[0],
+            'title': event[1],
+            'event_date': event[2],
+            'url': event[3],
+            'role': event[4]
+        })
+
+    return render_template(
+        'speaker.html',
+        speaker=speaker,
+        tags=formatted_tags,
+        events=formatted_events,
+        demographics=demographics_data,
+        locations=formatted_locations,
+        languages=formatted_languages
+    )
+
+
+@app.route('/api/stats')
+def api_stats():
+    """Database statistics"""
+    database = get_db()
+    stats = database.get_statistics()
+    return jsonify(stats)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001, host='0.0.0.0')
