@@ -768,6 +768,182 @@ railway logs --service scraper
 
 ---
 
+## Session 4 - February 5, 2026
+**Focus**: Testing scraper workflow and beginning first scaling session
+
+### Summary
+Successfully tested the complete manual sync workflow with a small 5-event scraping job. Verified all components work: scraping, extraction, download, upload. Fixed Railway filesystem permission issues. Started first major scaling session (200 events) to grow from 448 to ~650 speakers.
+
+### Achievements
+
+#### Workflow Testing (Completed ✅)
+- ✅ **Tested scraper with 5 events**
+  - Scraped 5 new events (IDs 205-209) from multiple locations
+  - Extracted 6 speaker records (5 new unique speakers added)
+  - Cost: $0.09 (~$0.02 per event)
+  - Runtime: 58 seconds total
+  - All components working: Chrome/Selenium, Claude API, deduplication
+
+- ✅ **Verified manual sync workflow**
+  - Downloaded database from scraper: `railway run --service scraper cat speakers.db > scraper_speakers.db`
+  - Uploaded to web service: `curl -X POST -F "file=@scraper_speakers.db" ...`
+  - Confirmed web service updated: 443 → 448 speakers, 204 → 209 events
+  - Workflow proven and repeatable
+
+#### Infrastructure Fixes (Completed ✅)
+- ✅ **Fixed Railway filesystem permissions**
+  - Issue: "unable to open database file" errors during scraping
+  - Cause: /app directory read-only after Docker build
+  - Solution: Modified `railway_scraper.sh` to create database file with write permissions before scraping
+  - Added: `touch speakers.db && chmod 666 speakers.db` before main script
+
+- ✅ **Added download endpoint**
+  - Created `/admin/download-db` route for downloading database from web service
+  - Complements upload endpoint for bidirectional database transfer
+  - Temporary utility (to be removed after scaling)
+
+#### Documentation (Completed ✅)
+- ✅ **Consolidated backlog structure**
+  - Created single organized backlog section at end of SESSION_LOG.md
+  - Added "Manual Entries" section for easy user additions
+  - Organized by category with priority levels (High/Medium/Low)
+  - Added instructions for Claude to automatically distribute manual entries
+  - Collapsed historical session backlogs for reference
+
+- ✅ **User-added backlog item processed**
+  - User requested: FAQ page explaining database in non-technical terms
+  - Added to UI/UX Features (Medium Priority) in organized backlog
+  - Includes: confidence levels, data quality, search tips, data sources
+
+#### Scaling Session 1 (In Progress ⏳)
+- ⏳ **Started 200-event scraping session**
+  - Command: `railway run --service scraper bash -c './railway_scraper.sh 200'`
+  - Expected runtime: ~80 minutes (1 hour 20 min)
+  - Expected cost: ~$3.60
+  - Expected result: ~600-650 total speakers (adding ~150-200 new)
+  - Status: Running on Railway scraper service
+
+### Files Modified/Created
+```
+Modified:
+- railway_scraper.sh (added database file creation and permissions)
+- web_app/app.py (added /admin/download-db endpoint)
+- SESSION_LOG.md (consolidated backlog structure)
+
+Created:
+- scraper_speakers.db (downloaded test database)
+
+Commits: 2c8a6d6, 71e71de, 9b798f8
+```
+
+### Test Results Analysis
+
+**5-Event Test Performance:**
+- Scraping: 36.47s (62.9%) - 5 events from France, Switzerland, Hong Kong, Australia
+- Extraction: 21.49s (37.1%) - 6 speaker records found
+- API Usage: 5 calls, 25,484 tokens, $0.0929
+- Deduplication: Worked correctly (6 raw → 5 unique added)
+
+**Extrapolation to 200 Events:**
+- Estimated scraping time: ~40 minutes
+- Estimated extraction time: ~40 minutes
+- Estimated cost: ~$3.72 (200 events × $0.0186/event)
+- Estimated new speakers: ~150-200 unique
+
+### Current Status
+
+**Database State:**
+- Web service: 448 speakers, 209 events
+- Scraper service: Running Session 1 (200 events)
+- Local backup: 448 speakers, 209 events
+
+**Services:**
+- Web service: Active, search working, password-protected
+- Scraper service: Active, running 200-event job
+- Both services: Stable, no errors after permission fix
+
+**Cost Tracking:**
+- Infrastructure: $6/month (Railway web + volume)
+- API costs so far: $0.09 (test scraping)
+- Session 1 in progress: ~$3.60 additional
+- Total for scaling (4 sessions): ~$14.40 estimated
+
+### Lessons Learned
+
+**Railway Filesystem:**
+- `/app` directory is read-only after Docker build completes
+- Need to explicitly create writable files before use
+- `touch` + `chmod` before database creation solves permission issues
+
+**Manual Sync Workflow:**
+- Works well for temporary scaling phase
+- Download + upload takes ~30 seconds total
+- Database size manageable (65MB for 448 speakers)
+- No merge conflicts since scraper starts from same base
+
+**Workflow Optimization:**
+- Test with 5 events first to catch errors early
+- Verify download/upload before starting big sessions
+- Railway logs helpful for monitoring progress
+- Can run in background, check back later
+
+---
+
+## Next Session - Immediate Tasks
+
+### After Session 1 Completes (~80 minutes from start)
+
+1. **Download and upload database**
+   ```bash
+   railway run --service scraper cat speakers.db > scraper_speakers.db
+   curl -X POST -F "file=@scraper_speakers.db" https://asiasocietyspeakerdatabase-production.up.railway.app/admin/upload-db
+   curl https://asiasocietyspeakerdatabase-production.up.railway.app/api/stats
+   ```
+
+2. **Verify results**
+   - Expected: ~600-650 speakers, ~409 events
+   - Test search for newly added speakers
+   - Check that deduplication worked
+
+3. **Evaluate workflow**
+   - Was manual sync acceptable or too cumbersome?
+   - Continue with Sessions 2-4, or switch strategy?
+   - Cost and time as expected?
+
+### Remaining Scaling Sessions
+
+**Session 2:** 200 events → ~800 speakers
+**Session 3:** 200 events → ~950 speakers
+**Session 4:** 200 events → ~1,100-1,200 speakers
+
+**Target:** 1,000+ unique speakers, ~1,000 events
+
+### After Scaling Complete
+
+1. **Remove temporary security risks**
+   - Delete `/admin/upload-db` endpoint
+   - Delete `/admin/download-db` endpoint
+
+2. **Simplify architecture**
+   - Remove scraper service from Railway
+   - Set up daily automated scraping (20 events/day)
+   - Reduce cost to $6/month
+
+3. **Fix stats endpoint bug** (Task #6)
+
+---
+
+## Development Philosophy (Continued)
+
+**Session 4 additions:**
+- **Test small before scaling big** - 5-event test caught permission issues before wasting 80 minutes
+- **Verify workflows end-to-end** - Manual sync proven before starting long session
+- **Fix errors immediately** - Don't proceed with known issues, even if they seem minor
+- **Document user preferences** - Backlog system adapted to user's manual entry style
+- **Automate what matters** - User correctly identified manual steps as temporary, not permanent architecture
+
+---
+
 # CONSOLIDATED BACKLOG
 
 **Instructions for Claude:**
@@ -833,6 +1009,13 @@ This section contains all improvement ideas and future enhancements organized by
   - Browse events by date, location, topic
   - Event detail pages
   - Calendar view
+
+- **FAQ page for users**
+  - Explain how the database works in non-technical terms
+  - Explain confidence levels and data quality
+  - Search tips and examples
+  - Data sources and update frequency
+  - Common questions about speaker information
 
 **Low Priority:**
 - **Admin dashboard with statistics**
