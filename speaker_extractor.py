@@ -143,15 +143,60 @@ Important guidelines:
         else:
             max_tokens = 2000  # Standard events (5-10 speakers typical)
 
-        try:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+        # Retry logic for API resilience at scale
+        # Handles transient failures and rate limits with exponential backoff (1s, 2s, 4s)
+        max_retries = 3
+        message = None
 
+        for attempt in range(max_retries):
+            try:
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                break  # Success, exit retry loop
+
+            except anthropic.RateLimitError as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
+                    print(f"⚠ Rate limit hit, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait_time)
+                    continue
+                # Final attempt failed, return error
+                return {
+                    'success': False,
+                    'error': f'Rate limit exceeded after {max_retries} attempts: {str(e)}',
+                    'raw_response': None,
+                    'retry_after': getattr(e, 'retry_after', 60)
+                }
+
+            except anthropic.APIStatusError as e:
+                status_code = getattr(e, 'status_code', 'unknown')
+                # Retry only on 5xx server errors (transient), not 4xx client errors (permanent)
+                if isinstance(status_code, int) and status_code >= 500 and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
+                    print(f"⚠ API error {status_code}, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait_time)
+                    continue
+                # 4xx error or final attempt failed, return error
+                return {
+                    'success': False,
+                    'error': f'API error (status {status_code}): {str(e)}',
+                    'raw_response': None
+                }
+
+        # If we got here without a message, something unexpected went wrong
+        if message is None:
+            return {
+                'success': False,
+                'error': 'API call failed after retries without raising exception',
+                'raw_response': None
+            }
+
+        try:
             # Track token usage for cost monitoring and debugging
             # Input tokens = prompt length, Output tokens = response length
             self._last_usage = {
@@ -196,27 +241,8 @@ Important guidelines:
                 'raw_response': response_text if 'response_text' in locals() else None
             }
 
-        except anthropic.RateLimitError as e:
-            # Hit API rate limit - caller should implement exponential backoff
-            return {
-                'success': False,
-                'error': f'Rate limit exceeded: {str(e)}. Please wait and retry.',
-                'raw_response': None,
-                'retry_after': getattr(e, 'retry_after', 60)  # Seconds to wait
-            }
-
-        except anthropic.APIStatusError as e:
-            # API returned error status (4xx or 5xx)
-            # Common causes: invalid API key, API downtime, bad request format
-            status_code = getattr(e, 'status_code', 'unknown')
-            return {
-                'success': False,
-                'error': f'API error (status {status_code}): {str(e)}',
-                'raw_response': None
-            }
-
         except Exception as e:
-            # Catch-all for unexpected errors (network issues, etc.)
+            # Catch-all for unexpected errors (network issues, response processing errors, etc.)
             return {
                 'success': False,
                 'error': f'Unexpected error: {type(e).__name__}: {str(e)}',

@@ -125,6 +125,13 @@ class SpeakerDatabase:
         if 'tagging_status' not in columns:
             cursor.execute('ALTER TABLE speakers ADD COLUMN tagging_status TEXT DEFAULT "pending"')
 
+        # Add performance indexes for fuzzy matching and filtering at scale
+        # These become critical with 1000+ speakers to prevent O(n) lookups
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_speakers_name_lower ON speakers(LOWER(name))')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_events_status ON events(processing_status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_speaker ON event_speakers(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_event ON event_speakers(event_id)')
+
         self.conn.commit()
     
     def add_event(self, url: str, title: str, body_text: str, raw_html: Optional[str] = None,
