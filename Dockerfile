@@ -65,5 +65,5 @@ RUN mkdir -p /data
 ENV PYTHONUNBUFFERED=1
 ENV DISPLAY=:99
 
-# Default command (can be overridden)
-CMD ["python3", "main_selenium.py", "-e", "10", "--stats"]
+# Default command - web service (can be overridden by Procfile or service settings)
+CMD ["python3", "web_app/app.py"]
