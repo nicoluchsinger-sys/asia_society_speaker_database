@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: speaker_web
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./speakers.db:/app/speakers.db
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    command: python3 web_app/app.py
+    restart: unless-stopped
+
+  scraper:
+    build: .
+    container_name: speaker_scraper
+    volumes:
+      - ./speakers.db:/app/speakers.db
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    command: python3 main_selenium.py -e 20 --stats
+    restart: "no"
+    profiles:
+      - manual
