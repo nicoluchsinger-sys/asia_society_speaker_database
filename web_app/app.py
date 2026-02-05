@@ -203,6 +203,23 @@ def api_stats():
     return jsonify(stats)
 
 
+@app.route('/admin/upload-db', methods=['POST'])
+def upload_database():
+    """TEMPORARY: Upload database file - REMOVE AFTER USE"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+
+        file.save(db_path)
+
+        return jsonify({'success': True, 'message': f'Database uploaded to {db_path}', 'size': os.path.getsize(db_path)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Use PORT environment variable for Railway/Heroku compatibility
     port = int(os.environ.get('PORT', 5001))
