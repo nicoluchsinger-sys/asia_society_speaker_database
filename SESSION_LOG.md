@@ -439,3 +439,320 @@ Created:
 - **Security by default** - Added password protection before sharing
 - **Document as you go** - Created deployment guides during implementation
 - **Clean up after yourself** - Note to remove temporary code in next session
+
+---
+
+## Session 3 - February 5, 2026
+**Focus**: Background worker setup and Railway infrastructure debugging
+
+### Summary
+Attempted to configure second Railway service for background scraping. Encountered multiple Railway-specific infrastructure issues (Dockerfile compatibility, environment variables, volume sharing). Successfully resolved web service issues and implemented persistent storage with Railway volumes. Scraper service configured but volume sharing remains challenging.
+
+### Achievements
+
+#### Background Worker Infrastructure (Partial ✅)
+- ✅ **Created railway_scraper.sh** - Script for running scraping sessions
+  - Configurable event count (default: 200)
+  - Headless Chrome mode
+  - Statistics display after completion
+- ✅ **Created RAILWAY_BACKGROUND_WORKER.md** - Complete setup guide
+  - Step-by-step service configuration
+  - Environment variable setup
+  - Troubleshooting guide
+- ✅ **Added second Railway service** (`scraper`)
+  - Configured with `sleep infinity` start command
+  - Environment variables configured via reference to `web` service
+  - Built successfully with Dockerfile
+
+#### Railway Infrastructure Fixes (Completed ✅)
+- ✅ **Fixed VOLUME keyword error**
+  - Removed `VOLUME /data` from Dockerfile (Railway doesn't allow)
+  - Railway manages volumes separately via dashboard
+- ✅ **Fixed Dockerfile CMD conflict**
+  - Changed default command from `main_selenium.py` to `web_app/app.py`
+  - Web service uses default CMD (Flask)
+  - Scraper service overrides with `sleep infinity`
+- ✅ **Fixed environment variable whitespace bug**
+  - Trailing spaces in `ANTHROPIC_API_KEY` caused "Illegal header value" error
+  - Deleted and re-added variables without whitespace
+  - Search functionality restored
+- ✅ **Implemented Railway volume persistence**
+  - Created volume mounted at `/data`
+  - Updated code to use `/data/speakers.db` on Railway, `./speakers.db` locally
+  - Database survives redeploys
+  - Tested persistence with forced redeploy - confirmed working
+
+#### Environment Variable Configuration
+- ✅ **Switched to shared variable references**
+  - Web service maintains primary API keys
+  - Scraper service references web's variables via `${{web.VARIABLE}}`
+  - Single source of truth (user's preference for maintainability)
+
+### Challenges Encountered
+
+#### Railway-Specific Limitations
+1. **Volume sharing not straightforward**
+   - Railway doesn't support Docker Compose-style shared volumes
+   - Each service creates its own volume
+   - No built-in way to mount same volume to multiple services
+   - Attempted but couldn't find option to connect scraper to existing web volume
+
+2. **Ephemeral filesystem**
+   - Every redeploy wipes non-volume files
+   - Database lost multiple times during debugging
+   - Required re-upload after each fix
+
+3. **Dockerfile compatibility issues**
+   - VOLUME keyword banned (Railway manages volumes separately)
+   - Default CMD affects all services using same Dockerfile
+   - ChromeDriver version mismatches
+
+4. **Environment variable propagation**
+   - Variables with trailing whitespace caused HTTP header errors
+   - Required explicit redeploys to pick up variable changes
+   - Shared variables feature unclear/not working as expected
+
+### Files Modified/Created
+```
+Modified:
+- Dockerfile (removed VOLUME, changed CMD to Flask app)
+- web_app/app.py (added get_db_path() for Railway volume support)
+
+Created:
+- railway_scraper.sh (scraping script for background worker)
+- RAILWAY_BACKGROUND_WORKER.md (setup guide)
+
+Deleted:
+- railway.json (caused "Dockerfile does not exist" error)
+
+Commits: 407b3cf, e0ee210, 6c2fde0, 4433f63, 1b47cde, 02e77ce
+```
+
+### Current Status
+
+#### What's Working ✅
+- Web service live at Railway URL with password protection
+- Search functionality working with 443 speakers
+- Database persistence via Railway volume at `/data/speakers.db`
+- Verified persistence across redeploys
+- Scraper service built and running (sleep infinity)
+- Both services have environment variables configured
+
+#### What's Not Working ⚠️
+- **Volume sharing between services** - Railway limitation
+- Scraper can't write to same database as web service
+- Need alternative approach for scaling (manual sync or PostgreSQL)
+
+#### Known Issues
+- ⚠️ Temporary upload endpoint still in code (security risk - remove after scaling)
+- ⚠️ Scraper service can't access web's database volume
+- ⚠️ Stats endpoint returns 0 counts (bug #6 in backlog)
+
+### Railway Infrastructure Learnings
+
+**Key Discoveries:**
+1. **Railway volumes are service-specific** - not easily shared like Docker Compose
+2. **Dockerfile VOLUME keyword is banned** - must use Railway dashboard volumes
+3. **Volume mount paths must be directories** - can't mount to specific files
+4. **Environment variable whitespace matters** - trailing spaces break HTTP headers
+5. **Ephemeral filesystem** - files outside volumes disappear on redeploy
+6. **Dockerfile CMD applies to all services** - need service-specific overrides
+7. **Variable references work** - `${{service.VAR}}` syntax for single source of truth
+
+**Best Practices Identified:**
+- Mount volumes to directories (`/data`), not files (`/data/file.db`)
+- Use `get_db_path()` helper to detect environment (Railway vs local)
+- Test persistence after volume setup (force redeploy to verify)
+- Delete and re-add variables if spacing issues suspected
+- Use service variable references for maintainability
+
+### Strategy Adjustment: Volume Sharing
+
+**Problem:** Railway doesn't support shared volumes between services (unlike Docker Compose)
+
+**Options Considered:**
+1. ✅ **Manual database sync** (recommended for now)
+   - Scraper writes to temporary local database
+   - Download after scraping completes
+   - Merge locally on laptop
+   - Upload merged database to web service
+   - Pros: Simple, proven to work, gives control
+   - Cons: Manual step required
+
+2. ❌ **Migrate to PostgreSQL** (future consideration)
+   - Both services connect to shared PostgreSQL database
+   - Pros: True shared database, Railway native support
+   - Cons: Migration effort, not needed for 1000 speakers
+   - Added to backlog for post-scaling
+
+3. ❌ **Complex volume workarounds**
+   - Investigate Railway volume mount options further
+   - Potentially use Railway API
+   - Cons: Time-consuming, may not be possible
+
+**Decision:** Use manual sync approach for scaling phase, revisit PostgreSQL later if needed
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Test Scraper Service (30 minutes)
+1. **Run test scraping session** (5 events)
+   - Use Railway CLI or dashboard shell
+   - Command: `./railway_scraper.sh 5`
+   - Verify Chrome/Selenium works
+   - Verify speakers extracted and saved to scraper's local database
+
+2. **Download scraper database**
+   - Figure out how to download database from scraper service
+   - Options: Railway CLI, add download endpoint, or manual export
+
+3. **Test merge workflow locally**
+   - Merge scraper's database with web's database on laptop
+   - Verify no duplicates created
+   - Upload merged database to web service
+   - Test search includes new speakers
+
+### Priority 2: Scale to 1000+ Speakers (1-2 weeks)
+4. **Run 4 scraping sessions** (200 events each)
+   - Session 1: Scrape 200 events → download → merge → upload
+   - Session 2: Scrape 200 events → download → merge → upload
+   - Session 3: Scrape 200 events → download → merge → upload
+   - Session 4: Scrape 200 events → download → merge → upload
+   - Target: 1,000-1,200+ unique speakers
+   - Estimated cost: ~$12 API costs
+   - Timeline: 1-2 weeks (1 session every 2-3 days)
+
+### Priority 3: Cleanup & Security
+5. **Remove temporary upload endpoint** after scaling complete
+   - Delete `/admin/upload-db` route from web_app/app.py
+   - Security risk if left in production
+   - Commit cleanup changes
+
+6. **Fix stats endpoint bug** (Task #6)
+   - Currently returns 0 for all counts
+   - Search works so database connection is fine
+   - Investigate get_db() vs get_statistics() discrepancy
+
+### Priority 4: Architecture Simplification (After Scaling)
+7. **Remove scraper service** when scaling complete
+   - Delete from Railway dashboard
+   - Reduce cost to $5-8/month
+
+8. **Add cron job for daily maintenance** (20 events/day)
+   - Keep database fresh with new events
+   - Options: Railway cron, GitHub Actions, or scheduled Railway deployments
+
+### Backlog - Future Improvements
+
+#### Infrastructure
+- **Migrate to PostgreSQL** (post-scaling consideration)
+  - Enables true shared database between services
+  - Better for concurrent writes during scraping
+  - Railway has native PostgreSQL support
+  - Migration path: SQLite → PostgreSQL converter tools
+  - Estimated effort: 3-4 hours
+  - Priority: Low (SQLite works fine for 1000 speakers)
+  - Benefits: Scalability, concurrent access, Railway-native volumes
+
+#### Features
+- Show speaker location in search results overview (Task #5)
+- Export functionality (CSV, JSON)
+- Advanced filters (date range, location, topic)
+- Speaker profile enhancements
+- Duplicate detection reports
+
+#### Bugs
+- Fix stats endpoint showing 0 counts (Task #6)
+
+---
+
+## Notes for Next Session
+
+### Current Architecture
+```
+Railway Project: speaker-database
+
+Service 1: web (Active ✅)
+├── URL: https://asiasocietyspeakerdatabase-production.up.railway.app
+├── Start command: python3 web_app/app.py (from Dockerfile CMD)
+├── Volume: /data (persistent, 443 speakers)
+├── Environment: ANTHROPIC_API_KEY, OPENAI_API_KEY, SITE_PASSWORD, SECRET_KEY
+└── Status: Working, search functional, database persists
+
+Service 2: scraper (Active ✅)
+├── Start command: sleep infinity (overrides Dockerfile CMD)
+├── Volume: None (was created then deleted due to sharing limitation)
+├── Environment: References web service variables (${{web.VAR}})
+└── Status: Running but needs testing with scraping script
+
+Challenge: Services can't share database volume
+Solution: Manual sync workflow (scrape → download → merge → upload)
+```
+
+### Database Locations
+- **Local development**: `./speakers.db`
+- **Railway web service**: `/data/speakers.db` (persistent volume)
+- **Railway scraper service**: `./speakers.db` (ephemeral, lost on redeploy)
+
+### Cost Tracking
+- **Current**: $6/month (web service + volume)
+- **During scaling**: Same (scraper doesn't need volume)
+- **API costs**: ~$12 one-time for 800 events
+- **After scaling**: $6/month (remove scraper service)
+
+### Manual Sync Workflow for Scaling
+```
+1. Run scraping on Railway scraper service
+2. Download scraper's database (figure out method)
+3. Merge databases locally:
+   - Use merge_duplicates.py
+   - Or manual SQLite commands
+4. Upload merged database to web service:
+   curl -X POST -F "file=@speakers.db" https://asiasocietyspeakerdatabase-production.up.railway.app/admin/upload-db
+5. Verify in web interface
+6. Repeat for next session
+```
+
+### Commands to Remember
+```bash
+# Test scraper (via Railway CLI or dashboard shell)
+./railway_scraper.sh 5
+
+# Upload database to web service
+curl -X POST -F "file=@speakers.db" https://asiasocietyspeakerdatabase-production.up.railway.app/admin/upload-db
+
+# Check scraper logs
+railway logs --service scraper
+
+# Force redeploy (for testing)
+# Railway Dashboard → Service → Deployments → three dots → Redeploy
+```
+
+### Decisions Made This Session
+1. ✅ Use manual database sync instead of shared volumes
+2. ✅ Keep PostgreSQL migration in backlog (not needed now)
+3. ✅ Use variable references (`${{web.VAR}}`) for maintainability
+4. ✅ Mount volumes to `/data` directory, not specific files
+5. ✅ Use Dockerfile for both services (with service-specific CMD overrides)
+
+### Questions to Resolve Next Session
+1. How to download database file from Railway scraper service?
+   - Railway CLI commands?
+   - Add temporary download endpoint?
+   - Use railway shell + base64?
+2. Best way to merge databases locally?
+   - Use existing merge_duplicates.py?
+   - Manual SQLite commands?
+   - Write merge script?
+
+---
+
+## Development Philosophy (Continued)
+
+**Session 3 additions:**
+- **Adapt to platform constraints** - Railway's volume limitations led to manual sync approach
+- **Debug systematically** - Fixed issues one at a time (VOLUME → CMD → whitespace → persistence)
+- **Test persistence explicitly** - Always verify data survives redeploys
+- **Accept good-enough solutions** - Manual sync simpler than fighting platform limitations
+- **Document platform quirks** - Railway-specific learnings help future debugging
