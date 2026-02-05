@@ -2,7 +2,8 @@
 Flask web application for speaker search
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from functools import wraps
 import sys
 import os
 
@@ -13,6 +14,10 @@ from speaker_search import SpeakerSearch
 from database import SpeakerDatabase
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Simple password protection - single password for all users
+SITE_PASSWORD = os.environ.get('SITE_PASSWORD', 'asiasociety123')
 
 # Initialize search engine (reuse connection)
 search = None
@@ -37,13 +42,45 @@ def get_db():
     return db
 
 
+def login_required(f):
+    """Decorator to require password authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('authenticated'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page"""
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == SITE_PASSWORD:
+            session['authenticated'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error='Incorrect password')
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    """Logout and clear session"""
+    session.clear()
+    return redirect(url_for('login'))
+
+
 @app.route('/')
+@login_required
 def index():
     """Homepage with search interface"""
     return render_template('search.html')
 
 
 @app.route('/api/search', methods=['POST'])
+@login_required
 def api_search():
     """Search API endpoint"""
     data = request.get_json()
@@ -100,6 +137,7 @@ def api_search():
 
 
 @app.route('/speaker/<int:speaker_id>')
+@login_required
 def speaker_detail(speaker_id):
     """Speaker detail page"""
     database = get_db()
