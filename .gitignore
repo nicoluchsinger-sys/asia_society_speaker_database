@@ -1,5 +1,9 @@
 .env
 speakers.db
+speakers_test.db
 *.csv
 __pycache__/
 *.pyc
+backups/
+*.log
+.DS_Store
