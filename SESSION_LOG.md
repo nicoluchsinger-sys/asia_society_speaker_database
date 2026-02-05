@@ -105,49 +105,142 @@ Created:
 
 ---
 
-## Next Session - Tasks & Priorities
+## Next Session - Immediate Tasks
 
-### High Priority
-1. **Continue building features** - Core infrastructure is now solid
-2. **Web interface enhancements** - Improve Flask app with learned patterns
-3. **Search functionality** - Enhance natural language search capabilities
+### Ready to Work On
+1. **Continue feature development** - Core infrastructure is solid and well-documented
+2. **Choose from backlog** - Pick any improvement that interests you
+3. **New features** - Build whatever comes next for the project
 
-### Medium Priority (Optional Improvements)
-1. **Documentation completion**:
-   - Add docstrings to remaining files: `merge_duplicates.py`, `embedding_engine.py`, `speaker_search.py`, `query_parser.py`
-   - Estimated: 4-5 hours
+### Quick Wins (If Time)
+- Add docstrings to 1-2 remaining files
+- Enhance error messages in any module
+- Add type hints where missing
 
-2. **Type hints completion**:
-   - Add complete type hints to all remaining files
-   - Estimated: 2 hours
-
-3. **Error handling improvements**:
-   - Distinguish more error types in API calls
-   - Add retry logic with exponential backoff
-   - Estimated: 2 hours
-
-### Low Priority (Future)
-1. **Testing framework**:
-   - Unit tests for fuzzy matching logic
-   - Integration tests for speaker extraction
-   - Estimated: 10-15 hours
-
-2. **Logging infrastructure**:
-   - Replace print statements with logging module
-   - Add configurable log levels
-   - Track API costs and token usage
-   - Estimated: 2-3 hours
-
-3. **Code linting**:
-   - Set up pylint or flake8
-   - Configure pre-commit hooks
-   - Estimated: 1-2 hours
-
-### Notes
-- Core codebase is now production-ready with excellent documentation
+### Notes for Next Session
+- Core codebase is production-ready with excellent documentation
 - All destructive operations are protected with confirmations
 - Error messages provide actionable guidance
 - Follow `.agent/rules/` standards for all future work
+- Check backlog section for detailed improvement ideas
+
+---
+
+## Backlog
+
+This section contains improvement ideas and future enhancements that can be picked up in any session. Items are organized by category and include time estimates where applicable.
+
+### Documentation & Code Quality
+
+- **Complete docstring coverage** (Estimated: 4-5 hours)
+  - `merge_duplicates.py` - Document fuzzy matching logic and merge strategy
+  - `embedding_engine.py` - Document vector operations and similarity calculations
+  - `speaker_search.py` - Document search algorithms and ranking logic
+  - `query_parser.py` - Document NLP query parsing approach
+
+- **Complete type hints** (Estimated: 2 hours)
+  - Add type hints to all remaining files
+  - `query_parser.py` - Add return types to parsing functions
+  - `search_speakers.py` - Add types to search functions
+  - Ensure consistency across entire codebase
+
+- **Explanatory comments for complex logic**
+  - Add comments to remaining algorithms
+  - Document non-obvious design decisions
+  - Explain any workarounds or edge cases
+
+### Error Handling & Reliability
+
+- **Enhanced error handling** (Estimated: 2 hours)
+  - Distinguish more error types in API calls (rate limits vs auth vs network)
+  - Add retry logic with exponential backoff for transient failures
+  - Provide more actionable guidance in error messages
+  - Log errors with context for debugging
+
+- **API resilience improvements**
+  - Implement automatic retry with backoff for Claude API calls
+  - Add circuit breaker pattern for failing external services
+  - Better handling of partial failures in batch operations
+
+### Testing & Quality Assurance
+
+- **Testing framework setup** (Estimated: 10-15 hours)
+  - Set up pytest infrastructure
+  - Unit tests for fuzzy matching logic in `database.py`
+  - Unit tests for text normalization and affiliation overlap
+  - Integration tests for speaker extraction pipeline
+  - Test database operations with in-memory SQLite
+  - Mock API calls for speaker extraction tests
+  - Test deduplication and merge logic
+
+- **Test coverage goals**
+  - Aim for 80%+ coverage on core modules
+  - Focus on business logic and algorithms
+  - Test edge cases and error conditions
+
+### Infrastructure & DevOps
+
+- **Logging infrastructure** (Estimated: 2-3 hours)
+  - Replace print statements with Python logging module
+  - Add configurable log levels (DEBUG, INFO, WARNING, ERROR)
+  - Log to files with rotation
+  - Track API costs and token usage in logs
+  - Add structured logging for easier parsing
+
+- **Code linting setup** (Estimated: 1-2 hours)
+  - Set up pylint or flake8 with project-specific rules
+  - Configure black for automatic formatting
+  - Add pre-commit hooks for automated checks
+  - Integrate with CI/CD if applicable
+
+### Features & Enhancements
+
+- **Web interface improvements**
+  - Enhanced search UI with filters
+  - Speaker profile pages with full history
+  - Event browsing and filtering
+  - Export functionality (CSV, JSON)
+  - Admin dashboard with statistics
+
+- **Search enhancements**
+  - Advanced filters (date range, location, topic)
+  - Faceted search with aggregations
+  - Search result highlighting
+  - Similar speaker suggestions
+  - Save and share search queries
+
+- **Data quality improvements**
+  - Automated duplicate detection reports
+  - Data validation checks
+  - Missing information reports
+  - Affiliation standardization
+
+### Performance & Scalability
+
+- **Database optimization**
+  - Add indexes for common queries
+  - Analyze query performance
+  - Consider connection pooling if needed
+  - Migration path to PostgreSQL if scaling needed
+
+- **Caching layer**
+  - Cache frequently accessed speaker data
+  - Cache search results
+  - Cache embeddings computation
+
+### Documentation
+
+- **User documentation**
+  - Write user guide for web interface
+  - Create API documentation if exposing endpoints
+  - Document search query syntax
+  - Add troubleshooting guide
+
+- **Deployment documentation**
+  - Production deployment guide
+  - Backup and restore procedures
+  - Monitoring and alerting setup
+  - Scaling considerations
 
 ---
 
