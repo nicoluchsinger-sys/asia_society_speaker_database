@@ -254,3 +254,188 @@ Following the "teach, don't just code" principle:
 5. **Examples are provided** - Key functions show usage examples in docstrings
 
 The codebase is now maintainable by someone who didn't write it, teachable to someone learning Python, and safe to operate in production.
+
+---
+
+## Session 2 - February 5, 2026
+**Focus**: Railway deployment and scaling preparation
+
+### Summary
+Successfully deployed web interface to Railway with password protection. Completed Phase 1 code improvements (API retry logic + database indexes) in preparation for scaling to 1000+ speakers. Application now live and accessible online with 443 speakers.
+
+### Achievements
+
+#### Phase 1: Code Improvements for Scale (Completed ✅)
+- ✅ **Added API retry logic to speaker_extractor.py**
+  - Exponential backoff (1s, 2s, 4s delays)
+  - Handles RateLimitError and 5xx APIStatusError automatically
+  - Maximum 3 retry attempts before failing
+  - User-friendly retry progress messages
+- ✅ **Added 4 database indexes for performance**
+  - `idx_speakers_name_lower` - Speeds up fuzzy name matching
+  - `idx_events_status` - Filters events by processing status
+  - `idx_event_speakers_speaker` - Optimizes speaker queries
+  - `idx_event_speakers_event` - Optimizes event queries
+  - Prevents O(n) lookups at 1000+ speaker scale
+- ✅ **Committed and pushed to GitHub** (commits: 7274bb9, 922115e, 33c6f80, 6994f5f, a9e281c, 58e5e68)
+
+#### Railway Deployment (Completed ✅)
+- ✅ **Created Railway account and project**
+  - Project: `speaker-database`
+  - Region: europe-west4
+  - URL: https://asiasocietyspeakerdatabase-production.up.railway.app
+- ✅ **Resolved deployment issues**
+  - Fixed "No start command found" - Added Procfile
+  - Fixed "ModuleNotFoundError: flask" - Added Flask to requirements.txt
+  - Added PORT environment variable support for Railway compatibility
+  - Created nixpacks.toml for proper dependency installation
+- ✅ **Configured environment variables**
+  - ANTHROPIC_API_KEY
+  - OPENAI_API_KEY
+  - PORT (dynamic assignment by Railway)
+- ✅ **Uploaded database to Railway** (64MB, 443 speakers)
+  - Created temporary /admin/upload-db endpoint
+  - Uploaded via curl with multipart file upload
+  - Verified via /api/stats endpoint
+
+#### Password Protection (Completed ✅)
+- ✅ **Added Flask session-based authentication**
+  - Password: `asiasociety123` (configurable via SITE_PASSWORD env var)
+  - Login page with Tailwind CSS styling
+  - @login_required decorator protects all routes
+  - Logout functionality in navigation
+  - SECRET_KEY for session encryption (configurable via env var)
+- ✅ **Site ready for sharing** with select users
+
+#### Documentation
+- ✅ Created RAILWAY_DEPLOYMENT.md - Complete deployment guide
+- ✅ Created RAILWAY_QUICKSTART.md - 5-minute quick start
+- ✅ Updated CLAUDE.md with project context
+
+### Files Modified/Created
+```
+Modified:
+- speaker_extractor.py (retry logic)
+- database.py (indexes)
+- web_app/app.py (password auth, upload endpoint, PORT support)
+- web_app/templates/base.html (logout link)
+- requirements.txt (added Flask)
+
+Created:
+- Procfile
+- nixpacks.toml
+- RAILWAY_DEPLOYMENT.md
+- RAILWAY_QUICKSTART.md
+- web_app/templates/login.html
+- temp_upload.py (utility script)
+- upload_db.sh (utility script)
+- upload_endpoint.py (utility script)
+```
+
+### Metrics
+- **Deployment time**: ~2 hours (including troubleshooting)
+- **Current status**: Live at Railway URL
+- **Speakers deployed**: 443
+- **Events deployed**: 204
+- **Monthly cost**: $5-8 (single service with database)
+
+### Railway Configuration
+- **Service name**: web
+- **Build method**: Nixpacks (auto-detected Python)
+- **Start command**: `python3 web_app/app.py` (via Procfile)
+- **Public URL**: https://asiasocietyspeakerdatabase-production.up.railway.app
+- **Environment**: Production
+- **Auto-deploy**: Enabled on git push to main
+
+### Current Task Status
+1. ✅ Deploy web interface to Railway - **COMPLETED**
+2. ⏳ Configure Railway background worker for scraping - **IN PROGRESS**
+3. ⏳ Scale database to 1000+ speakers on Railway - **PENDING**
+4. ⏳ Simplify to single Railway service with cron - **PENDING**
+5. ⏳ Show speaker location in search results - **BACKLOG**
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Cleanup & Security
+1. **Remove temporary upload endpoint** from web_app/app.py
+   - Delete `/admin/upload-db` route (security risk if left in production)
+   - Remove temp files: temp_upload.py, upload_db.sh, upload_endpoint.py
+   - Commit cleanup changes
+
+### Priority 2: Background Worker Setup
+2. **Add second Railway service for scraping**
+   - Configure scraper service in Railway dashboard
+   - Share database volume between services
+   - Test manual scraping trigger
+
+### Priority 3: Scale to 1000+ Speakers
+3. **Run 4 scraping sessions** (200 events each)
+   - Session 1: Scrape 200 events → extract speakers
+   - Session 2: Scrape 200 events → extract speakers
+   - Session 3: Scrape 200 events → extract speakers
+   - Session 4: Scrape 200 events → extract speakers
+   - Target: 1,000-1,200+ unique speakers
+   - Estimated cost: ~$12 API costs
+   - Timeline: 1-2 weeks
+
+### Priority 4: Simplify Architecture
+4. **Merge to single service** after scaling complete
+   - Remove background worker service
+   - Add cron job for daily maintenance (20 events/day)
+   - Reduce cost to $5-8/month
+
+### Backlog Features
+- Show speaker location in search results overview
+- Export functionality (CSV, JSON)
+- Advanced filters (date range, location, topic)
+- Speaker profile enhancements
+- Duplicate detection reports
+
+---
+
+## Notes for Next Session
+
+### What's Working
+- ✅ Web interface live and password-protected
+- ✅ Search functionality works with 443 speakers
+- ✅ Database persists on Railway
+- ✅ Auto-deployment on git push
+- ✅ SSL/HTTPS included
+- ✅ Zero server management needed
+
+### Known Issues
+- ⚠️ Temporary upload endpoint still in code (security risk - remove ASAP)
+- ⚠️ Only one service running (need background worker for scaling)
+- ⚠️ Database small (443 speakers vs 1000+ target)
+
+### Decision Made
+- **Hosting platform**: Railway (chosen over Hetzner/Vercel)
+  - Reason: Zero sysadmin, same code works as-is, good for long-running tasks
+  - Cost: $10-15/month during scaling, $5-8/month maintenance
+  - Trade-off: Slightly more expensive than Hetzner but much easier
+
+### Strategy Adjustments
+- **Original plan**: Scale locally then deploy
+- **Adjusted plan**: Deploy first, scale on server (user's laptop not always on)
+- **Temporary two-service architecture**: Heavy scraping via background worker
+- **Final architecture**: Single service with cron after scaling complete
+
+### Railway Lessons Learned
+1. Nixpacks auto-detection works but requires Procfile for non-standard app structure
+2. Flask must be in requirements.txt even if working locally
+3. PORT environment variable required for Railway (dynamic assignment)
+4. File upload via HTTP more reliable than Railway CLI for large files
+5. Auto-deployment on git push is very convenient
+
+---
+
+## Development Philosophy (Continued)
+
+**Session 2 additions:**
+- **Deploy early, iterate often** - Got live version working first, will scale later
+- **Simple solutions first** - HTTP upload endpoint simpler than fighting with CLI
+- **Security by default** - Added password protection before sharing
+- **Document as you go** - Created deployment guides during implementation
+- **Clean up after yourself** - Note to remove temporary code in next session
