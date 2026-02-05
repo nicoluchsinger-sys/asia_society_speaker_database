@@ -14,6 +14,13 @@ EVENTS=${1:-200}
 echo "Scraping $EVENTS events..."
 echo ""
 
+# Ensure we can write to current directory
+# Create empty database if it doesn't exist
+if [ ! -f speakers.db ]; then
+    echo "Creating database file..."
+    touch speakers.db && chmod 666 speakers.db || echo "Warning: Could not set permissions"
+fi
+
 # Run scraping with extraction
 python3 main_selenium.py -e $EVENTS --stats --headless
 
