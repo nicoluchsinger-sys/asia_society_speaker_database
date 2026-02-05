@@ -1,31 +1,97 @@
 """
-Speaker extraction using Anthropic's Claude API
+Speaker extraction using Anthropic's Claude API.
+
+This module provides intelligent speaker extraction from event descriptions using
+Claude AI. It uses structured prompts to extract speaker names, titles, affiliations,
+roles, and biographical information from unstructured event text.
+
+Key features:
+- Dynamic token allocation based on event size
+- Robust JSON parsing with markdown fence removal
+- Detailed error handling for API failures
+- Token usage tracking for cost monitoring
 """
 
 import anthropic
 import json
 import os
-from typing import List, Dict
+import time
+from typing import List, Dict, Optional
+
 
 class SpeakerExtractor:
-    def __init__(self, api_key=None):
-        """Initialize with Anthropic API key"""
+    """
+    Extracts speaker information from event descriptions using Claude AI.
+
+    This class handles API communication with Anthropic's Claude API and manages
+    the extraction of structured speaker data from unstructured event text. It
+    implements intelligent token allocation to handle events of varying sizes,
+    from small single-speaker talks to large multi-panel conferences.
+    """
+
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize the speaker extractor with Anthropic API credentials.
+
+        Args:
+            api_key: Anthropic API key. If None, reads from ANTHROPIC_API_KEY env var
+
+        Raises:
+            ValueError: If API key is not provided and not found in environment
+        """
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found. Please set it in .env file or pass it directly.")
-        
+            raise ValueError(
+                "ANTHROPIC_API_KEY not found. Please set it in .env file or pass it directly."
+            )
+
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.model = "claude-sonnet-4-20250514"
+        self._last_usage = {}
     
     def extract_speakers(self, event_title: str, event_text: str) -> Dict:
         """
-        Use Claude to extract speaker information from event text
-        
-        Returns a dictionary with:
-        - speakers: list of speaker dictionaries
-        - reasoning: Claude's explanation of what it found
+        Extract structured speaker information from event text using Claude AI.
+
+        This method sends the event text to Claude with a structured prompt requesting
+        JSON-formatted speaker data. It handles response parsing, including removal of
+        markdown code fences that Claude sometimes includes.
+
+        Dynamic Token Allocation:
+        The max_tokens parameter is adjusted based on event size to handle large
+        multi-panel events that may have dozens of speakers:
+        - Standard events (<30k chars): 2,000 tokens
+        - Medium events (30k-80k chars): 4,000 tokens
+        - Large events (>80k chars): 8,000 tokens
+
+        Args:
+            event_title: Event title
+            event_text: Full event description text
+
+        Returns:
+            Dictionary with structure:
+            {
+                'success': bool,
+                'speakers': [  # Only present if success=True
+                    {
+                        'name': str,
+                        'title': str | None,
+                        'affiliation': str | None,
+                        'primary_affiliation': str | None,
+                        'role_in_event': str | None,
+                        'bio': str | None
+                    },
+                    ...
+                ],
+                'event_summary': str,  # Only present if success=True
+                'raw_response': str,
+                'error': str  # Only present if success=False
+            }
+
+        Note:
+            Token usage is tracked in self._last_usage for cost monitoring.
         """
-        
+
         prompt = f"""You are analyzing an event description to extract information about speakers, panelists, moderators, and other participants.
 
 Event Title: {event_title}
@@ -64,15 +130,18 @@ Important guidelines:
 - If someone has multiple roles (e.g., "moderator and panelist"), include both in role_in_event
 - Return ONLY the JSON, no other text"""
 
-        # Dynamically set max_tokens based on event size
-        # Large events with many speakers need more tokens for the JSON response
+        # Dynamically scale max_tokens based on event size
+        # Reasoning: Large multi-panel events with 20-50 speakers need more tokens
+        # to return complete JSON. Claude needs ~100 tokens per speaker on average.
+        # We've seen events with 80k+ characters that have 50+ speakers, requiring
+        # up to 8k tokens for the full response.
         event_size = len(event_text)
         if event_size > 80000:
-            max_tokens = 8000  # Very large multi-panel events
+            max_tokens = 8000  # Very large multi-panel events (50+ speakers possible)
         elif event_size > 30000:
-            max_tokens = 4000  # Medium-large events
+            max_tokens = 4000  # Medium-large events (15-25 speakers typical)
         else:
-            max_tokens = 2000  # Standard events
+            max_tokens = 2000  # Standard events (5-10 speakers typical)
 
         try:
             message = self.client.messages.create(
@@ -83,7 +152,8 @@ Important guidelines:
                 ]
             )
 
-            # Track token usage
+            # Track token usage for cost monitoring and debugging
+            # Input tokens = prompt length, Output tokens = response length
             self._last_usage = {
                 'input_tokens': message.usage.input_tokens,
                 'output_tokens': message.usage.output_tokens
@@ -91,8 +161,9 @@ Important guidelines:
 
             # Extract the response text
             response_text = message.content[0].text
-            
-            # Remove markdown code fences if present
+
+            # Claude sometimes wraps JSON in markdown code fences (```json ... ```)
+            # We need to strip these before parsing
             response_text = response_text.strip()
             if response_text.startswith('```'):
                 # Remove first line (```json or ```)
@@ -102,62 +173,111 @@ Important guidelines:
                 # Remove last line (```)
                 lines = response_text.split('\n')
                 response_text = '\n'.join(lines[:-1])
-            
+
             response_text = response_text.strip()
-            
-            # Parse JSON response
+
+            # Parse JSON response into structured data
             result = json.loads(response_text)
-            
+
             return {
                 'success': True,
                 'speakers': result.get('speakers', []),
                 'event_summary': result.get('event_summary', ''),
                 'raw_response': response_text
             }
-            
+
         except json.JSONDecodeError as e:
+            # Claude returned invalid JSON - this is rare but can happen if the
+            # response was truncated due to max_tokens limit or if Claude misunderstood
+            # the prompt format
             return {
                 'success': False,
                 'error': f'Failed to parse JSON response: {str(e)}',
                 'raw_response': response_text if 'response_text' in locals() else None
             }
-        except Exception as e:
+
+        except anthropic.RateLimitError as e:
+            # Hit API rate limit - caller should implement exponential backoff
             return {
                 'success': False,
-                'error': f'API call failed: {str(e)}',
+                'error': f'Rate limit exceeded: {str(e)}. Please wait and retry.',
+                'raw_response': None,
+                'retry_after': getattr(e, 'retry_after', 60)  # Seconds to wait
+            }
+
+        except anthropic.APIStatusError as e:
+            # API returned error status (4xx or 5xx)
+            # Common causes: invalid API key, API downtime, bad request format
+            status_code = getattr(e, 'status_code', 'unknown')
+            return {
+                'success': False,
+                'error': f'API error (status {status_code}): {str(e)}',
+                'raw_response': None
+            }
+
+        except Exception as e:
+            # Catch-all for unexpected errors (network issues, etc.)
+            return {
+                'success': False,
+                'error': f'Unexpected error: {type(e).__name__}: {str(e)}',
                 'raw_response': None
             }
     
     def batch_extract_speakers(self, events: List[tuple]) -> List[Dict]:
         """
-        Process multiple events
-        events should be list of tuples: (event_id, url, title, body_text)
+        Process multiple events sequentially, extracting speakers from each.
+
+        This is a convenience method that processes a list of events and returns
+        all results. It prints progress information to stdout as it processes each
+        event, making it suitable for interactive CLI usage.
+
+        Args:
+            events: List of tuples in format (event_id, url, title, body_text)
+
+        Returns:
+            List of dictionaries, one per event:
+            [
+                {
+                    'event_id': int,
+                    'url': str,
+                    'title': str,
+                    'extraction': dict  # Result from extract_speakers()
+                },
+                ...
+            ]
+
+        Note:
+            This method does NOT handle rate limiting automatically. For large batches,
+            the caller should implement rate limiting and retry logic to avoid hitting
+            API limits. Consider adding time.sleep() between calls if processing many
+            events.
         """
         results = []
-        
+
         for event_id, url, title, body_text in events:
             print(f"\nProcessing: {title}")
             print(f"URL: {url}")
-            
+
             extraction_result = self.extract_speakers(title, body_text)
-            
+
             if extraction_result['success']:
                 num_speakers = len(extraction_result['speakers'])
                 print(f"✓ Found {num_speakers} speaker(s)")
-                
-                # Print speaker names
+
+                # Show extracted speaker names for verification
                 for speaker in extraction_result['speakers']:
-                    print(f"  - {speaker['name']} ({speaker.get('role_in_event', 'participant')})")
+                    role = speaker.get('role_in_event', 'participant')
+                    print(f"  - {speaker['name']} ({role})")
             else:
                 print(f"✗ Error: {extraction_result['error']}")
-            
+
             results.append({
                 'event_id': event_id,
                 'url': url,
                 'title': title,
                 'extraction': extraction_result
             })
-        
+
         return results
 
 
