@@ -23,12 +23,20 @@ SITE_PASSWORD = os.environ.get('SITE_PASSWORD', 'asiasociety123')
 search = None
 db = None
 
+def get_db_path():
+    """Get database path - /data/speakers.db on Railway, ./speakers.db locally"""
+    if os.path.exists('/data'):
+        # Railway production with mounted volume
+        return '/data/speakers.db'
+    else:
+        # Local development
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+
 def get_search():
     """Lazy initialization of search engine"""
     global search
     if search is None:
-        # Use database in parent directory
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+        db_path = get_db_path()
         search = SpeakerSearch(db_path=db_path, provider='openai')
     return search
 
@@ -36,8 +44,7 @@ def get_db():
     """Lazy initialization of database"""
     global db
     if db is None:
-        # Use database in parent directory
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+        db_path = get_db_path()
         db = SpeakerDatabase(db_path)
     return db
 
@@ -249,7 +256,7 @@ def upload_database():
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'speakers.db')
+        db_path = get_db_path()
 
         file.save(db_path)
 
