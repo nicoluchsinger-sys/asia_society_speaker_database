@@ -265,6 +265,17 @@ def upload_database():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/download-db', methods=['GET'])
+def download_database():
+    """TEMPORARY: Download database file - REMOVE AFTER USE"""
+    from flask import send_file
+    try:
+        db_path = get_db_path()
+        return send_file(db_path, as_attachment=True, download_name='speakers.db')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Use PORT environment variable for Railway/Heroku compatibility
     port = int(os.environ.get('PORT', 5001))
