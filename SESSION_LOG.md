@@ -126,7 +126,9 @@ Created:
 
 ---
 
-## Backlog
+### Session 1 Backlog
+
+_(Historical - see Consolidated Backlog at end of file for current active backlog)_
 
 This section contains improvement ideas and future enhancements that can be picked up in any session. Items are organized by category and include time estimates where applicable.
 
@@ -386,7 +388,10 @@ Created:
    - Add cron job for daily maintenance (20 events/day)
    - Reduce cost to $5-8/month
 
-### Backlog Features
+### Session 2 Backlog Features
+
+_(Historical - see Consolidated Backlog at end of file for current active backlog)_
+
 - Show speaker location in search results overview
 - Export functionality (CSV, JSON)
 - Advanced filters (date range, location, topic)
@@ -643,7 +648,9 @@ Commits: 407b3cf, e0ee210, 6c2fde0, 4433f63, 1b47cde, 02e77ce
    - Keep database fresh with new events
    - Options: Railway cron, GitHub Actions, or scheduled Railway deployments
 
-### Backlog - Future Improvements
+### Session 3 Backlog - Future Improvements
+
+_(Historical - see Consolidated Backlog at end of file for current active backlog)_
 
 #### Infrastructure
 - **Migrate to PostgreSQL** (post-scaling consideration)
@@ -664,6 +671,8 @@ Commits: 407b3cf, e0ee210, 6c2fde0, 4433f63, 1b47cde, 02e77ce
 
 #### Bugs
 - Fix stats endpoint showing 0 counts (Task #6)
+
+</details>
 
 ---
 
@@ -756,3 +765,235 @@ railway logs --service scraper
 - **Test persistence explicitly** - Always verify data survives redeploys
 - **Accept good-enough solutions** - Manual sync simpler than fighting platform limitations
 - **Document platform quirks** - Railway-specific learnings help future debugging
+
+---
+
+# CONSOLIDATED BACKLOG
+
+**Instructions for Claude:**
+When reading this file, check the "Manual Entries" section below. If there are any entries there, distribute them to the appropriate category in the organized backlog sections, then clear the Manual Entries section.
+
+---
+
+## Manual Entries (Add Your Items Here)
+
+<!-- USER: Add backlog items here in any format. Claude will organize them into the appropriate sections below when reading this file. -->
+
+*(Empty - add items as needed)*
+
+---
+
+## Organized Backlog
+
+This section contains all improvement ideas and future enhancements organized by category. Items from all sessions are consolidated here.
+
+### 🐛 Bugs & Issues
+
+**High Priority:**
+- **Fix stats endpoint showing 0 counts** (Task #6)
+  - Currently returns 0 for all counts on Railway
+  - Search works so database connection is fine
+  - Investigate get_db() vs get_statistics() discrepancy
+  - Files: `web_app/app.py`, `database.py`
+
+**Low Priority:**
+- *(None currently)*
+
+---
+
+### 🎨 UI/UX Features
+
+**High Priority:**
+- **Show speaker location in search results** (Task #5)
+  - Add location field to search results display
+  - Extract location from speaker events or affiliation data
+  - Format: City/Country or Region
+  - Files: `web_app/templates/search.html`, `web_app/app.py`, `database.py`
+
+**Medium Priority:**
+- **Enhanced search UI with filters**
+  - Advanced filters (date range, location, topic)
+  - Faceted search with aggregations
+  - Search result highlighting
+  - Similar speaker suggestions
+  - Save and share search queries
+
+- **Export functionality**
+  - CSV export
+  - JSON export
+  - Bulk export options
+
+- **Speaker profile enhancements**
+  - Speaker profile pages with full event history
+  - Visual timeline of events
+  - Related speakers suggestions
+  - Contact information (if available)
+
+- **Event browsing and filtering**
+  - Browse events by date, location, topic
+  - Event detail pages
+  - Calendar view
+
+**Low Priority:**
+- **Admin dashboard with statistics**
+  - Visual charts and graphs
+  - Database health metrics
+  - API usage tracking
+  - User activity (if authentication added)
+
+---
+
+### 🏗️ Infrastructure & DevOps
+
+**High Priority:**
+- **Remove temporary endpoints** (Security Risk!)
+  - Delete `/admin/upload-db` route after scaling complete
+  - Delete `/admin/download-db` route after scaling complete
+  - These are security vulnerabilities if left in production
+
+**Medium Priority:**
+- **Migrate to PostgreSQL** (post-scaling consideration)
+  - Enables true shared database between services
+  - Better for concurrent writes during scraping
+  - Railway has native PostgreSQL support
+  - Migration path: SQLite → PostgreSQL converter tools
+  - Estimated effort: 3-4 hours
+  - Priority: Low (SQLite works fine for 1000 speakers)
+  - Benefits: Scalability, concurrent access, Railway-native volumes
+
+- **Logging infrastructure** (Estimated: 2-3 hours)
+  - Replace print statements with Python logging module
+  - Add configurable log levels (DEBUG, INFO, WARNING, ERROR)
+  - Log to files with rotation
+  - Track API costs and token usage in logs
+  - Add structured logging for easier parsing
+
+- **Database optimization**
+  - ✅ Add indexes for common queries (COMPLETED in Session 1)
+  - Analyze query performance
+  - Consider connection pooling if needed
+
+**Low Priority:**
+- **Code linting setup** (Estimated: 1-2 hours)
+  - Set up pylint or flake8 with project-specific rules
+  - Configure black for automatic formatting
+  - Add pre-commit hooks for automated checks
+  - Integrate with CI/CD if applicable
+
+- **Caching layer**
+  - Cache frequently accessed speaker data
+  - Cache search results
+  - Cache embeddings computation
+
+- **Automated daily scraping** (After scaling complete)
+  - Set up Railway cron or GitHub Actions
+  - Run 20 events/day automatically
+  - No manual intervention required
+  - Remove scraper service after this is set up
+
+---
+
+### 📚 Documentation & Code Quality
+
+**Medium Priority:**
+- **Complete docstring coverage** (Estimated: 4-5 hours)
+  - `merge_duplicates.py` - Document fuzzy matching logic and merge strategy
+  - `embedding_engine.py` - Document vector operations and similarity calculations
+  - `speaker_search.py` - Document search algorithms and ranking logic
+  - `query_parser.py` - Document NLP query parsing approach
+
+- **Complete type hints** (Estimated: 2 hours)
+  - Add type hints to all remaining files
+  - `query_parser.py` - Add return types to parsing functions
+  - `search_speakers.py` - Add types to search functions
+  - Ensure consistency across entire codebase
+
+- **Explanatory comments for complex logic**
+  - Add comments to remaining algorithms
+  - Document non-obvious design decisions
+  - Explain any workarounds or edge cases
+
+**Low Priority:**
+- **User documentation**
+  - Write user guide for web interface
+  - Create API documentation if exposing endpoints
+  - Document search query syntax
+  - Add troubleshooting guide
+
+- **Deployment documentation**
+  - Production deployment guide (beyond Railway)
+  - Backup and restore procedures
+  - Monitoring and alerting setup
+  - Scaling considerations
+
+---
+
+### 🔧 Error Handling & Reliability
+
+**Medium Priority:**
+- **Enhanced error handling** (Estimated: 2 hours)
+  - ✅ Retry logic with exponential backoff (COMPLETED in Session 1)
+  - Distinguish more error types in API calls
+  - Provide more actionable guidance in error messages
+  - Log errors with context for debugging
+
+- **API resilience improvements**
+  - Add circuit breaker pattern for failing external services
+  - Better handling of partial failures in batch operations
+  - Graceful degradation when APIs are down
+
+---
+
+### 🧪 Testing & Quality Assurance
+
+**Low Priority:**
+- **Testing framework setup** (Estimated: 10-15 hours)
+  - Set up pytest infrastructure
+  - Unit tests for fuzzy matching logic in `database.py`
+  - Unit tests for text normalization and affiliation overlap
+  - Integration tests for speaker extraction pipeline
+  - Test database operations with in-memory SQLite
+  - Mock API calls for speaker extraction tests
+  - Test deduplication and merge logic
+
+- **Test coverage goals**
+  - Aim for 80%+ coverage on core modules
+  - Focus on business logic and algorithms
+  - Test edge cases and error conditions
+
+---
+
+### 📊 Data Quality & Management
+
+**Medium Priority:**
+- **Automated duplicate detection reports**
+  - Regular reports on potential duplicates
+  - Suggestions for merging
+  - Confidence scores
+
+- **Data validation checks**
+  - Check for missing information
+  - Validate data consistency
+  - Flag anomalies
+
+- **Affiliation standardization**
+  - Normalize organization names
+  - Handle common variations
+  - Build lookup table for standard names
+
+---
+
+### 💡 Nice-to-Have Features
+
+**Low Priority:**
+- All items in this category are wishlist items that can be done when time permits
+- Generally lower priority than bugs, security issues, or core functionality
+
+---
+
+## Historical Backlog Notes
+
+The sections below contain original backlog entries from specific sessions. They are kept for historical reference but the active backlog is the "Organized Backlog" section above.
+
+<details>
+<summary>Session 1 Original Backlog (Click to expand)</summary>
