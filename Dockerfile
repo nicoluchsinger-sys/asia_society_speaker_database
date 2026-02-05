@@ -65,8 +65,5 @@ RUN mkdir -p /data
 ENV PYTHONUNBUFFERED=1
 ENV DISPLAY=:99
 
-# Volume for persistent database
-VOLUME /data
-
 # Default command (can be overridden)
 CMD ["python3", "main_selenium.py", "-e", "10", "--stats"]
