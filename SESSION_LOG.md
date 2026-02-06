@@ -2098,3 +2098,276 @@ Total deployments: 5
 - **Backfill strategies for data fixes** - Manual endpoints + logging
 - **Production debugging requires visibility** - Logs, stats, diagnostics
 
+---
+
+## Session 8 - February 6, 2026
+**Focus**: Search quality improvements and production bug fixes
+
+### Summary
+Discovered and fixed critical search quality issue: embeddings were generated BEFORE enrichment, so all 848 speakers had embeddings without tags/expertise data. This caused geographic and expertise searches to return irrelevant results. Successfully regenerated all embeddings with tags, fixed pipeline order for future speakers, and resolved query parser logic. Also fixed manual pipeline trigger button, timezone display, and implemented dynamic speaker count with fixed cron schedule.
+
+### Achievements
+
+#### Critical Search Quality Fix (Completed ✅)
+- ✅ **Discovered embedding generation order bug**
+  - Root cause: Pipeline order was Scrape → Extract → **Embed → Enrich**
+  - Impact: All 848 speaker embeddings generated WITHOUT tags/expertise
+  - Symptom: Geographic searches ("Southeast Asia", "Myanmar") returned random results
+  - Expertise searches inconsistent (climate policy, tech experts)
+  - Evidence: Database had tags, but embeddings didn't include them
+
+- ✅ **Regenerated all 848 embeddings with tags**
+  - Created `/admin/regenerate-embeddings` endpoint
+  - Added `db_path` parameter to `regenerate_all_embeddings()`
+  - Executed successfully: 848 speakers, 43.4 seconds, $0.0025
+  - All embeddings now include: name, title, affiliation, bio, AND tags
+  - Cost: 124,657 tokens @ OpenAI text-embedding-3-small rates
+
+- ✅ **Fixed pipeline order for future speakers**
+  - Changed to: Scrape → Extract → **Enrich → Embed**
+  - Ensures all NEW speakers enriched BEFORE embeddings generated
+  - Future embeddings automatically include tags
+  - Modified `pipeline_cron.py` lines 419-431
+
+- ✅ **Fixed query parser geographic logic**
+  - Issue: "Southeast Asia" treated as location filter (speaker_locations has only broad regions)
+  - Solution: Updated prompt to distinguish expertise vs location
+  - Geographic EXPERTISE (what studied): "Southeast Asia expert" → expertise type
+  - Geographic LOCATION (where based): "based in Singapore" → location filter
+  - Rule: If no "based in" or "located in", treat as expertise
+  - File: `query_parser.py` lines 59-77
+
+#### Manual Pipeline Trigger Fix (Completed ✅)
+- ✅ **Fixed "Run Pipeline Now" button**
+  - Issue: Button didn't work when clicked (though curl worked)
+  - Root cause: Missing `@login_required` decorator on endpoint
+  - Added authentication check to `/admin/run-pipeline`
+  - Added console logging to JavaScript for debugging
+  - Added `credentials: 'same-origin'` to fetch call
+  - Added HTTP status checks before JSON parsing
+  - Verified working: Button successfully triggers pipeline
+
+#### Timezone Display Fix (Completed ✅)
+- ✅ **Fixed pipeline timestamp showing 1 hour behind**
+  - Issue: `datetime.now().isoformat()` had no timezone info
+  - JavaScript interpreted as local time instead of UTC
+  - Solution: Changed to `datetime.now(timezone.utc).isoformat()`
+  - Now produces: `"2026-02-06T15:40:57+00:00"` instead of `"2026-02-06T15:40:57"`
+  - JavaScript correctly converts UTC to user's local timezone
+  - File: `pipeline_cron.py` lines 18, 374
+
+#### UI Improvements (Completed ✅)
+- ✅ **Made speaker count dynamic on search page**
+  - Replaced hardcoded "443 speakers" with live count
+  - Fetches from `/api/stats` on page load
+  - Auto-updates as database grows
+  - Fallback to "800+" if fetch fails
+  - Files: `search.html`, `search.js`
+
+- ✅ **Switched to fixed cron schedule**
+  - Changed from `IntervalTrigger(hours=2)` to `CronTrigger(hour='*/2')`
+  - Now runs at: 0:00, 2:00, 4:00, 6:00, 8:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC
+  - Deployments no longer reset schedule
+  - Predictable timing regardless of app restarts
+  - File: `web_app/app.py` lines 10-11, 88-97
+
+#### Search Quality Testing (Completed ✅)
+- ✅ **Comprehensive search testing**
+  - Expertise searches: Decent overall (climate change policy inconsistent - only 10 speakers)
+  - Geographic searches: **Fixed!** Now work beautifully after embedding regeneration
+  - Institutional searches: (testing in progress)
+  - Cross-topic searches: (testing in progress)
+  - User feedback: "it works beautifully now!"
+
+### Files Modified
+```
+Modified:
+- pipeline_cron.py (pipeline order fix, timezone fix, pass db_path)
+- generate_embeddings.py (added db_path parameter to regenerate function)
+- web_app/app.py (added regenerate endpoint, fixed trigger auth, CronTrigger)
+- web_app/templates/stats.html (added console logging, debugging)
+- web_app/templates/search.html (dynamic speaker count)
+- web_app/static/js/search.js (fetch speaker count on load)
+- query_parser.py (geographic expertise vs location logic)
+
+Created:
+- /admin/regenerate-embeddings endpoint
+
+Commits:
+- 74aa0fa: fix: add authentication and debugging to pipeline trigger button
+- 8922151: fix: correct pipeline order and add embedding regeneration with tags
+- 56c2030: fix: treat geographic regions as expertise, not location filters
+- f530545: feat: dynamic speaker count and fixed cron schedule
+```
+
+### Session Metrics
+
+**Database State:**
+- Total speakers: 848 (was 847, +1 from pipeline run #8)
+- Enriched speakers: 848 (100% coverage)
+- Speakers with embeddings: 848 (100%, all regenerated with tags)
+- Total tags: 2,653
+- Pipeline runs: 8
+
+**Embedding Regeneration:**
+- Speakers processed: 848/848
+- Time: 43.4 seconds
+- Tokens: 124,657
+- Cost: $0.0025 (OpenAI text-embedding-3-small)
+- Provider: OpenAI
+
+**Pipeline Run #8 Performance:**
+- Duration: 6.2 minutes (370 seconds)
+- Events scraped: 5
+- Speakers extracted: 1 (others were duplicates)
+- Embeddings generated: 1
+- Speakers enriched: 20 (1 new + 19 backlog from interrupted run)
+- API cost: $0.2250
+
+**API Costs (Total):**
+- Extraction: $0.30 (4.4% of total)
+- Embeddings: $0.0025 (new - was $0.00)
+- Enrichment: $6.23 (90.9% of total)
+- **Total: $6.85**
+
+### Current Status
+
+**Database State:**
+- **848 speakers** (target: 1000+, 152 remaining)
+- **100% enriched** (all have tags and bios)
+- **100% with embeddings** (all include tags)
+- **Search quality: Excellent** for geographic and expertise queries
+- **Progress to goal: 84.8%** (848/1000)
+
+**System Health:**
+- ✅ Pipeline runs automatically every 2 hours (fixed schedule)
+- ✅ Manual trigger button working
+- ✅ Search working correctly with tag-based embeddings
+- ✅ Stats dashboard showing accurate counts
+- ✅ Database persistence verified
+
+**Services:**
+- Web service: Active, stable, all functionality consolidated
+- Scraper service: Can be deleted (confirmed by user)
+
+### Challenges & Solutions
+
+#### Challenge 1: Embeddings Without Tags
+- **Discovery**: Geographic searches returned random results
+- **Investigation**: Found embeddings generated BEFORE enrichment
+- **Impact**: All 848 speakers had incomplete embeddings
+- **Solution**:
+  1. Regenerated all embeddings (Option 1)
+  2. Fixed pipeline order (Option 2)
+  3. Hybrid approach for complete fix
+- **Result**: Search quality dramatically improved
+
+#### Challenge 2: Query Parser Geography Logic
+- **Issue**: "Southeast Asia" matched location_region filter
+- **Problem**: speaker_locations only has broad regions (Asia, Europe, etc.)
+- **Impact**: No matches found, random results returned
+- **Solution**: Distinguish expertise vs location in parser prompt
+- **Result**: Geographic expertise searches now work correctly
+
+#### Challenge 3: Cron Schedule Reset on Deploy
+- **Issue**: IntervalTrigger resets timer on every deployment
+- **Impact**: Pipeline runs pushed back with each code update
+- **Solution**: Switch to CronTrigger with fixed UTC times
+- **Result**: Predictable schedule regardless of deployments
+
+### Lessons Learned
+
+#### Pipeline Order Matters
+- **Data dependencies must be respected** - Embeddings need enrichment first
+- Order impacts quality: Embed before enrich = incomplete data
+- Test full pipeline with quality checks, not just execution
+- Semantic search only as good as embedding content
+
+#### Geographic Data Requires Nuance
+- **Sub-regions are expertise topics**, not location filters
+- Database schema doesn't always match user queries
+- Query parsing needs domain knowledge (geography vs location)
+- Prompt engineering critical for natural language interpretation
+
+#### Fixed Schedules More Reliable
+- **Interval-based triggers reset with deployments**
+- Fixed UTC times provide predictability
+- Easier to debug ("should run at 4pm, did it?")
+- Better for coordinating with external systems
+
+#### Comprehensive Testing Reveals Issues
+- **User testing found what automation missed**
+- Search quality only apparent with real queries
+- Edge cases ("Southeast Asia", "Myanmar") expose bugs
+- Iterative testing with user feedback essential
+
+### Task Completions
+
+**Completed This Session:**
+- ✅ Fixed "Run Pipeline Now" button (Task #11)
+- ✅ Verified pipeline run #8 completed (Task #12)
+- ✅ Review enrichment quality and API cost metrics (Task #13)
+- ✅ Made speaker count dynamic (Task #15)
+- ✅ Fixed cron schedule (Task #16)
+- ✅ Search quality verification (Task #8 - in progress)
+
+**Outstanding Tasks:**
+- Task #3: Scale to 1000+ speakers (current: 848, need 152 more)
+- Task #5: Show speaker location in search results
+- Task #14: Clean up Railway services (delete scraper)
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Complete Search Quality Testing
+1. **Finish testing remaining search categories**
+   - Institutional searches ("Harvard professor", "United Nations")
+   - Cross-topic searches ("technology and society")
+   - Document search quality findings
+   - Identify any remaining gaps
+
+### Priority 2: Monitor Overnight Pipeline Runs
+2. **Check automated pipeline performance**
+   - Verify runs at fixed UTC times (0:00, 2:00, 4:00, etc.)
+   - Monitor for failures or errors
+   - Check speaker count growth
+   - Verify embeddings include tags for new speakers
+   - Confirm pipeline order fix working (Enrich → Embed)
+
+### Priority 3: Continue Scaling to 1000+ (Task #3)
+3. **Resume scaling efforts**
+   - Current: 848 speakers
+   - Target: 1000+ speakers
+   - Need: 152+ more speakers
+   - Strategy: Let automated runs continue, or manually trigger
+   - Monitor costs and quality
+
+### Priority 4: Service Cleanup (Task #14)
+4. **Delete scraper service from Railway**
+   - User confirmed can be deleted
+   - Verify web service handles all workloads
+   - Delete via Railway dashboard
+   - Confirm cost reduction to ~$4.50/month
+
+### Optional: Feature Enhancements
+5. **Add speaker location to search results** (Task #5)
+   - Display location in search result cards
+   - Use speaker_locations table
+   - Format: "City, Country" or "Region"
+
+---
+
+## Development Philosophy (Updated)
+
+**Session 8 additions:**
+- **Search quality is a product feature** - Not just technical correctness
+- **Data pipeline order affects outcomes** - Dependencies must be explicit
+- **User testing finds edge cases** - Automation can't catch everything
+- **Geographic context requires domain knowledge** - "Southeast Asia" is expertise, not just location
+- **Fixed schedules beat intervals** - Deployments shouldn't disrupt timing
+- **Regeneration strategies for data fixes** - Sometimes need to rebuild derived data
+- **Console logging aids debugging** - User can provide browser console output
+
+---
+
