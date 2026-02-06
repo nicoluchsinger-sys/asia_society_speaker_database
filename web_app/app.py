@@ -6,6 +6,10 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from functools import wraps
 import sys
 import os
+import logging
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+import atexit
 
 # Add parent directory to path to access modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,6 +19,10 @@ from database import SpeakerDatabase
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Simple password protection - single password for all users
 SITE_PASSWORD = os.environ.get('SITE_PASSWORD', 'asiasociety123')
@@ -47,6 +55,49 @@ def get_db():
         db_path = get_db_path()
         db = SpeakerDatabase(db_path)
     return db
+
+
+# Pipeline scheduling
+def run_scheduled_pipeline():
+    """Run the consolidated pipeline on a schedule"""
+    logger.info("Starting scheduled pipeline run...")
+
+    try:
+        # Import here to avoid circular imports
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from pipeline_cron import run_pipeline
+
+        # Run pipeline: 5 events, 20 existing speakers
+        success = run_pipeline(event_limit=5, existing_limit=20)
+
+        if success:
+            logger.info("✓ Scheduled pipeline completed successfully")
+        else:
+            logger.error("✗ Scheduled pipeline failed")
+
+    except Exception as e:
+        logger.error(f"ERROR in scheduled pipeline: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+# Add pipeline job - runs every 2 hours
+scheduler.add_job(
+    func=run_scheduled_pipeline,
+    trigger=IntervalTrigger(hours=2),
+    id='pipeline_job',
+    name='Run speaker pipeline every 2 hours',
+    replace_existing=True
+)
+
+logger.info("✓ Scheduler initialized: pipeline runs every 2 hours (5 events + 20 existing speakers)")
+
+# Shut down the scheduler when exiting the app
+atexit.register(lambda: scheduler.shutdown())
 
 
 def login_required(f):
@@ -272,6 +323,24 @@ def download_database():
     try:
         db_path = get_db_path()
         return send_file(db_path, as_attachment=True, download_name='speakers.db')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/run-pipeline', methods=['POST'])
+def manual_pipeline_trigger():
+    """Manually trigger the pipeline (for testing)"""
+    try:
+        # Run pipeline in background thread to avoid blocking
+        import threading
+        thread = threading.Thread(target=run_scheduled_pipeline)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Pipeline started in background',
+            'note': 'Check logs or /api/stats for progress'
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
