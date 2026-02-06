@@ -42,7 +42,11 @@ def tag_speakers(limit=None, retag=False):
 
     print("✓ API key loaded")
 
-    with SpeakerDatabase() as db:
+    # Determine database path - use /data/speakers.db on Railway
+    db_path = '/data/speakers.db' if os.path.exists('/data') else 'speakers.db'
+    print(f"Using database: {db_path}")
+
+    with SpeakerDatabase(db_path) as db:
         # Reset tagging status if retag is requested
         if retag:
             print("\n⚠️  Resetting tagging status for all speakers...")
