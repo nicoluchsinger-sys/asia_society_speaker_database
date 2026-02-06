@@ -17,7 +17,7 @@ import sys
 import time
 from datetime import datetime
 from database import SpeakerDatabase
-from selenium_scraper import SeleniumScraper
+from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
 from speaker_tagger import SpeakerTagger
 from generate_embeddings import generate_embeddings
@@ -103,11 +103,11 @@ def scrape_events(db, event_limit=10):
     """
     log(f"Starting scraping of {event_limit} events...")
 
-    scraper = SeleniumScraper()
+    scraper = SeleniumEventScraper()
     try:
         results = scraper.scrape_events(
             db=db,
-            max_events=event_limit,
+            limit=event_limit,
             max_pages='auto'
         )
 
