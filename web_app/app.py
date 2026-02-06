@@ -301,8 +301,10 @@ def speaker_detail(speaker_id):
 @app.route('/api/stats')
 def api_stats():
     """Enhanced database statistics with enrichment progress and costs"""
-    database = get_db()
-    stats = database.get_enhanced_statistics()
+    # Create new database connection for this request to avoid threading issues
+    db_path = get_db_path()
+    with SpeakerDatabase(db_path) as database:
+        stats = database.get_enhanced_statistics()
 
     # Add next scheduled pipeline run time
     try:
