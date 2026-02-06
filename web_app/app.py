@@ -424,6 +424,34 @@ def debug_stats():
         return jsonify(debug)
 
 
+@app.route('/admin/backfill-embeddings', methods=['POST'])
+def backfill_embeddings():
+    """One-time fix: Generate embeddings for speakers that are missing them"""
+    try:
+        from generate_embeddings import generate_embeddings
+        import threading
+
+        def run_backfill():
+            logger.info("Starting embedding backfill...")
+            try:
+                generate_embeddings(batch_size=50, provider='openai', verbose=True)
+                logger.info("Embedding backfill completed successfully")
+            except Exception as e:
+                logger.error(f"Embedding backfill failed: {e}")
+
+        # Run in background thread
+        thread = threading.Thread(target=run_backfill)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Embedding backfill started in background',
+            'note': 'Check logs for progress. Should generate ~376 embeddings.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Use PORT environment variable for Railway/Heroku compatibility
     port = int(os.environ.get('PORT', 5001))
