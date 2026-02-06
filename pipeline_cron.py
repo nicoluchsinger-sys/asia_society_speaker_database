@@ -149,15 +149,39 @@ def extract_speakers(db):
     for event in pending_events:
         event_id = event[0]
         event_title = event[1]
+        body_text = event[3]
 
         try:
-            result = extractor.extract_speakers_from_event(event_id, db)
-            if result['success']:
+            result = extractor.extract_speakers(event_title, body_text)
+
+            if result['success'] and result['speakers']:
+                # Add each speaker to database
+                for speaker_data in result['speakers']:
+                    speaker_id = db.add_speaker(
+                        name=speaker_data.get('name'),
+                        title=speaker_data.get('title'),
+                        affiliation=speaker_data.get('affiliation'),
+                        bio=speaker_data.get('bio')
+                    )
+
+                    # Link speaker to event
+                    if speaker_id:
+                        db.link_speaker_to_event(
+                            speaker_id=speaker_id,
+                            event_id=event_id,
+                            role=speaker_data.get('role', 'speaker')
+                        )
+
+                # Mark event as completed
+                db.mark_event_processed(event_id, 'completed')
                 log(f"  Extracted {len(result['speakers'])} speakers from: {event_title[:50]}")
             else:
+                db.mark_event_processed(event_id, 'failed')
                 log(f"  FAILED: {event_title[:50]}")
+
         except Exception as e:
             log(f"  ERROR processing event {event_id}: {e}")
+            db.mark_event_processed(event_id, 'failed')
 
     final_speaker_count = db.get_statistics()['total_speakers']
     new_speakers = final_speaker_count - initial_speaker_count
