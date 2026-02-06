@@ -424,6 +424,39 @@ def debug_stats():
         return jsonify(debug)
 
 
+@app.route('/admin/cleanup-orphaned', methods=['POST'])
+def cleanup_orphaned():
+    """Delete orphaned embeddings and tags"""
+    try:
+        db_path = get_db_path()
+        with SpeakerDatabase(db_path) as db:
+            cursor = db.conn.cursor()
+
+            # Delete orphaned embeddings
+            cursor.execute('''
+                DELETE FROM speaker_embeddings
+                WHERE speaker_id NOT IN (SELECT speaker_id FROM speakers)
+            ''')
+            orphaned_embeddings = cursor.rowcount
+
+            # Delete orphaned tags
+            cursor.execute('''
+                DELETE FROM speaker_tags
+                WHERE speaker_id NOT IN (SELECT speaker_id FROM speakers)
+            ''')
+            orphaned_tags = cursor.rowcount
+
+            db.conn.commit()
+
+            return jsonify({
+                'success': True,
+                'orphaned_embeddings_deleted': orphaned_embeddings,
+                'orphaned_tags_deleted': orphaned_tags
+            })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/backfill-embeddings', methods=['POST'])
 def backfill_embeddings():
     """One-time fix: Generate embeddings for speakers that are missing them"""
