@@ -8,7 +8,7 @@ import sys
 import os
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 import atexit
 
 # Add parent directory to path to access modules
@@ -85,16 +85,16 @@ def run_scheduled_pipeline():
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Add pipeline job - runs every 2 hours
+# Add pipeline job - runs at fixed times (0:00, 2:00, 4:00, etc.)
 scheduler.add_job(
     func=run_scheduled_pipeline,
-    trigger=IntervalTrigger(hours=2),
+    trigger=CronTrigger(hour='*/2'),  # Runs at even hours: 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
     id='pipeline_job',
-    name='Run speaker pipeline every 2 hours',
+    name='Run speaker pipeline at fixed 2-hour intervals',
     replace_existing=True
 )
 
-logger.info("✓ Scheduler initialized: pipeline runs every 2 hours (5 events + 20 existing speakers)")
+logger.info("✓ Scheduler initialized: pipeline runs at 0:00, 2:00, 4:00, 6:00, 8:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC (5 events + 20 existing speakers)")
 
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())

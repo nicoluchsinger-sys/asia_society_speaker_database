@@ -241,10 +241,32 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
+// Load speaker count on page load
+async function loadSpeakerCount() {
+    try {
+        const response = await fetch('/api/stats');
+        const stats = await response.json();
+        const countElement = document.getElementById('speakerCount');
+        if (countElement && stats.total_speakers) {
+            countElement.textContent = stats.total_speakers.toLocaleString();
+        }
+    } catch (error) {
+        console.error('Error loading speaker count:', error);
+        // Fallback to placeholder if fetch fails
+        const countElement = document.getElementById('speakerCount');
+        if (countElement) {
+            countElement.textContent = '800+';
+        }
+    }
+}
+
 // Auto-focus search input on page load
 window.addEventListener('load', function() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.focus();
     }
+
+    // Load speaker count
+    loadSpeakerCount();
 });
