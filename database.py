@@ -49,7 +49,8 @@ class SpeakerDatabase:
         migrations (like adding new columns to existing tables). This is safe to
         run multiple times - it only creates missing structures.
         """
-        self.conn = sqlite3.connect(self.db_path)
+        # check_same_thread=False is safe here because we create new connections per request
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         cursor = self.conn.cursor()
         
         # Events table
