@@ -281,9 +281,18 @@ async function loadStats() {
 
 // Manual pipeline trigger
 async function triggerPipelineNow() {
+    console.log('triggerPipelineNow called');
     const button = document.getElementById('runNowBtn');
     const buttonText = document.getElementById('runNowText');
     const feedback = document.getElementById('triggerFeedback');
+
+    console.log('Elements found:', {button, buttonText, feedback});
+
+    if (!button || !buttonText || !feedback) {
+        console.error('Required elements not found!');
+        alert('Error: Button elements not found. Please refresh the page.');
+        return;
+    }
 
     // Disable button and show loading state
     button.disabled = true;
@@ -291,14 +300,23 @@ async function triggerPipelineNow() {
     feedback.classList.add('hidden');
 
     try {
+        console.log('Sending POST request to /admin/run-pipeline');
         const response = await fetch('/admin/run-pipeline', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            credentials: 'same-origin'  // Ensure cookies are sent for authentication
         });
 
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const result = await response.json();
+        console.log('Result:', result);
 
         if (result.success) {
             // Show success message
@@ -323,11 +341,14 @@ async function triggerPipelineNow() {
             throw new Error(result.error || 'Unknown error');
         }
     } catch (error) {
+        console.error('Error triggering pipeline:', error);
+
         // Show error message
         feedback.className = 'mt-3 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg';
         feedback.innerHTML = `
             <p class="font-semibold">Failed to start pipeline</p>
             <p class="text-sm mt-1">${error.message}</p>
+            <p class="text-xs mt-1 text-gray-600">Check browser console for details</p>
         `;
         feedback.classList.remove('hidden');
 

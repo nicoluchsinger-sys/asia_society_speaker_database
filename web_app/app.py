@@ -349,6 +349,7 @@ def download_database():
 
 
 @app.route('/admin/run-pipeline', methods=['POST'])
+@login_required
 def manual_pipeline_trigger():
     """Manually trigger the pipeline (for testing)"""
     try:
