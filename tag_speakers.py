@@ -1,5 +1,10 @@
 """
-Standalone script to tag speakers with topical expertise tags
+Standalone script to tag speakers with topical expertise tags AND enrich their profiles
+
+Enrichment includes:
+- Expertise tags (3 per speaker with confidence scores)
+- Updated job titles (from web search if more current)
+- Enriched biographies (from web search if more comprehensive)
 """
 
 import os
@@ -23,9 +28,9 @@ def load_api_key():
 
 
 def tag_speakers(limit=None, retag=False):
-    """Tag speakers with expertise tags using web search and Claude AI"""
+    """Tag speakers with expertise tags AND enrich profiles using web search and Claude AI"""
     print("\n" + "="*70)
-    print("🏷️  SPEAKER TAGGING MODULE")
+    print("🏷️  SPEAKER TAGGING & ENRICHMENT MODULE")
     print("="*70)
 
     # Load API key
@@ -61,8 +66,8 @@ def tag_speakers(limit=None, retag=False):
             print(f"\n🔢 Limiting to {limit} speaker(s)")
 
         print("\n" + "-"*70)
-        print("Starting tagging process...")
-        print("(Web search + Claude AI for each speaker)")
+        print("Starting tagging & enrichment process...")
+        print("(Web search + Claude AI for tags, bio, and title)")
         print("-"*70)
 
         # Initialize tagger
@@ -109,12 +114,12 @@ def show_tagged_speakers():
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Tag speakers with topical expertise tags using web search and AI'
+        description='Tag speakers with expertise tags AND enrich profiles (bio, title) using web search and AI'
     )
     parser.add_argument('-l', '--limit', type=int, default=None,
-                        help='Limit number of speakers to tag')
+                        help='Limit number of speakers to tag/enrich')
     parser.add_argument('--retag', action='store_true', default=False,
-                        help='Reset and re-tag all speakers')
+                        help='Reset and re-tag/re-enrich ALL speakers (overwrites existing tags and enrichment)')
     parser.add_argument('--show', action='store_true', default=False,
                         help='Show all tagged speakers and exit')
 

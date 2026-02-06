@@ -631,6 +631,39 @@ class SpeakerDatabase:
         ''', (status, speaker_id))
         self.conn.commit()
 
+    def enrich_speaker_data(self, speaker_id, enriched_title=None, enriched_bio=None):
+        """
+        Update speaker with enriched data from web search
+
+        Args:
+            speaker_id: Speaker ID
+            enriched_title: Updated job title (or None to skip)
+            enriched_bio: Enriched biography (or None to skip)
+        """
+        cursor = self.conn.cursor()
+        now = datetime.now().isoformat()
+
+        # Build UPDATE query dynamically based on what's being enriched
+        updates = []
+        params = []
+
+        if enriched_title:
+            updates.append('title = ?')
+            params.append(enriched_title)
+
+        if enriched_bio:
+            updates.append('bio = ?')
+            params.append(enriched_bio)
+
+        if updates:
+            updates.append('last_updated = ?')
+            params.append(now)
+            params.append(speaker_id)
+
+            query = f"UPDATE speakers SET {', '.join(updates)} WHERE speaker_id = ?"
+            cursor.execute(query, params)
+            self.conn.commit()
+
     def get_speaker_by_id(self, speaker_id):
         """Get a speaker by ID"""
         cursor = self.conn.cursor()

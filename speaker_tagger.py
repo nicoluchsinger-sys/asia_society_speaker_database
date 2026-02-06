@@ -56,11 +56,16 @@ class SpeakerTagger:
 
         return ' '.join(query_parts)
 
-    def generate_tags(self, speaker: Dict, events: List[Dict], search_results: List[Dict]) -> Dict:
+    def generate_tags_and_enrich(self, speaker: Dict, events: List[Dict], search_results: List[Dict]) -> Dict:
         """
-        Use Claude to generate tags based on speaker info, events, and web search results
+        Use Claude to generate tags AND enrich speaker data from web search results
 
-        Returns a dictionary with tags and confidence scores
+        Enrichment includes:
+        - Updated job title (if more current than database)
+        - Enriched biography (if web search provides better info)
+        - Expertise tags with confidence scores
+
+        Returns a dictionary with tags, enriched bio, and enriched title
         """
         # Build context from search results
         search_context = ""
@@ -80,9 +85,9 @@ class SpeakerTagger:
                 role = event[4] if len(event) > 4 else 'participant'
                 events_context += f"- {event_title} (Role: {role})\n"
 
-        prompt = f"""You are analyzing information about a speaker to generate topical expertise tags.
+        prompt = f"""You are analyzing information about a speaker to generate expertise tags AND enrich their profile data.
 
-Speaker Information:
+Current Database Information:
 - Name: {speaker.get('name', 'Unknown')}
 - Title: {speaker.get('title', 'Not specified')}
 - Affiliation: {speaker.get('affiliation', 'Not specified')}
@@ -90,14 +95,21 @@ Speaker Information:
 {events_context}
 {search_context}
 
-Based on all available information, generate exactly 3 topical tags that best describe this person's areas of expertise or focus.
+Your tasks:
+1. Generate exactly 3 topical tags that describe this person's expertise
+2. Extract an enriched/updated job title from the web search results (if available and more current)
+3. Extract an enriched biography from the web search results (if available and more comprehensive)
 
-Guidelines:
+Guidelines for Tags:
 - Tags should be lowercase, 1-3 words each
-- Tags should represent broad topical areas (e.g., "geopolitics", "china relations", "tech policy", "climate finance", "corporate governance")
-- Focus on their professional expertise, not job titles
-- If limited information is available, infer from their title/affiliation/events
-- Assign a confidence score (0.0-1.0) to each tag based on how certain you are
+- Tags should represent broad topical areas (e.g., "geopolitics", "china relations", "tech policy")
+- Focus on professional expertise, not job titles
+- Assign a confidence score (0.0-1.0) to each tag
+
+Guidelines for Enrichment:
+- enriched_title: Use the most current title from web search. If web search has no title or database title seems current, return null.
+- enriched_bio: Synthesize a comprehensive 2-3 sentence biography from web search results. If web search provides no useful bio info, return null.
+- Only enrich if web search provides meaningfully better/newer information than the database
 
 Return your response as a JSON object:
 {{
@@ -106,7 +118,9 @@ Return your response as a JSON object:
         {{"text": "tag2", "confidence": 0.8}},
         {{"text": "tag3", "confidence": 0.7}}
     ],
-    "reasoning": "Brief explanation of why these tags were chosen"
+    "enriched_title": "Current job title from web search or null",
+    "enriched_bio": "Comprehensive 2-3 sentence biography from web search or null",
+    "reasoning": "Brief explanation of tags and enrichment decisions"
 }}
 
 Return ONLY the JSON, no other text."""
@@ -114,7 +128,7 @@ Return ONLY the JSON, no other text."""
         try:
             message = self.client.messages.create(
                 model=self.model,
-                max_tokens=500,
+                max_tokens=1000,  # Increased from 500 to handle enriched bio
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
@@ -142,6 +156,8 @@ Return ONLY the JSON, no other text."""
             return {
                 'success': True,
                 'tags': result.get('tags', []),
+                'enriched_title': result.get('enriched_title'),
+                'enriched_bio': result.get('enriched_bio'),
                 'reasoning': result.get('reasoning', ''),
                 'raw_response': response_text
             }
@@ -191,8 +207,8 @@ Return ONLY the JSON, no other text."""
         # Determine source based on search success
         source = 'web_search' if search_result['success'] and search_result['results'] else 'bio_only'
 
-        # Generate tags using Claude
-        tag_result = self.generate_tags(
+        # Generate tags and enrich data using Claude
+        tag_result = self.generate_tags_and_enrich(
             speaker,
             events,
             search_result.get('results', [])
@@ -216,6 +232,15 @@ Return ONLY the JSON, no other text."""
                 db.add_speaker_tag(speaker_id, tag_text, confidence, source)
                 tags_saved.append({'text': tag_text, 'confidence': confidence})
 
+        # Save enriched data if available
+        enriched_title = tag_result.get('enriched_title')
+        enriched_bio = tag_result.get('enriched_bio')
+
+        enrichment_applied = False
+        if enriched_title or enriched_bio:
+            db.enrich_speaker_data(speaker_id, enriched_title, enriched_bio)
+            enrichment_applied = True
+
         # Mark speaker as tagged
         db.mark_speaker_tagged(speaker_id, 'completed')
 
@@ -224,6 +249,9 @@ Return ONLY the JSON, no other text."""
             'speaker_name': speaker['name'],
             'tags': tags_saved,
             'source': source,
+            'enriched': enrichment_applied,
+            'enriched_title': enriched_title,
+            'enriched_bio': enriched_bio,
             'reasoning': tag_result.get('reasoning', '')
         }
 
