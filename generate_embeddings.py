@@ -113,19 +113,19 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
             embeddings = engine.generate_embeddings_batch(batch_texts)
 
             # Open fresh database connection for saving (prevents locking issues)
-            db = SpeakerDatabase()
+            save_db = SpeakerDatabase(db_path)
             try:
                 # Save to database
                 for speaker, embedding, text in zip(batch_speakers, embeddings, batch_texts):
                     embedding_blob = engine.serialize_embedding(embedding)
-                    db.save_speaker_embedding(
+                    save_db.save_speaker_embedding(
                         speaker['speaker_id'],
                         embedding_blob,
                         text,
                         model=engine.model
                     )
             finally:
-                db.close()  # Always close connection after batch
+                save_db.close()  # Always close connection after batch
 
             # Track usage
             usage = engine.get_last_usage()
@@ -262,19 +262,19 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True):
             embeddings = engine.generate_embeddings_batch(batch_texts)
 
             # Open fresh database connection for saving (prevents locking issues)
-            db = SpeakerDatabase()
+            save_db = SpeakerDatabase(db_path)
             try:
                 # Save to database
                 for speaker, embedding, text in zip(batch_speakers, embeddings, batch_texts):
                     embedding_blob = engine.serialize_embedding(embedding)
-                    db.save_speaker_embedding(
+                    save_db.save_speaker_embedding(
                         speaker['speaker_id'],
                         embedding_blob,
                         text,
                         model=engine.model
                     )
             finally:
-                db.close()  # Always close connection after batch
+                save_db.close()  # Always close connection after batch
 
             # Track usage
             usage = engine.get_last_usage()
