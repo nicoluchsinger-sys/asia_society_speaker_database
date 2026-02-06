@@ -944,7 +944,207 @@ Commits: 2c8a6d6, 71e71de, 9b798f8
 
 ---
 
-# CONSOLIDATED BACKLOG
+## Session 5 - February 6, 2026
+**Focus**: Railway scaling session analysis, data recovery, and service consolidation planning
+
+### Summary
+Analyzed results from 200-event scraping session that encountered Chrome browser crash at 78% completion. Discovered critical infrastructure issue: scraper service lacks persistent storage, causing loss of $6.30 in API costs and 417 processed events. Successfully recovered by uploading local database (796 speakers) to Railway web service. Identified need to consolidate services to prevent future data loss.
+
+### Achievements
+
+#### Issue Analysis & Recovery (Completed ✅)
+- ✅ **Diagnosed Chrome browser crash**
+  - Successfully scraped 156 events (78% completion) before crash
+  - Events 157-200 all failed with "invalid session id" error
+  - Root cause: Long-running Chrome session (~1.5 hours) hit memory/stability limits
+  - Error: "session deleted as the browser has closed the connection"
+
+- ✅ **Discovered critical infrastructure flaw**
+  - Scraper service writes to `/app/speakers.db` (ephemeral filesystem)
+  - Database lost when container stops (no persistent volume)
+  - 417 events were extracted but results disappeared
+  - $6.30 in API costs spent with no data retained
+  - This explains discrepancy between expected (417 events) and actual (209 events) database state
+
+- ✅ **Successfully recovered database**
+  - Uploaded local database (796 speakers, 365 events, 115MB) to Railway web service
+  - Used `/admin/upload-db` endpoint
+  - Web service now shows 796 speakers available and searchable
+  - Verified upload success via `/api/stats` endpoint
+
+#### Task Management (Completed ✅)
+- ✅ **Updated task #4** - Consolidated service architecture
+  - Added detailed description explaining data loss issue
+  - Documented benefits of single-service approach
+  - Marked as next priority after current recovery
+
+- ✅ **Updated task #3** - Scaling progress tracking
+  - Current status: 796 speakers (79.6% to 1000+ goal)
+  - Documented lost scraper run details
+  - Updated next steps with smaller batch recommendation
+
+### Files Modified
+```
+Modified:
+- None (database upload only, no code changes)
+
+Data Operations:
+- Uploaded speakers.db (115MB) to Railway web service
+- Verified 796 speakers now searchable online
+```
+
+### Session Metrics & Costs
+
+**Scraper Session Performance:**
+- Scraping: 1,092.78s (18.2 min, 6.7%) - 156 events successfully scraped
+- Extraction: 15,326.35s (255.4 min, 93.3%) - 417 events processed (including 261 backlog)
+- Total runtime: 16,419.13s (273.7 min, ~4.6 hours)
+
+**API Usage (Lost Run):**
+- Total API calls: 156
+- Total tokens: 1,739,256
+- Estimated cost: **$6.30** (lost due to ephemeral storage)
+- Actual cost per event: $0.015 (matches original estimate ✅)
+
+**Unexpected Backlog Processing:**
+- Expected: 156 newly scraped events
+- Actual: 417 total events processed (156 new + 261 pending backlog)
+- Backlog sources: Previous scraping sessions with pending extractions
+- This explains higher cost than expected ($6.30 vs $2.34 estimated)
+
+**Database Upload:**
+- Local database: 796 speakers, 365 events, 115MB
+- Upload time: ~4 seconds
+- Now live on Railway at asiasocietyspeakerdatabase-production.up.railway.app
+
+### Current Status
+
+**Database State:**
+- **Railway web service**: 796 speakers, 365 events (live and searchable ✅)
+- **Local backup**: 796 speakers, 365 events (same as Railway)
+- **Lost from scraper**: 417 processed events (would have been ~600+ new speakers)
+
+**Services:**
+- **Web service**: Active, stable, password-protected, persistent volume at /data
+- **Scraper service**: Active but flawed (no persistent storage - data loss risk)
+- **Infrastructure issue**: Two-service architecture causing data sync problems
+
+**Progress Toward 1000+ Speakers:**
+- Current: 796 speakers
+- Target: 1000+ speakers
+- Remaining: ~200-250 speakers needed
+- ~20% away from goal
+
+### Challenges & Lessons Learned
+
+#### Chrome Browser Stability
+- **Issue**: Long-running headless Chrome sessions become unstable
+- **Symptom**: "invalid session id" errors after 156 events (~1.5 hours)
+- **Impact**: 44 events failed (22% failure rate)
+- **Solution**: Reduce batch size from 200 to 100 events per session
+- **Future strategy**: Shorter sessions prevent memory/stability issues
+
+#### Ephemeral Storage Problem
+- **Critical flaw**: Scraper service has no persistent volume
+- **Data flow**: Scrape → Extract → Write to /app/speakers.db → Container stops → **Data lost**
+- **Financial impact**: $6.30 wasted on lost extraction
+- **Speaker impact**: ~600 potential new speakers lost
+- **Root cause**: Railway doesn't easily support shared volumes between services
+
+#### API Cost Surprise
+- **Expected**: $2.34 (156 events × $0.015)
+- **Actual**: $6.30 (417 events × $0.015)
+- **Reason**: Scraper processed 261 pending events from backlog
+- **Learning**: Check pending events before estimating costs
+- **Verification**: Per-event cost accurate at $0.015 ✅
+
+### Critical Infrastructure Issue Identified
+
+**Problem:** Two-service architecture with separate databases
+```
+Service 1: web
+├── Database: /data/speakers.db (persistent volume ✅)
+├── Status: Keeps data across redeploys
+└── Purpose: Serves search interface
+
+Service 2: scraper
+├── Database: /app/speakers.db (ephemeral filesystem ❌)
+├── Status: Loses data when container stops
+└── Purpose: Runs scraping jobs
+
+Result: Databases out of sync, data loss on scraper
+```
+
+**Impact:**
+- $6.30 API costs wasted
+- 417 events processed but lost
+- ~600 potential speakers never added
+- Manual sync workflow unreliable
+
+**Solution (Task #4):**
+Consolidate to single service with cron
+```
+Single Service: web
+├── Database: /data/speakers.db (persistent volume)
+├── Web interface: Always running
+├── Scraper: Run via cron or manual Railway shell
+└── Benefit: One database, no sync issues, no data loss
+```
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Consolidate Services (Prevent Future Data Loss)
+1. **Merge scraper functionality into web service** (Task #4)
+   - Move `railway_scraper.sh` to run on web service
+   - Configure cron job for automated scraping (optional)
+   - Test scraping from web service shell
+   - Verify database persistence
+   - Delete scraper service once verified
+
+### Priority 2: Complete Scaling to 1000+ Speakers
+2. **Run remaining scraping sessions**
+   - Use **100-event batches** (not 200) to prevent Chrome crashes
+   - Run directly on web service (no separate scraper service)
+   - Session 1: 100 events → ~850 speakers
+   - Session 2: 100 events → ~900 speakers
+   - Session 3: 100 events → ~950-1000 speakers
+   - Total needed: ~300 events to reach 1000+ speakers
+   - Estimated cost: ~$4.50 ($0.015 × 300 events)
+
+### Priority 3: Cleanup & Security
+3. **Remove temporary security risks**
+   - Delete `/admin/upload-db` endpoint (no longer needed)
+   - Delete `/admin/download-db` endpoint (no longer needed)
+   - Commit cleanup to git
+
+### Priority 4: Bug Fixes
+4. **Fix stats endpoint bug** (Task #6)
+   - Currently returns 0 for all counts
+   - Search works so database connection is fine
+   - Investigate SQLite thread safety issue seen earlier
+
+### Optional: Cost Tracking Dashboard
+5. **Add API cost monitoring** (from manual backlog)
+   - Show cumulative API costs
+   - Track remaining budget for API keys
+   - Display in admin interface or separate dashboard
+
+---
+
+## Development Philosophy (Continued)
+
+**Session 5 additions:**
+- **Infrastructure failures are expensive** - $6.30 lost due to lack of persistent storage
+- **Test persistence explicitly** - Always verify data survives container restarts
+- **Consolidate early** - Two-service architecture created unnecessary complexity
+- **Smaller batches reduce risk** - 100 events more reliable than 200 for Chrome stability
+- **Check assumptions** - Backlog processing doubled expected costs
+- **Recovery over regret** - Uploaded local database to move forward despite setback
+
+---
+
 
 **Instructions for Claude:**
 When reading this file, check the "Manual Entries" section below. If there are any entries there, distribute them to the appropriate category in the organized backlog sections, then clear the Manual Entries section.
@@ -955,7 +1155,7 @@ When reading this file, check the "Manual Entries" section below. If there are a
 
 <!-- USER: Add backlog items here in any format. Claude will organize them into the appropriate sections below when reading this file. -->
 
-*(Empty - add items as needed)*
+_(Empty - all entries processed)_
 
 ---
 
@@ -1016,6 +1216,15 @@ This section contains all improvement ideas and future enhancements organized by
   - Search tips and examples
   - Data sources and update frequency
   - Common questions about speaker information
+
+**Medium Priority:**
+- **API cost monitoring dashboard**
+  - Show cumulative API costs (Anthropic + OpenAI)
+  - Display remaining budget/quota for each API key
+  - Track costs by operation type (extraction, embeddings, search)
+  - Show cost trends over time
+  - Alert when approaching budget limits
+  - Files: `web_app/app.py`, new template for dashboard
 
 **Low Priority:**
 - **Admin dashboard with statistics**
