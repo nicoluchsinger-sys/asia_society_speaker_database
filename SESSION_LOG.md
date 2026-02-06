@@ -1857,3 +1857,244 @@ Commits:
 - **Deploy fixes quickly** - 8 deployments in one session is fine when fixing critical bugs
 - **Cache awareness** - Railway caches database connections, design accordingly
 
+---
+
+## Session 7 (Continued) - February 6, 2026
+**Focus**: Critical embedding generation bug fixes
+
+### Summary
+Discovered and fixed catastrophic bug: 376 out of 819 speakers were missing embeddings and invisible in search. Root cause was multiple database path and transaction isolation issues preventing embeddings from being generated and saved correctly. All speakers now fully searchable.
+
+### Critical Bug Discovery
+
+**User reported inconsistencies:**
+- Stats showed 819 speakers tagged
+- Only 443 had embeddings
+- 100% enrichment claimed (impossible with only 3-4 pipeline runs)
+- $0 embedding costs (should be non-zero)
+
+**Investigation revealed:**
+- Pipeline WAS running (7 runs, grew from 796 to 819 speakers)
+- Tagging/enrichment working perfectly (all 819 tagged)
+- **Embedding generation completely broken** (stuck at 443/819)
+- **376 speakers invisible in search** due to missing embeddings
+
+### Root Cause Analysis
+
+Found **3 interconnected bugs** in embedding generation:
+
+#### Bug 1: Transaction Isolation
+**Location:** `pipeline_cron.py` line 200
+**Issue:** `generate_embeddings()` creates new database connection that can't see uncommitted speakers from extraction step
+**Impact:** Embeddings skipped for all newly extracted speakers
+**Fix:** Added `db.conn.commit()` before calling `generate_embeddings()`
+
+#### Bug 2: Database Path Not Passed
+**Location:** `generate_embeddings.py` line 24
+**Issue:** Creates `SpeakerDatabase()` without `db_path` parameter, defaults to `'speakers.db'` instead of `/data/speakers.db`
+**Impact:** Creates empty database instead of using real one
+**Fix:**
+- Added `db_path` parameter with auto-detection (Railway vs local)
+- Updated all callers to pass `db_path`
+
+#### Bug 3: Wrong Database for Saving
+**Location:** `generate_embeddings.py` line 116
+**Issue:** Batch save creates `SpeakerDatabase()` without path, saves to wrong database
+**Impact:** 378 embeddings generated but saved to empty local file, not `/data/speakers.db`
+**Fix:** Pass `db_path` parameter when creating save connection
+
+#### Bug 4: Missing Schema Initialization
+**Location:** `database.py` init_database()
+**Issue:** `speaker_embeddings` table only created by separate migration script, not in standard initialization
+**Impact:** When `generate_embeddings()` creates new connection, table doesn't exist
+**Fix:** Added all search tables (embeddings, demographics, locations, languages, freshness) to `init_database()`
+
+### Fixes Implemented
+
+**File: pipeline_cron.py**
+```python
+# Added transaction commit before embedding generation
+db.conn.commit()
+
+# Pass database path to ensure correct database
+generate_embeddings(batch_size=50, provider='openai', verbose=False, db_path=db.db_path)
+```
+
+**File: generate_embeddings.py**
+```python
+# Auto-detect database path
+if db_path is None:
+    if os.path.exists('/data'):
+        db_path = '/data/speakers.db'
+    else:
+        db_path = 'speakers.db'
+
+# Use correct path for reading
+db = SpeakerDatabase(db_path)
+
+# Use correct path for saving
+save_db = SpeakerDatabase(db_path)
+```
+
+**File: database.py**
+```python
+# Added to init_database():
+CREATE TABLE IF NOT EXISTS speaker_embeddings (...)
+CREATE TABLE IF NOT EXISTS speaker_demographics (...)
+CREATE TABLE IF NOT EXISTS speaker_locations (...)
+CREATE TABLE IF NOT EXISTS speaker_languages (...)
+CREATE TABLE IF NOT EXISTS speaker_freshness (...)
+```
+
+**File: web_app/app.py**
+```python
+# Added diagnostic and utility endpoints
+@app.route('/admin/debug-stats')  # Detailed diagnostics
+@app.route('/admin/backfill-embeddings', methods=['POST'])  # One-time fix
+@app.route('/admin/cleanup-orphaned', methods=['POST'])  # Remove orphaned records
+```
+
+### Backfill Execution
+
+**Attempt 1:** Failed - wrong database path
+**Attempt 2:** Failed - table not created
+**Attempt 3:** Failed - saved to wrong database
+**Attempt 4:** ✅ SUCCESS - Generated 378 embeddings correctly
+
+**Final cleanup:**
+- Deleted 2 orphaned embeddings
+- All 819 speakers now have embeddings
+
+### Files Modified
+```
+Modified:
+- pipeline_cron.py (transaction commit, pass db_path)
+- generate_embeddings.py (db_path parameter, auto-detection, save to correct DB)
+- database.py (add search tables to init_database)
+- web_app/app.py (debug-stats, backfill-embeddings, cleanup-orphaned endpoints)
+
+Commits:
+- 58edb4e: Fix commit transaction before embedding generation
+- 91d3ec4: Pass correct database path to generate_embeddings()
+- 2651a28: Add search tables to standard database initialization
+- f3e7626: Use correct database path when saving embeddings
+- 76f743f: Add cleanup endpoint to remove orphaned embeddings
+
+Total deployments: 5
+```
+
+### Metrics
+
+**Before fixes:**
+- 819 speakers, 443 with embeddings (54%)
+- **376 speakers invisible in search** (46% of database)
+
+**After fixes:**
+- 819 speakers, 819 with embeddings (100%)
+- **All speakers fully searchable** ✅
+- 0 orphaned records
+- Pipeline generates embeddings correctly going forward
+
+### Current System Status
+
+**Database State:**
+- **819 total speakers**
+- **819 enriched** (100% - tags and bios)
+- **819 with embeddings** (100% - all searchable)
+- **0 orphaned records**
+- **2,566 total tags**
+
+**Pipeline Health:**
+- ✅ Scraping works (5 events per run)
+- ✅ Extraction works
+- ✅ Embedding generation works
+- ✅ Enrichment works (20 existing speakers per run)
+- ✅ Runs every 2 hours automatically
+- ✅ Manual trigger available
+
+**API Costs:**
+- Backfill: ~$0.04 (378 embeddings @ OpenAI rates)
+- Per pipeline run: ~$0.15
+- Cost tracking: Working correctly
+
+### Lessons Learned
+
+#### Database Path Management is Critical
+- **Never assume default paths work** - Always pass explicit paths
+- Railway uses `/data/` for persistent storage, not `./`
+- Auto-detection pattern: Check if `/data` exists
+- Test on Railway, not just locally
+
+#### Transaction Isolation in Multi-Connection Systems
+- **Commit before creating new connections** - Uncommitted data invisible
+- SQLite isolation levels matter
+- Pipeline steps that create new connections need explicit commits
+- Context managers don't auto-commit
+
+#### Schema Migrations Must Be in Init
+- **Don't rely on separate migration scripts** for core tables
+- Tables needed by any code path must be in `init_database()`
+- Migration scripts are for schema evolution, not initial setup
+- Test with empty database to catch missing tables
+
+#### Diagnostic Endpoints Save Time
+- `/admin/debug-stats` revealed the actual problem
+- Manual `/admin/backfill-embeddings` enabled one-time fix
+- `/admin/cleanup-orphaned` removed bad data
+- Logging to Railway console essential for debugging
+
+### Task Completions
+
+**Completed This Session:**
+- ✅ Fixed critical embedding generation bugs (3 separate issues)
+- ✅ Backfilled 378 missing embeddings
+- ✅ Cleaned up orphaned records
+- ✅ All 819 speakers now searchable
+
+**Outstanding Tasks:**
+- Task #3: Scale to 1000+ speakers (current: 819)
+- Task #5: Show speaker location in search results
+- Task #8: Verify enrichment quality and test search
+- Cleanup: Delete scraper service from Railway
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Verify Search Quality (Task #8)
+1. **Test search with fully populated database**
+   - Search for various speaker types
+   - Verify all 819 speakers can be found
+   - Test semantic search quality
+   - Spot-check enrichment accuracy
+
+### Priority 2: Delete Scraper Service
+2. **Clean up Railway services**
+   - Verify web service handles all workloads
+   - Delete scraper service via Railway dashboard
+   - Confirm cost reduction to ~$4.50/month
+
+### Priority 3: Resume Scaling (Task #3)
+3. **Scale to 1000+ speakers**
+   - Currently at 819 speakers
+   - Need 181+ more speakers
+   - Run manual pipeline triggers
+   - Monitor costs and quality
+
+### Optional: Feature Enhancements
+4. **Add speaker location to search results** (Task #5)
+   - Display event location in results
+   - Location-based filtering
+
+---
+
+## Development Philosophy (Updated)
+
+**Session 7 (Continued) additions:**
+- **Test on production environment** - Bugs hide in local development
+- **Never assume paths work everywhere** - Explicit is better than implicit
+- **Diagnostic endpoints are investment** - Pay dividends during debugging
+- **Multiple related bugs often share root cause** - Fix systematically
+- **Backfill strategies for data fixes** - Manual endpoints + logging
+- **Production debugging requires visibility** - Logs, stats, diagnostics
+
