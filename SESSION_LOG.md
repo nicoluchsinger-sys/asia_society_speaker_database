@@ -1155,7 +1155,9 @@ When reading this file, check the "Manual Entries" section below. If there are a
 
 <!-- USER: Add backlog items here in any format. Claude will organize them into the appropriate sections below when reading this file. -->
 
-_(Empty - all entries processed)_
+1. Add an FAQ section to app which explains how it works in non-technical terms (detailing scraping and enrichment logic)
+2. Introduce a second cron schedule which periodically re-runs enrichment and embedding steps to capture new titles and bios
+3. Show on speaker profile when it was last updated
 
 ---
 
