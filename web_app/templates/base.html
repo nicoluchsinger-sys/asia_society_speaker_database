@@ -19,7 +19,7 @@
                 </div>
                 <div class="flex items-center space-x-6">
                     <a href="/" class="text-gray-600 hover:text-blue-600 font-medium">Search</a>
-                    <a href="#" onclick="showStats(); return false;" class="text-gray-600 hover:text-blue-600 font-medium">Stats</a>
+                    <a href="{{ url_for('stats_page') }}" class="text-gray-600 hover:text-blue-600 font-medium">Stats</a>
                     <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-blue-600 font-medium">Logout</a>
                 </div>
             </div>
@@ -44,78 +44,6 @@
             </div>
         </div>
     </footer>
-
-    <!-- Stats Modal -->
-    <div id="statsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-gray-800">Database Statistics</h3>
-                <button onclick="closeStats()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div id="statsContent" class="space-y-3">
-                <div class="flex justify-between items-center py-2 border-b">
-                    <span class="text-gray-600">Loading...</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        async function showStats() {
-            const modal = document.getElementById('statsModal');
-            const content = document.getElementById('statsContent');
-            modal.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/stats');
-                const stats = await response.json();
-
-                content.innerHTML = `
-                    <div class="flex justify-between items-center py-2 border-b">
-                        <span class="text-gray-600">Total Speakers</span>
-                        <span class="text-2xl font-bold text-blue-600">${stats.total_speakers}</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2 border-b">
-                        <span class="text-gray-600">Tagged Speakers</span>
-                        <span class="text-xl font-semibold text-green-600">${stats.tagged_speakers}</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2 border-b">
-                        <span class="text-gray-600">Total Events</span>
-                        <span class="text-xl font-semibold text-gray-700">${stats.total_events}</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2 border-b">
-                        <span class="text-gray-600">Processed Events</span>
-                        <span class="text-xl font-semibold text-gray-700">${stats.processed_events}</span>
-                    </div>
-                    <div class="flex justify-between items-center py-2">
-                        <span class="text-gray-600">Total Tags</span>
-                        <span class="text-xl font-semibold text-purple-600">${stats.total_tags}</span>
-                    </div>
-                `;
-            } catch (error) {
-                content.innerHTML = `
-                    <div class="text-red-600 text-center py-4">
-                        Failed to load statistics
-                    </div>
-                `;
-            }
-        }
-
-        function closeStats() {
-            document.getElementById('statsModal').classList.add('hidden');
-        }
-
-        // Close modal on escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeStats();
-            }
-        });
-    </script>
 
     {% block scripts %}{% endblock %}
 </body>

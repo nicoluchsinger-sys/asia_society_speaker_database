@@ -137,6 +137,13 @@ def index():
     return render_template('search.html')
 
 
+@app.route('/stats')
+@login_required
+def stats_page():
+    """Statistics dashboard"""
+    return render_template('stats.html')
+
+
 @app.route('/api/search', methods=['POST'])
 @login_required
 def api_search():

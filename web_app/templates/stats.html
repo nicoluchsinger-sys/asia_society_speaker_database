@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Database Statistics - Asia Society{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-3">Database Statistics</h1>
+        <p class="text-lg text-gray-600">Real-time progress and cost tracking</p>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="text-center py-12">
+        <div class="spinner mx-auto mb-4"></div>
+        <p class="text-gray-600">Loading statistics...</p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div id="statsContainer" class="hidden">
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Total Speakers -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Speakers</p>
+                        <p id="totalSpeakers" class="text-3xl font-bold text-blue-600">-</p>
+                    </div>
+                    <div class="text-blue-500">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Events -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total Events</p>
+                        <p id="totalEvents" class="text-3xl font-bold text-green-600">-</p>
+                    </div>
+                    <div class="text-green-500">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total API Cost -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Total API Cost</p>
+                        <p id="totalCost" class="text-3xl font-bold text-purple-600">-</p>
+                    </div>
+                    <div class="text-purple-500">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrichment Progress -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Enrichment Progress</h2>
+
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-700">Speaker Enrichment</span>
+                    <span id="enrichmentPercent" class="text-sm font-medium text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="enrichmentBar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                    <span id="enrichedCount" class="text-sm text-gray-600">0 enriched</span>
+                    <span id="unenrichedCount" class="text-sm text-gray-600">0 remaining</span>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-gray-800" id="speakersWithEmbeddings">-</p>
+                    <p class="text-sm text-gray-600">With Embeddings</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-gray-800" id="taggedSpeakers">-</p>
+                    <p class="text-sm text-gray-600">Tagged</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-gray-800" id="totalTags">-</p>
+                    <p class="text-sm text-gray-600">Total Tags</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-gray-800" id="processedEvents">-</p>
+                    <p class="text-sm text-gray-600">Processed Events</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last 7 Days Activity -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Last 7 Days Activity</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-blue-600" id="last7DaysEvents">-</p>
+                    <p class="text-sm text-gray-600">Events Scraped</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-green-600" id="last7DaysSpeakers">-</p>
+                    <p class="text-sm text-gray-600">Speakers Extracted</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-purple-600" id="last7DaysEnriched">-</p>
+                    <p class="text-sm text-gray-600">Speakers Enriched</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-orange-600" id="last7DaysCost">-</p>
+                    <p class="text-sm text-gray-600">API Cost</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Pipeline Run -->
+        <div id="lastPipelineRun" class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Last Pipeline Run</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="text-center">
+                    <p class="text-xl font-bold text-gray-800" id="lastRunEvents">-</p>
+                    <p class="text-sm text-gray-600">Events Scraped</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-gray-800" id="lastRunExtracted">-</p>
+                    <p class="text-sm text-gray-600">Speakers Extracted</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-gray-800" id="lastRunNewEnriched">-</p>
+                    <p class="text-sm text-gray-600">New Enriched</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-gray-800" id="lastRunExistingEnriched">-</p>
+                    <p class="text-sm text-gray-600">Existing Enriched</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xl font-bold text-orange-600" id="lastRunCost">-</p>
+                    <p class="text-sm text-gray-600">Cost</p>
+                </div>
+            </div>
+            <p class="text-sm text-gray-500 mt-4 text-center">
+                Last run: <span id="lastRunTime">-</span>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load statistics from API
+async function loadStats() {
+    try {
+        const response = await fetch('/api/stats');
+        const stats = await response.json();
+
+        // Hide spinner, show stats
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('statsContainer').classList.remove('hidden');
+
+        // Update overview cards
+        document.getElementById('totalSpeakers').textContent = stats.total_speakers.toLocaleString();
+        document.getElementById('totalEvents').textContent = stats.total_events.toLocaleString();
+        document.getElementById('totalCost').textContent = '$' + stats.total_api_cost.toFixed(2);
+
+        // Update enrichment progress
+        const enrichmentPercent = stats.enrichment_percentage;
+        document.getElementById('enrichmentPercent').textContent = enrichmentPercent.toFixed(1) + '%';
+        document.getElementById('enrichmentBar').style.width = enrichmentPercent + '%';
+        document.getElementById('enrichedCount').textContent = stats.enriched_speakers.toLocaleString() + ' enriched';
+        document.getElementById('unenrichedCount').textContent = stats.unenriched_speakers.toLocaleString() + ' remaining';
+
+        // Update stats grid
+        document.getElementById('speakersWithEmbeddings').textContent = stats.speakers_with_embeddings.toLocaleString();
+        document.getElementById('taggedSpeakers').textContent = stats.tagged_speakers.toLocaleString();
+        document.getElementById('totalTags').textContent = stats.total_tags.toLocaleString();
+        document.getElementById('processedEvents').textContent = stats.processed_events.toLocaleString();
+
+        // Update last 7 days
+        document.getElementById('last7DaysEvents').textContent = stats.last_7_days.events_scraped.toLocaleString();
+        document.getElementById('last7DaysSpeakers').textContent = stats.last_7_days.speakers_extracted.toLocaleString();
+        document.getElementById('last7DaysEnriched').textContent = stats.last_7_days.speakers_enriched.toLocaleString();
+        document.getElementById('last7DaysCost').textContent = '$' + stats.last_7_days.api_cost.toFixed(2);
+
+        // Update last pipeline run
+        if (stats.last_pipeline_run) {
+            document.getElementById('lastRunEvents').textContent = stats.last_pipeline_run.events_scraped;
+            document.getElementById('lastRunExtracted').textContent = stats.last_pipeline_run.speakers_extracted;
+            document.getElementById('lastRunNewEnriched').textContent = stats.last_pipeline_run.new_speakers_enriched;
+            document.getElementById('lastRunExistingEnriched').textContent = stats.last_pipeline_run.existing_speakers_enriched;
+            document.getElementById('lastRunCost').textContent = '$' + stats.last_pipeline_run.cost.toFixed(4);
+
+            const timestamp = new Date(stats.last_pipeline_run.timestamp);
+            document.getElementById('lastRunTime').textContent = timestamp.toLocaleString();
+        } else {
+            document.getElementById('lastPipelineRun').classList.add('hidden');
+        }
+
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        document.getElementById('loadingSpinner').innerHTML = '<p class="text-red-600">Error loading statistics</p>';
+    }
+}
+
+// Load stats on page load
+loadStats();
+
+// Refresh stats every 30 seconds
+setInterval(loadStats, 30000);
+</script>
+{% endblock %}
