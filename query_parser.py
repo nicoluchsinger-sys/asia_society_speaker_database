@@ -57,14 +57,22 @@ Parse this query and identify:
 For each requirement/preference, identify the TYPE and VALUE:
 
 **Types available:**
-- expertise: Topic/field expertise (e.g., "climate policy", "chinese economy", "technology")
+- expertise: Topic/field expertise OR geographic expertise (e.g., "climate policy", "chinese economy", "technology", "Southeast Asia expert", "Korea specialist", "Myanmar politics")
 - gender: Gender preference (values: "male", "female", "non-binary")
-- location_country: Specific country (e.g., "United States", "China", "France")
-- location_region: Geographic region (e.g., "Europe", "Asia", "North America")
-- location_city: Specific city (e.g., "New York", "London", "Beijing")
+- location_country: Specific country WHERE THE SPEAKER IS BASED (e.g., "based in United States", "living in China")
+- location_region: Geographic region WHERE THE SPEAKER IS BASED - ONLY broad regions (e.g., "based in Europe", "located in Asia", "based in North America")
+- location_city: Specific city WHERE THE SPEAKER IS BASED (e.g., "based in New York", "living in London")
 - language: Language spoken (e.g., "Mandarin", "Spanish", "French")
 - affiliation: Organization/institution (e.g., "Harvard", "UN", "Google")
 - career_stage: Career level (values: "early", "mid", "senior")
+
+**IMPORTANT DISTINCTION:**
+- Geographic EXPERTISE (what someone studies): Use "expertise" type
+  Examples: "Southeast Asia expert", "China scholar", "Korea specialist", "Myanmar politics"
+- Geographic LOCATION (where someone is based): Use "location_*" types
+  Examples: "based in Singapore", "located in Asia", "living in New York"
+
+If the query mentions a country/region WITHOUT "based in" or "located in", treat it as EXPERTISE.
 
 **Weight scale for soft preferences:** 0.0 (very soft) to 1.0 (strong preference)
 - "ideally", "would be nice": 0.3-0.5
