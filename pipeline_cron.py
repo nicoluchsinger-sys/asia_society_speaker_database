@@ -35,21 +35,27 @@ class PipelineStats:
         self.embeddings_generated = 0
 
         # API costs (based on current pricing)
-        self.extraction_cost = 0.015  # per event
-        self.embedding_cost = 0.00001  # per speaker (text-embedding-3-small)
-        self.enrichment_cost = 0.0075  # per speaker (web search + Claude)
+        self.extraction_cost_per_event = 0.015  # per event
+        self.embedding_cost_per_speaker = 0.00001  # per speaker (text-embedding-3-small)
+        self.enrichment_cost_per_speaker = 0.0075  # per speaker (web search + Claude)
 
+        # Track costs by service
+        self.extraction_cost = 0.0  # Claude for extraction
+        self.embedding_cost = 0.0   # OpenAI for embeddings
+        self.enrichment_cost = 0.0  # Claude + DDG for enrichment
         self.total_cost = 0.0
 
     def add_extraction(self, event_count):
         self.events_scraped += event_count
-        cost = event_count * self.extraction_cost
+        cost = event_count * self.extraction_cost_per_event
+        self.extraction_cost += cost
         self.total_cost += cost
         return cost
 
     def add_embeddings(self, speaker_count):
         self.embeddings_generated += speaker_count
-        cost = speaker_count * self.embedding_cost
+        cost = speaker_count * self.embedding_cost_per_speaker
+        self.embedding_cost += cost
         self.total_cost += cost
         return cost
 
@@ -58,7 +64,8 @@ class PipelineStats:
             self.existing_enriched += speaker_count
         else:
             self.speakers_enriched += speaker_count
-        cost = speaker_count * self.enrichment_cost
+        cost = speaker_count * self.enrichment_cost_per_speaker
+        self.enrichment_cost += cost
         self.total_cost += cost
         return cost
 
@@ -331,6 +338,9 @@ def save_pipeline_run(db, stats):
             embeddings_generated INTEGER,
             new_speakers_enriched INTEGER,
             existing_speakers_enriched INTEGER,
+            extraction_cost REAL DEFAULT 0,
+            embedding_cost REAL DEFAULT 0,
+            enrichment_cost REAL DEFAULT 0,
             total_cost REAL,
             success BOOLEAN
         )
@@ -340,8 +350,8 @@ def save_pipeline_run(db, stats):
         INSERT INTO pipeline_runs (
             timestamp, duration_seconds, events_scraped, speakers_extracted,
             embeddings_generated, new_speakers_enriched, existing_speakers_enriched,
-            total_cost, success
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            extraction_cost, embedding_cost, enrichment_cost, total_cost, success
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         datetime.now().isoformat(),
         stats.get_duration(),
@@ -350,6 +360,9 @@ def save_pipeline_run(db, stats):
         stats.embeddings_generated,
         stats.speakers_enriched,
         stats.existing_enriched,
+        stats.extraction_cost,
+        stats.embedding_cost,
+        stats.enrichment_cost,
         stats.total_cost,
         True
     ))

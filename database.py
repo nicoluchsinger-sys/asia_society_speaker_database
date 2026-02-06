@@ -637,6 +637,21 @@ class SpeakerDatabase:
             cursor.execute('SELECT COALESCE(SUM(total_cost), 0) FROM pipeline_runs')
             stats['total_api_cost'] = round(cursor.fetchone()[0], 2)
 
+            # Cost breakdown by service
+            cursor.execute('''
+                SELECT
+                    COALESCE(SUM(extraction_cost), 0),
+                    COALESCE(SUM(embedding_cost), 0),
+                    COALESCE(SUM(enrichment_cost), 0)
+                FROM pipeline_runs
+            ''')
+            row = cursor.fetchone()
+            stats['cost_breakdown'] = {
+                'extraction': round(row[0], 4),
+                'embeddings': round(row[1], 4),
+                'enrichment': round(row[2], 4)
+            }
+
             # Last 7 days of activity
             from datetime import datetime, timedelta
             seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()

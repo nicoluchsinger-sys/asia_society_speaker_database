@@ -56,6 +56,11 @@
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Total API Cost</p>
                         <p id="totalCost" class="text-3xl font-bold text-purple-600">-</p>
+                        <div id="costBreakdown" class="mt-2 text-xs text-gray-500">
+                            <div>Extraction: <span id="extractionCost">$0</span></div>
+                            <div>Embeddings: <span id="embeddingCost">$0</span></div>
+                            <div>Enrichment: <span id="enrichmentCost">$0</span></div>
+                        </div>
                     </div>
                     <div class="text-purple-500">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,6 +204,13 @@ async function loadStats() {
         document.getElementById('totalSpeakers').textContent = stats.total_speakers.toLocaleString();
         document.getElementById('totalEvents').textContent = stats.total_events.toLocaleString();
         document.getElementById('totalCost').textContent = '$' + stats.total_api_cost.toFixed(2);
+
+        // Update cost breakdown
+        if (stats.cost_breakdown) {
+            document.getElementById('extractionCost').textContent = '$' + stats.cost_breakdown.extraction.toFixed(4);
+            document.getElementById('embeddingCost').textContent = '$' + stats.cost_breakdown.embeddings.toFixed(4);
+            document.getElementById('enrichmentCost').textContent = '$' + stats.cost_breakdown.enrichment.toFixed(4);
+        }
 
         // Update enrichment progress
         const enrichmentPercent = stats.enrichment_percentage;
