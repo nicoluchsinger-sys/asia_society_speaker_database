@@ -346,6 +346,17 @@ def save_pipeline_run(db, stats):
         )
     """)
 
+    # Migrate existing table - add cost breakdown columns if they don't exist
+    cursor.execute("PRAGMA table_info(pipeline_runs)")
+    existing_columns = [row[1] for row in cursor.fetchall()]
+
+    if 'extraction_cost' not in existing_columns:
+        cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN extraction_cost REAL DEFAULT 0")
+    if 'embedding_cost' not in existing_columns:
+        cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN embedding_cost REAL DEFAULT 0")
+    if 'enrichment_cost' not in existing_columns:
+        cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN enrichment_cost REAL DEFAULT 0")
+
     cursor.execute("""
         INSERT INTO pipeline_runs (
             timestamp, duration_seconds, events_scraped, speakers_extracted,
