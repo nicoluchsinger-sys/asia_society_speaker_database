@@ -428,7 +428,7 @@ class SeleniumEventScraper:
                     print(f"   Found {len(new_unscraped)} new events, meeting limit of {limit}")
                     break
 
-                if max_pages and page >= max_pages:
+                if max_pages and max_pages != 'auto' and page >= max_pages:
                     print(f"   Reached max pages limit ({max_pages})")
                     break
 
