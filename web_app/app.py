@@ -366,6 +366,64 @@ def manual_pipeline_trigger():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/debug-stats')
+def debug_stats():
+    """Detailed diagnostic statistics"""
+    db_path = get_db_path()
+    with SpeakerDatabase(db_path) as db:
+        cursor = db.conn.cursor()
+
+        debug = {}
+
+        # Basic counts
+        cursor.execute('SELECT COUNT(*) FROM speakers')
+        debug['total_speakers'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speakers WHERE tagging_status = "completed"')
+        debug['enriched_speakers'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
+        debug['total_embeddings'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_embeddings')
+        debug['unique_speakers_with_embeddings'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_tags')
+        debug['tagged_speakers'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speaker_tags')
+        debug['total_tags'] = cursor.fetchone()[0]
+
+        # Check for orphaned records
+        cursor.execute('''
+            SELECT COUNT(*) FROM speaker_embeddings
+            WHERE speaker_id NOT IN (SELECT speaker_id FROM speakers)
+        ''')
+        debug['orphaned_embeddings'] = cursor.fetchone()[0]
+
+        cursor.execute('''
+            SELECT COUNT(*) FROM speaker_tags
+            WHERE speaker_id NOT IN (SELECT speaker_id FROM speakers)
+        ''')
+        debug['orphaned_tags'] = cursor.fetchone()[0]
+
+        # Pipeline runs
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
+        if cursor.fetchone():
+            cursor.execute('SELECT COUNT(*) FROM pipeline_runs')
+            debug['pipeline_runs'] = cursor.fetchone()[0]
+
+            # Check if cost columns exist
+            cursor.execute("PRAGMA table_info(pipeline_runs)")
+            columns = [row[1] for row in cursor.fetchall()]
+            debug['cost_columns_exist'] = 'extraction_cost' in columns
+        else:
+            debug['pipeline_runs'] = 0
+            debug['cost_columns_exist'] = False
+
+        return jsonify(debug)
+
+
 if __name__ == '__main__':
     # Use PORT environment variable for Railway/Heroku compatibility
     port = int(os.environ.get('PORT', 5001))
