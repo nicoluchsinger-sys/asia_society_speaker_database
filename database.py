@@ -120,6 +120,75 @@ class SpeakerDatabase:
             )
         ''')
 
+        # Speaker embeddings table (for semantic search)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_embeddings (
+                speaker_id INTEGER PRIMARY KEY,
+                embedding_model TEXT NOT NULL DEFAULT 'voyage-3',
+                embedding BLOB NOT NULL,
+                embedding_text TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
+        # Speaker demographics table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_demographics (
+                speaker_id INTEGER PRIMARY KEY,
+                gender TEXT,
+                gender_confidence REAL,
+                nationality TEXT,
+                nationality_confidence REAL,
+                birth_year INTEGER,
+                enriched_at TEXT,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
+        # Speaker locations table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_locations (
+                location_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                speaker_id INTEGER NOT NULL,
+                location_type TEXT NOT NULL,
+                city TEXT,
+                country TEXT,
+                region TEXT,
+                is_primary BOOLEAN DEFAULT 0,
+                confidence REAL,
+                source TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
+        # Speaker languages table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_languages (
+                language_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                speaker_id INTEGER NOT NULL,
+                language TEXT NOT NULL,
+                proficiency TEXT,
+                confidence REAL,
+                source TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
+        # Speaker freshness tracking table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_freshness (
+                speaker_id INTEGER PRIMARY KEY,
+                last_refreshed TEXT NOT NULL,
+                refresh_count INTEGER DEFAULT 1,
+                needs_refresh BOOLEAN DEFAULT 0,
+                priority_score REAL DEFAULT 0,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
         # Add tagging_status column to speakers table if it doesn't exist
         cursor.execute("PRAGMA table_info(speakers)")
         columns = [col[1] for col in cursor.fetchall()]
@@ -132,6 +201,15 @@ class SpeakerDatabase:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_events_status ON events(processing_status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_speaker ON event_speakers(speaker_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_event ON event_speakers(event_id)')
+
+        # Indexes for search-related tables
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_embeddings_speaker ON speaker_embeddings(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_demographics_speaker ON speaker_demographics(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_locations_speaker ON speaker_locations(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_locations_primary ON speaker_locations(is_primary)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_languages_speaker ON speaker_languages(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_freshness_needs_refresh ON speaker_freshness(needs_refresh)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_freshness_priority ON speaker_freshness(priority_score)')
 
         # Migration: add cost breakdown columns to pipeline_runs if they don't exist
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
