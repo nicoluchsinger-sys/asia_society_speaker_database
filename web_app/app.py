@@ -303,6 +303,18 @@ def api_stats():
     """Enhanced database statistics with enrichment progress and costs"""
     database = get_db()
     stats = database.get_enhanced_statistics()
+
+    # Add next scheduled pipeline run time
+    try:
+        job = scheduler.get_job('pipeline_job')
+        if job and job.next_run_time:
+            stats['next_pipeline_run'] = job.next_run_time.isoformat()
+        else:
+            stats['next_pipeline_run'] = None
+    except Exception as e:
+        logger.error(f"Error getting next pipeline run time: {e}")
+        stats['next_pipeline_run'] = None
+
     return jsonify(stats)
 
 
