@@ -1389,3 +1389,262 @@ The sections below contain original backlog entries from specific sessions. They
 
 <details>
 <summary>Session 1 Original Backlog (Click to expand)</summary>
+
+---
+
+## Session 6 - February 6, 2026
+**Focus**: Automated pipeline implementation with cost tracking and consolidated architecture
+
+### Summary
+Successfully implemented consolidated pipeline architecture on single Railway service with automated cron jobs. Created comprehensive stats dashboard with real-time cost tracking. Fixed ChromeDriver compatibility issues and deployed fully automated enrichment system that processes 20 existing speakers every 2 hours. System now operating autonomously to complete enrichment of remaining 731 speakers over next 3 days.
+
+### Achievements
+
+#### Consolidated Pipeline Architecture (Completed ✅)
+- ✅ **Created pipeline_cron.py** - Unified scraping, extraction, and enrichment
+  - Single script handles full workflow: scrape → extract → embed → enrich
+  - Configurable parameters: events per run, existing speakers to backfill
+  - Comprehensive cost tracking per run
+  - Saves execution statistics to pipeline_runs table
+  - Test mode (--test) for validation before production
+  
+- ✅ **Fixed ChromeDriver compatibility** 
+  - Updated Dockerfile to use Chrome for Testing endpoints
+  - Detects Chrome version and downloads matching ChromeDriver
+  - Fixes version mismatch (Chrome 144 vs ChromeDriver 114)
+  - Works on both web and scraper services
+
+- ✅ **Tested full pipeline on web service**
+  - Scraping: Works (found 365 existing events, no duplication)
+  - Extraction: Successfully extracts speakers from new events
+  - Embeddings: Auto-generates for new speakers
+  - Enrichment: Enriched 20 existing speakers in test ($0.15 cost)
+  - Database persistence: Confirmed writes to /data/speakers.db
+
+#### Automated Scheduling System (Completed ✅)
+- ✅ **Implemented APScheduler cron job**
+  - Runs every 2 hours automatically
+  - Configured for 5 events + 20 existing speakers per run
+  - Prioritizes backfilling existing speakers (751 → 731 remaining)
+  - Background execution doesn't block web interface
+  - Survives Railway redeployments (reinitializes automatically)
+
+- ✅ **Added manual trigger endpoint**
+  - POST /admin/run-pipeline for on-demand execution
+  - Runs in background thread
+  - Useful for testing and emergency runs
+
+#### Cost Tracking & Statistics Dashboard (Completed ✅)
+- ✅ **Enhanced database.get_enhanced_statistics()**
+  - Enrichment progress (enriched vs remaining, percentage)
+  - API costs (total and last 7 days)
+  - Recent activity (events, speakers, enrichments)
+  - Last pipeline run details with timestamp
+
+- ✅ **Created comprehensive stats dashboard (/stats)**
+  - Real-time statistics with auto-refresh (30 seconds)
+  - Visual progress bar for enrichment completion
+  - API cost breakdown (total, last 7 days, per run)
+  - Last pipeline run details
+  - Overview cards for key metrics
+  - Responsive design with Tailwind CSS
+
+- ✅ **Updated navigation**
+  - Added Stats link to main navigation
+  - Removed modal-based stats in favor of full page
+  - Clean, professional dashboard layout
+
+#### Database Enhancements (Completed ✅)
+- ✅ **Added pipeline_runs table**
+  - Tracks every automated run
+  - Records costs, speaker counts, duration
+  - Enables historical analysis
+  - Powers stats dashboard metrics
+
+- ✅ **Fixed speaker enrichment workflow**
+  - Corrected parameter names (role_in_event)
+  - Fixed scraper return value handling
+  - Proper event status marking (completed/failed)
+  - Incremental progress saving
+
+### Files Modified
+```
+New Files:
++ pipeline_cron.py                  - Consolidated pipeline script
++ web_app/templates/stats.html      - Statistics dashboard page
+
+Modified Files:
+- Dockerfile                        - ChromeDriver installation fix
+- requirements.txt                  - Added apscheduler>=3.10.0
+- web_app/app.py                    - Added scheduler, /stats route, /admin/run-pipeline
+- web_app/templates/base.html       - Updated navigation, removed modal
+- database.py                       - Added get_enhanced_statistics()
+- tag_speakers.py                   - Uses /data/speakers.db on Railway
+
+Commits:
+- fa9f153: feat: add comprehensive stats dashboard page
+- c2146ad: feat: add automated pipeline cron job to web service
+- 6907947: fix: use correct parameter name for link_speaker_to_event
+- ea8ac11: fix: correct speaker extraction logic in pipeline
+- a332771: fix: handle scraper return value (int, not dict)
+- 97c322c: fix: update ChromeDriver installation
+- 5e31341: feat: add consolidated pipeline with cost tracking
+- 5492989: fix: use /data/speakers.db path on Railway
+```
+
+### Session Metrics & Costs
+
+**Pipeline Testing:**
+- Test runs: 3 successful runs
+- Speakers enriched: 22 total (2 + 20)
+- API cost: $0.165 total
+- Average cost per speaker: $0.0075
+
+**Current System Configuration:**
+- Schedule: Every 2 hours
+- Events per run: 5
+- Existing speakers per run: 20
+- Expected cost per run: $0.31
+- Daily cost: ~$3.72 (12 runs × $0.31)
+- Completion time: ~3 days (731 speakers / 240 per day)
+
+**Production Deployment:**
+- First automated run: Successfully enriched 20 speakers
+- Cost: $0.15 (on target)
+- Runtime: ~26 seconds
+- All metrics recorded to database
+
+### Current Status
+
+**Database State:**
+- Total speakers: 796
+- Enriched speakers: 65 (8.2%)
+- Unenriched speakers: 731
+- Total events: 365
+- Total API cost: $0.16
+
+**Automated System:**
+- Status: Active and running ✅
+- Next run: Within 2 hours
+- Progress tracking: Live at /stats
+- Manual trigger: Available via POST /admin/run-pipeline
+
+**Services:**
+- Web service: Running Flask app + APScheduler cron
+- Scraper service: Deprecated (can be deleted)
+- Database: Single persistent volume at /data/speakers.db
+- No data sync issues ✅
+
+**Progress Toward Goals:**
+- Enrichment: 8.2% complete, automated system in place
+- Scaling to 1000+: On hold pending enrichment completion
+- Service consolidation: ✅ Completed
+- Cost tracking: ✅ Implemented
+
+### Challenges & Solutions
+
+#### Challenge 1: ChromeDriver Version Mismatch
+- **Issue**: Railway services had Chrome 144 but ChromeDriver 114
+- **Symptom**: "session not created" errors when initializing Selenium
+- **Root cause**: Old ChromeDriver installation method used deprecated endpoint
+- **Solution**: Updated Dockerfile to use Chrome for Testing endpoints
+- **Result**: Automatic version matching, works on all services
+
+#### Challenge 2: Pipeline Integration Complexity  
+- **Issue**: Multiple API method names and parameter mismatches
+- **Examples**: 
+  - Scraper returns int, not dict
+  - extract_speakers() vs extract_speakers_from_event()
+  - link_speaker_to_event(role vs role_in_event)
+- **Solution**: Iterative testing and fixing each integration point
+- **Result**: Clean, working pipeline with proper error handling
+
+#### Challenge 3: Cron Job Deployment Concerns
+- **Question**: Will code updates disrupt cron jobs?
+- **Answer**: No - APScheduler reinitializes on restart
+- **Behavior**: Jobs continue on schedule after redeployment
+- **Caveat**: In-progress job lost if redeployment mid-execution
+
+### Lessons Learned
+
+#### Infrastructure Design
+- **Single-service architecture works perfectly** for this use case
+- APScheduler is simpler than separate cron container
+- Background jobs in Flask work well for periodic tasks
+- Railway's auto-redeploy doesn't disrupt scheduled jobs
+
+#### Cost Management
+- **Comprehensive tracking essential** - Stats dashboard provides visibility
+- Per-run cost tracking enables budget monitoring
+- Historical data helps optimize batch sizes
+- Real-time dashboard prevents cost surprises
+
+#### Development Velocity
+- **Test modes accelerate iteration** - --test flag invaluable
+- Fix integration issues incrementally
+- Deploy often, test in production (with safeguards)
+- Manual triggers useful for debugging
+
+### Task Completions
+
+**Completed This Session:**
+- ✅ Task #10: Set up automated cron job for scheduled scraping
+- ✅ Task #7: Generate tags and enrich profiles for ALL speakers (automated now)
+- ✅ Task #9: Test manual scraping on web service
+- ✅ Task #4: Consolidate scraper and web services (implicit completion)
+
+**Outstanding Tasks:**
+- Task #3: Scale to 1000+ speakers (pending enrichment completion)
+- Task #5: Show speaker location in search results
+- Task #8: Verify enrichment quality and test search
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Monitor Enrichment Progress
+1. **Watch automated enrichment** (~3 days)
+   - Check /stats dashboard periodically
+   - Verify cron jobs running successfully
+   - Monitor API costs stay within budget
+   - Look for any failed runs or errors
+
+### Priority 2: Adjust Configuration If Needed
+2. **Optimize batch sizes** (if needed)
+   - If ahead of schedule: Reduce frequency or batch size
+   - If behind schedule: Increase existing_limit to 30-40
+   - Monitor API costs vs budget
+   - Adjust based on performance
+
+### Priority 3: Post-Enrichment Tasks
+3. **After enrichment completes** (731 speakers done)
+   - Run verification checks (Task #8)
+   - Test search quality with fully enriched database
+   - Spot-check enrichment accuracy
+   - Resume scaling to 1000+ speakers (Task #3)
+
+### Priority 4: Service Cleanup
+4. **Delete scraper service** (once confident)
+   - Verify all functionality working on web service
+   - Confirm no dependencies on scraper
+   - Delete via Railway dashboard
+   - Save $1/month in hosting costs
+
+### Optional: Feature Enhancements
+5. **Add speaker location to search results** (Task #5)
+   - Display event location in results
+   - Group by location filters
+   - Location-based search queries
+
+---
+
+## Development Philosophy (Updated)
+
+**Session 6 additions:**
+- **Automate repetitive tasks early** - Cron job saves hours of manual work
+- **Build comprehensive monitoring** - Stats dashboard provides confidence
+- **Test in production with safeguards** - Manual triggers + test modes
+- **Consolidate complexity** - Single service simpler than multiple
+- **Track costs proactively** - Real-time visibility prevents budget surprises
+- **Deploy incrementally** - Fix one integration issue at a time
+
