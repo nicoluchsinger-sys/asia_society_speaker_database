@@ -167,9 +167,9 @@ def extract_speakers(db):
                     # Link speaker to event
                     if speaker_id:
                         db.link_speaker_to_event(
-                            speaker_id=speaker_id,
                             event_id=event_id,
-                            role=speaker_data.get('role', 'speaker')
+                            speaker_id=speaker_id,
+                            role_in_event=speaker_data.get('role', 'speaker')
                         )
 
                 # Mark event as completed
