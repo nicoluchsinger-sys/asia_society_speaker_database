@@ -242,9 +242,9 @@ def speaker_detail(speaker_id):
 
 @app.route('/api/stats')
 def api_stats():
-    """Database statistics"""
+    """Enhanced database statistics with enrichment progress and costs"""
     database = get_db()
-    stats = database.get_statistics()
+    stats = database.get_enhanced_statistics()
     return jsonify(stats)
 
 

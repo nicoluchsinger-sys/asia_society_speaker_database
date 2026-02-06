@@ -584,6 +584,109 @@ class SpeakerDatabase:
 
         return stats
 
+    def get_enhanced_statistics(self) -> Dict:
+        """
+        Get enhanced database statistics including enrichment progress and costs
+
+        Returns:
+            Dictionary with comprehensive stats including:
+            - Basic counts (events, speakers, tags)
+            - Enrichment progress (enriched vs remaining)
+            - Embeddings count
+            - API costs (total and by service)
+            - Recent activity (last 7 days)
+        """
+        cursor = self.conn.cursor()
+        stats = {}
+
+        # Basic counts
+        cursor.execute('SELECT COUNT(*) FROM events')
+        stats['total_events'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM events WHERE processing_status = "completed"')
+        stats['processed_events'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speakers')
+        stats['total_speakers'] = cursor.fetchone()[0]
+
+        # Enrichment progress
+        cursor.execute('SELECT COUNT(*) FROM speakers WHERE tagging_status = "completed"')
+        stats['enriched_speakers'] = cursor.fetchone()[0]
+        stats['unenriched_speakers'] = stats['total_speakers'] - stats['enriched_speakers']
+        stats['enrichment_percentage'] = round(
+            (stats['enriched_speakers'] / stats['total_speakers'] * 100) if stats['total_speakers'] > 0 else 0,
+            1
+        )
+
+        # Embeddings
+        cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
+        stats['speakers_with_embeddings'] = cursor.fetchone()[0]
+
+        # Tags
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_tags')
+        stats['tagged_speakers'] = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM speaker_tags')
+        stats['total_tags'] = cursor.fetchone()[0]
+
+        # Pipeline runs and costs (if table exists)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
+        if cursor.fetchone():
+            # Total costs
+            cursor.execute('SELECT COALESCE(SUM(total_cost), 0) FROM pipeline_runs')
+            stats['total_api_cost'] = round(cursor.fetchone()[0], 2)
+
+            # Last 7 days of activity
+            from datetime import datetime, timedelta
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+
+            cursor.execute('''
+                SELECT
+                    COALESCE(SUM(events_scraped), 0),
+                    COALESCE(SUM(speakers_extracted), 0),
+                    COALESCE(SUM(new_speakers_enriched + existing_speakers_enriched), 0),
+                    COALESCE(SUM(total_cost), 0)
+                FROM pipeline_runs
+                WHERE timestamp > ?
+            ''', (seven_days_ago,))
+
+            row = cursor.fetchone()
+            stats['last_7_days'] = {
+                'events_scraped': row[0],
+                'speakers_extracted': row[1],
+                'speakers_enriched': row[2],
+                'api_cost': round(row[3], 2)
+            }
+
+            # Most recent run
+            cursor.execute('''
+                SELECT timestamp, events_scraped, speakers_extracted,
+                       new_speakers_enriched, existing_speakers_enriched, total_cost
+                FROM pipeline_runs
+                ORDER BY timestamp DESC
+                LIMIT 1
+            ''')
+            last_run = cursor.fetchone()
+            if last_run:
+                stats['last_pipeline_run'] = {
+                    'timestamp': last_run[0],
+                    'events_scraped': last_run[1],
+                    'speakers_extracted': last_run[2],
+                    'new_speakers_enriched': last_run[3],
+                    'existing_speakers_enriched': last_run[4],
+                    'cost': round(last_run[5], 4)
+                }
+        else:
+            stats['total_api_cost'] = 0
+            stats['last_7_days'] = {
+                'events_scraped': 0,
+                'speakers_extracted': 0,
+                'speakers_enriched': 0,
+                'api_cost': 0
+            }
+
+        return stats
+
     def add_speaker_tag(self, speaker_id, tag_text, confidence=None, source='web_search'):
         """Add a tag to a speaker"""
         cursor = self.conn.cursor()
