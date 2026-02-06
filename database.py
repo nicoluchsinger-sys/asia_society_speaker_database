@@ -133,6 +133,19 @@ class SpeakerDatabase:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_speaker ON event_speakers(speaker_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_event_speakers_event ON event_speakers(event_id)')
 
+        # Migration: add cost breakdown columns to pipeline_runs if they don't exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
+        if cursor.fetchone():
+            cursor.execute("PRAGMA table_info(pipeline_runs)")
+            existing_columns = [row[1] for row in cursor.fetchall()]
+
+            if 'extraction_cost' not in existing_columns:
+                cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN extraction_cost REAL DEFAULT 0")
+            if 'embedding_cost' not in existing_columns:
+                cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN embedding_cost REAL DEFAULT 0")
+            if 'enrichment_cost' not in existing_columns:
+                cursor.execute("ALTER TABLE pipeline_runs ADD COLUMN enrichment_cost REAL DEFAULT 0")
+
         self.conn.commit()
     
     def add_event(self, url: str, title: str, body_text: str, raw_html: Optional[str] = None,
