@@ -10,7 +10,7 @@ from datetime import datetime
 import time
 
 
-def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=True):
+def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=True, db_path=None):
     """
     Generate embeddings for all speakers without embeddings
 
@@ -19,9 +19,18 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
         limit: Maximum number of speakers to process (None = all)
         provider: Embedding provider ('openai' default, 'gemini', or 'voyage')
         verbose: Print progress messages
+        db_path: Path to database (None = auto-detect Railway vs local)
     """
+    # Auto-detect database path if not provided
+    if db_path is None:
+        import os
+        if os.path.exists('/data'):
+            db_path = '/data/speakers.db'
+        else:
+            db_path = 'speakers.db'
+
     # Get speakers list first, then close connection to avoid locking
-    db = SpeakerDatabase()
+    db = SpeakerDatabase(db_path)
     speakers_data = db.get_speakers_without_embeddings()
 
     # Pre-fetch tags for all speakers to avoid repeated connections

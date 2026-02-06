@@ -434,10 +434,14 @@ def backfill_embeddings():
         def run_backfill():
             logger.info("Starting embedding backfill...")
             try:
-                generate_embeddings(batch_size=50, provider='openai', verbose=True)
+                db_path = get_db_path()
+                logger.info(f"Using database: {db_path}")
+                generate_embeddings(batch_size=50, provider='openai', verbose=True, db_path=db_path)
                 logger.info("Embedding backfill completed successfully")
             except Exception as e:
                 logger.error(f"Embedding backfill failed: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
         # Run in background thread
         thread = threading.Thread(target=run_backfill)

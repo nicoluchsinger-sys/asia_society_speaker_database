@@ -212,7 +212,8 @@ def generate_speaker_embeddings(db):
     initial_count = db.count_embeddings()
 
     try:
-        generate_embeddings(batch_size=50, provider='openai', verbose=False)
+        # Pass database path to ensure correct database is used
+        generate_embeddings(batch_size=50, provider='openai', verbose=False, db_path=db.db_path)
     except Exception as e:
         log(f"ERROR generating embeddings: {e}")
         return 0
