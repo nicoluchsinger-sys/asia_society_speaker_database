@@ -15,7 +15,7 @@ Tracks API costs and logs progress.
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
@@ -371,7 +371,7 @@ def save_pipeline_run(db, stats):
             extraction_cost, embedding_cost, enrichment_cost, total_cost, success
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        datetime.now().isoformat(),
+        datetime.now(timezone.utc).isoformat(),
         stats.get_duration(),
         stats.events_scraped,
         stats.speakers_extracted,
@@ -421,14 +421,14 @@ def run_pipeline(event_limit=10, existing_limit=10):
                 extracted = extract_speakers(db)
                 stats.speakers_extracted = extracted
 
-                # Step 3: Generate embeddings for new speakers
+                # Step 3: Enrich NEW speakers first (adds tags before embedding)
                 if extracted > 0:
-                    embeddings = generate_speaker_embeddings(db)
-                    stats.add_embeddings(embeddings)
-
-                    # Step 4: Enrich NEW speakers first (priority)
                     enriched_new = enrich_new_speakers(db, stats)
                     stats.add_enrichment(enriched_new, is_existing=False)
+
+                    # Step 4: Generate embeddings for new speakers (includes tags now!)
+                    embeddings = generate_speaker_embeddings(db)
+                    stats.add_embeddings(embeddings)
 
             # Step 5: Enrich existing untagged speakers (backfill)
             enriched_existing = enrich_existing_speakers(db, limit=existing_limit)

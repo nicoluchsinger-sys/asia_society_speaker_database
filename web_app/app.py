@@ -490,6 +490,38 @@ def backfill_embeddings():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/regenerate-embeddings', methods=['POST'])
+def regenerate_embeddings():
+    """Regenerate ALL embeddings including tags (overwrites existing)"""
+    try:
+        from generate_embeddings import regenerate_all_embeddings
+        import threading
+
+        def run_regeneration():
+            logger.info("Starting embedding regeneration for ALL speakers...")
+            try:
+                db_path = get_db_path()
+                logger.info(f"Using database: {db_path}")
+                regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db_path=db_path)
+                logger.info("Embedding regeneration completed successfully")
+            except Exception as e:
+                logger.error(f"Embedding regeneration failed: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+
+        # Run in background thread
+        thread = threading.Thread(target=run_regeneration)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Embedding regeneration started in background',
+            'note': 'Regenerating embeddings for all 848 speakers. Check logs for progress. Will take ~2-3 minutes.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Use PORT environment variable for Railway/Heroku compatibility
     port = int(os.environ.get('PORT', 5001))

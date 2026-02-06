@@ -177,13 +177,27 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
         print("\n✓ Embedding generation complete!")
 
 
-def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True):
+def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db_path=None):
     """
     Regenerate embeddings for ALL speakers (even those with existing embeddings)
     WARNING: This will overwrite existing embeddings!
+
+    Args:
+        batch_size: Number of speakers to process in each batch
+        provider: Embedding provider ('openai' default, 'gemini', or 'voyage')
+        verbose: Print progress messages
+        db_path: Path to database (None = auto-detect Railway vs local)
     """
+    # Auto-detect database path if not provided
+    if db_path is None:
+        import os
+        if os.path.exists('/data'):
+            db_path = '/data/speakers.db'
+        else:
+            db_path = 'speakers.db'
+
     # Get speakers list first, then close connection to avoid locking
-    db = SpeakerDatabase()
+    db = SpeakerDatabase(db_path)
     speakers_data = db.get_all_speakers()
 
     # Pre-fetch tags for all speakers to avoid repeated connections
