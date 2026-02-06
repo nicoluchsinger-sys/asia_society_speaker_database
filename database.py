@@ -650,20 +650,28 @@ class SpeakerDatabase:
             cursor.execute('SELECT COALESCE(SUM(total_cost), 0) FROM pipeline_runs')
             stats['total_api_cost'] = round(cursor.fetchone()[0], 2)
 
-            # Cost breakdown by service
-            cursor.execute('''
-                SELECT
-                    COALESCE(SUM(extraction_cost), 0),
-                    COALESCE(SUM(embedding_cost), 0),
-                    COALESCE(SUM(enrichment_cost), 0)
-                FROM pipeline_runs
-            ''')
-            row = cursor.fetchone()
-            stats['cost_breakdown'] = {
-                'extraction': round(row[0], 4),
-                'embeddings': round(row[1], 4),
-                'enrichment': round(row[2], 4)
-            }
+            # Cost breakdown by service (if columns exist)
+            try:
+                cursor.execute('''
+                    SELECT
+                        COALESCE(SUM(extraction_cost), 0),
+                        COALESCE(SUM(embedding_cost), 0),
+                        COALESCE(SUM(enrichment_cost), 0)
+                    FROM pipeline_runs
+                ''')
+                row = cursor.fetchone()
+                stats['cost_breakdown'] = {
+                    'extraction': round(row[0], 4),
+                    'embeddings': round(row[1], 4),
+                    'enrichment': round(row[2], 4)
+                }
+            except sqlite3.OperationalError:
+                # Columns don't exist yet, will be added on next pipeline run
+                stats['cost_breakdown'] = {
+                    'extraction': 0,
+                    'embeddings': 0,
+                    'enrichment': 0
+                }
 
             # Last 7 days of activity
             from datetime import datetime, timedelta
