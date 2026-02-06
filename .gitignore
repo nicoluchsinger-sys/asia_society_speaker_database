@@ -7,3 +7,4 @@ __pycache__/
 backups/
 *.log
 .DS_Store
+scraper_speakers.db

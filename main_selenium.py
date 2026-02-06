@@ -11,6 +11,7 @@ from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
 from speaker_tagger import SpeakerTagger
+from generate_embeddings import generate_embeddings
 import json
 
 
@@ -313,6 +314,44 @@ def tag_speakers(db, limit=None, stats=None):
     return tagged_count
 
 
+def generate_speaker_embeddings_step(db, limit=None, stats=None):
+    """Step 4: Generate embeddings for speakers to make them searchable"""
+    print("\n\n" + "🔍 STEP 4: GENERATING EMBEDDINGS FOR SEARCH")
+    print("="*70)
+
+    if stats:
+        stats.start_step("4. Embeddings")
+
+    print("Generating embeddings for speakers without them...")
+    print("(This makes speakers searchable in the web interface)")
+
+    # Generate embeddings using OpenAI (silent mode for cleaner output)
+    try:
+        generate_embeddings(batch_size=50, limit=limit, provider='openai', verbose=False)
+
+        # Get count of speakers with embeddings
+        total_with_embeddings = db.count_embeddings()
+        total_speakers = db.get_statistics()['total_speakers']
+
+        print("\n" + "="*70)
+        print(f"✓ Embedding generation complete")
+        print(f"  Speakers with embeddings: {total_with_embeddings}/{total_speakers}")
+
+        if stats:
+            stats.end_step(total_with_embeddings)
+
+        return total_with_embeddings
+
+    except Exception as e:
+        print(f"\n❌ Error generating embeddings: {e}")
+        print("  Speakers without embeddings will not be searchable!")
+
+        if stats:
+            stats.end_step(0)
+
+        return 0
+
+
 def show_statistics(db):
     """Display database statistics and sample data"""
     print("\n\n" + "📊 DATABASE STATISTICS")
@@ -466,7 +505,8 @@ def main():
     print("1. Scrape event pages using Selenium (real browser)")
     print("2. Use AI to extract speaker information")
     print("3. Optionally tag speakers with expertise tags (--tag)")
-    print("4. Store everything in a SQLite database")
+    print("4. Generate embeddings to make speakers searchable")
+    print("5. Store everything in a SQLite database")
 
     print("\n" + "-"*70)
     print("NOTE: This requires Chrome browser to be installed.")
@@ -501,6 +541,12 @@ def main():
             tag_speakers(db, limit=args.tag_limit, stats=stats)
         else:
             print("\nSkipping speaker tagging. Use --tag to enable.")
+
+        # Step 4: Generate embeddings (makes speakers searchable)
+        if args.extract:  # Only generate embeddings if we extracted speakers
+            generate_speaker_embeddings_step(db, stats=stats)
+        else:
+            print("\nSkipping embedding generation (no extraction was performed).")
 
         # Show results
         show_statistics(db)

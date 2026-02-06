@@ -10,14 +10,14 @@ from datetime import datetime
 import time
 
 
-def generate_embeddings(batch_size=50, limit=None, provider='gemini', verbose=True):
+def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=True):
     """
     Generate embeddings for all speakers without embeddings
 
     Args:
         batch_size: Number of speakers to process in each batch
         limit: Maximum number of speakers to process (None = all)
-        provider: Embedding provider ('gemini' default, 'openai', or 'voyage')
+        provider: Embedding provider ('openai' default, 'gemini', or 'voyage')
         verbose: Print progress messages
     """
     # Get speakers list first, then close connection to avoid locking
@@ -168,7 +168,7 @@ def generate_embeddings(batch_size=50, limit=None, provider='gemini', verbose=Tr
         print("\n✓ Embedding generation complete!")
 
 
-def regenerate_all_embeddings(batch_size=50, provider='gemini', verbose=True):
+def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True):
     """
     Regenerate embeddings for ALL speakers (even those with existing embeddings)
     WARNING: This will overwrite existing embeddings!
@@ -315,9 +315,9 @@ if __name__ == '__main__':
                        help='Number of speakers to process in each batch (default: 50)')
     parser.add_argument('--limit', type=int, default=None,
                        help='Maximum number of speakers to process (default: all)')
-    parser.add_argument('--provider', type=str, default='gemini',
+    parser.add_argument('--provider', type=str, default='openai',
                        choices=['gemini', 'openai', 'voyage'],
-                       help='Embedding provider: gemini (free, default), openai ($0.02/1M), voyage ($0.06/1M)')
+                       help='Embedding provider: openai (default, $0.02/1M), gemini (free), voyage ($0.06/1M)')
     parser.add_argument('--regenerate', action='store_true',
                        help='Regenerate ALL embeddings (overwrite existing)')
     parser.add_argument('--quiet', action='store_true',

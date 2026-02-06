@@ -21,7 +21,8 @@ if [ ! -f speakers.db ]; then
     touch speakers.db && chmod 666 speakers.db || echo "Warning: Could not set permissions"
 fi
 
-# Run scraping with extraction
+# Run scraping with extraction and embeddings
+# Embeddings are now generated automatically for all new speakers
 python3 main_selenium.py -e $EVENTS --stats --headless
 
 echo ""
