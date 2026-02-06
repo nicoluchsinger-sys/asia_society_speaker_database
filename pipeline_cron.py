@@ -206,6 +206,9 @@ def generate_speaker_embeddings(db):
     """
     log("Generating embeddings for new speakers...")
 
+    # Commit transaction so embeddings can see newly added speakers
+    db.conn.commit()
+
     initial_count = db.count_embeddings()
 
     try:
@@ -229,6 +232,9 @@ def enrich_new_speakers(db, stats):
         int: Number of speakers enriched
     """
     log("Enriching newly extracted speakers...")
+
+    # Commit transaction so enrichment can see newly added speakers
+    db.conn.commit()
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
