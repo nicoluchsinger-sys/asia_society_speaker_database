@@ -105,13 +105,12 @@ def scrape_events(db, event_limit=10):
 
     scraper = SeleniumEventScraper()
     try:
-        results = scraper.scrape_events(
+        scraped_count = scraper.scrape_events(
             db=db,
             limit=event_limit,
             max_pages='auto'
         )
 
-        scraped_count = results.get('new_events', 0)
         log(f"Scraping complete: {scraped_count} new events")
         return scraped_count
 
