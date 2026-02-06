@@ -1638,13 +1638,222 @@ Commits:
 
 ---
 
+## Session 7 - February 6, 2026
+**Focus**: Stats dashboard enhancements and critical bug fixes
+
+### Summary
+Fixed critical production issues affecting pipeline execution and stats dashboard. Added API cost breakdown by service, fixed scraper pagination bug preventing event scraping, resolved SQLite threading errors, and made database migrations more robust. System now fully operational with comprehensive cost visibility.
+
+### Achievements
+
+#### Stats Dashboard Enhancements (Completed ✅)
+- ✅ **Added next scheduled pipeline run display**
+  - Shows timestamp of next automatic run
+  - Countdown timer (e.g., "in 1 hour 23 minutes")
+  - Updates dynamically on stats page
+  - Uses APScheduler job.next_run_time
+- ✅ **Added "Run Pipeline Now" manual trigger button**
+  - One-click manual pipeline execution
+  - Success/error feedback messages
+  - Button disabled for 10 seconds after trigger (prevents double-runs)
+  - Runs pipeline in background thread (non-blocking)
+  - Stats auto-refresh after triggering
+- ✅ **Implemented API cost breakdown by service**
+  - Separates Claude costs (extraction + enrichment) from OpenAI (embeddings)
+  - Displays under total cost: Extraction / Embeddings / Enrichment
+  - Tracks per-run costs in pipeline_runs table
+  - Added new columns: extraction_cost, embedding_cost, enrichment_cost
+
+#### Critical Bug Fixes (Completed ✅)
+- ✅ **Fixed scraper pagination TypeError**
+  - **Issue**: `'>=' not supported between instances of 'int' and 'str'`
+  - **Root cause**: Comparing page (int) with max_pages='auto' (string)
+  - **Impact**: Pipeline scraped 0 events, only enriched existing speakers
+  - **Solution**: Added check for max_pages != 'auto' before comparison
+  - **Result**: Scraping now works correctly
+- ✅ **Fixed SQLite threading errors**
+  - **Issue**: `SQLite objects created in a thread can only be used in that same thread`
+  - **Root cause**: Global database connection shared across Flask threads + background pipeline
+  - **Impact**: Stats dashboard returned 500 errors after manual pipeline trigger
+  - **Solution**:
+    1. Create new connection per API request using context manager
+    2. Added check_same_thread=False to connection
+  - **Result**: No more threading errors
+- ✅ **Fixed database migration timing issues**
+  - **Issue**: `no such column: extraction_cost`
+  - **Root cause**: Migrations only ran when saving pipeline runs, not on startup
+  - **Impact**: Stats page failed before any pipeline runs completed
+  - **Solutions**:
+    1. Added migration to init_database() method
+    2. Made cost breakdown query gracefully handle missing columns (try/except)
+  - **Result**: Stats page loads correctly even before first pipeline run
+
+#### Code Quality Improvements
+- ✅ **Improved PipelineStats tracking**
+  - Separated cost tracking by service type
+  - Changed from single total_cost to extraction/embedding/enrichment breakdown
+  - More granular cost visibility for budget management
+- ✅ **Enhanced error handling**
+  - Graceful fallbacks for missing database columns
+  - Try/except around cost breakdown queries
+  - Better user feedback on failures
+
+### Challenges Encountered
+
+#### Challenge 1: Cached Database Connections
+- **Issue**: Global db connection cached across threads
+- **Impact**: Multiple concurrent requests/pipeline runs caused threading errors
+- **Solution**: Per-request database connections via context manager
+- **Learning**: SQLite requires careful thread management in web apps
+
+#### Challenge 2: Schema Migration Timing
+- **Issue**: New columns added during pipeline run, but stats fetched before first run
+- **Impact**: Stats page errors on fresh deployments
+- **Solution**: Run migrations on database initialization + graceful column checks
+- **Learning**: Always handle schema evolution for both new and existing databases
+
+#### Challenge 3: Railway Deployment Caching
+- **Issue**: Database connections/instances cached between deployments
+- **Impact**: Migrations didn't apply until service restarted
+- **Solution**: Graceful fallbacks for missing columns (return zeros until migration runs)
+- **Learning**: Design for eventual consistency in cloud deployments
+
+### Files Modified
+```
+Modified:
+- web_app/app.py (threading fix for api_stats, manual trigger endpoint)
+- web_app/templates/stats.html (next run display, manual trigger button, cost breakdown)
+- database.py (init migration, graceful cost breakdown query)
+- pipeline_cron.py (cost breakdown tracking, migration logic)
+- selenium_scraper.py (pagination fix for max_pages='auto')
+
+Commits:
+- 5549433: Fix SQLite threading error in /api/stats endpoint
+- b2e3ec4: Add check_same_thread=False to SQLite connection
+- a716754: Add 'Run Pipeline Now' button to stats dashboard
+- f7f1c32: Add API cost breakdown by service
+- 5bc431e: Fix max_pages='auto' pagination logic
+- e8df19d: Add migration for cost breakdown columns
+- 547373d: Move cost migration to database initialization
+- 460609a: Make cost breakdown query handle missing columns gracefully
+```
+
+### Metrics
+- **Bugs fixed**: 3 critical (scraper, threading, migrations)
+- **Features added**: 3 (next run display, manual trigger, cost breakdown)
+- **Deployments**: 8
+- **Lines of code changed**: ~150
+- **Dashboard enhancements**: 4
+
+### Current Status
+
+#### What's Working ✅
+- Pipeline scrapes events correctly (pagination bug fixed)
+- Stats dashboard loads without errors
+- Manual trigger button works perfectly
+- Cost breakdown displays by service
+- Next run countdown shows correctly
+- Database migrations run automatically
+- Threading errors resolved
+
+#### System Health
+- **796 total speakers**
+- **85 speakers enriched** (10.7% complete)
+- **711 remaining to enrich** (~3 days at current rate)
+- **Total API cost**: $0.16
+- **Automated pipeline**: Running every 2 hours (5 events + 20 existing speakers)
+- **Next scheduled run**: Visible on dashboard
+
+### Decision: Scraper Service Cleanup
+- ✅ **User confirmed scraper service can be deleted**
+  - All functionality consolidated to web service
+  - No dependencies on separate scraper service
+  - Will save $1/month in Railway costs
+  - Action item: Delete via Railway dashboard when ready
+
+### Lessons Learned
+
+#### Threading in Flask + SQLite
+- **Never share connections across threads** - Create per-request
+- Use context managers for automatic cleanup
+- check_same_thread=False is safe with per-request connections
+- Background jobs need separate connections from API handlers
+
+#### Database Migrations Best Practices
+- **Run migrations on initialization** - Not just when needed
+- Handle missing columns gracefully (try/except)
+- Design for both new and existing databases
+- Railway caches database instances between deploys
+
+#### User Experience Details Matter
+- **Next run countdown** - Users want to know when automation happens
+- **Manual trigger button** - Testing/debugging without curl commands
+- **Cost breakdown** - Visibility into which APIs cost what
+- **Visual feedback** - Loading states, success/error messages
+
+### Task Completions
+
+**Completed This Session:**
+- ✅ Fixed stats dashboard loading errors
+- ✅ Fixed pipeline scraping (0 events → working)
+- ✅ Added cost breakdown visibility
+- ✅ Added manual pipeline trigger button
+- ✅ Added next run countdown
+
+**Confirmed for Cleanup:**
+- ✅ Scraper service can be safely deleted (saves $1/month)
+
+**Outstanding Tasks:**
+- Task #3: Scale to 1000+ speakers (pending 711 enrichments, ~3 days)
+- Task #5: Show speaker location in search results
+- Task #8: Verify enrichment quality and test search
+
+---
+
+## Next Session - Immediate Tasks
+
+### Priority 1: Service Cleanup
+1. **Delete scraper service from Railway**
+   - Verify all functionality on web service works
+   - Delete via Railway dashboard
+   - Confirm cost reduction to ~$4.50/month (single service)
+
+### Priority 2: Monitor Enrichment Completion
+2. **Watch automated enrichment** (711 speakers remaining)
+   - Check /stats dashboard for progress
+   - Verify pipeline runs completing successfully
+   - Monitor cost stays within budget (~$0.15 per run)
+   - Should complete in ~3 days (20 speakers × 36 runs)
+
+### Priority 3: Post-Enrichment Verification (Task #8)
+3. **After enrichment completes** (~796 speakers total)
+   - Verify all speakers have tags and enriched bios
+   - Test search quality with fully enriched database
+   - Spot-check enrichment accuracy
+   - Export sample data for review
+
+### Priority 4: Resume Scaling (Task #3)
+4. **Scale to 1000+ speakers**
+   - Run manual scraping sessions (5-10 events at a time)
+   - Use "Run Pipeline Now" button for testing
+   - Monitor costs via dashboard
+   - Target: 1000-1200 total speakers
+
+### Optional: Feature Enhancements
+5. **Add speaker location to search results** (Task #5)
+   - Display event location in results
+   - Location-based filtering
+   - Group results by location
+
+---
+
 ## Development Philosophy (Updated)
 
-**Session 6 additions:**
-- **Automate repetitive tasks early** - Cron job saves hours of manual work
-- **Build comprehensive monitoring** - Stats dashboard provides confidence
-- **Test in production with safeguards** - Manual triggers + test modes
-- **Consolidate complexity** - Single service simpler than multiple
-- **Track costs proactively** - Real-time visibility prevents budget surprises
-- **Deploy incrementally** - Fix one integration issue at a time
+**Session 7 additions:**
+- **Fix threading issues early** - SQLite + Flask requires careful connection management
+- **Graceful degradation** - Handle missing data/columns with fallbacks, not errors
+- **User-facing monitoring** - Next run countdown + manual trigger = confidence
+- **Granular cost tracking** - Service-level breakdown reveals optimization opportunities
+- **Deploy fixes quickly** - 8 deployments in one session is fine when fixing critical bugs
+- **Cache awareness** - Railway caches database connections, design accordingly
 
