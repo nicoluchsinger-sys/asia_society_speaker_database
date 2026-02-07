@@ -4,6 +4,195 @@ This log tracks progress across development sessions, documenting achievements a
 
 ---
 
+## Session 9 - February 7, 2026
+**Focus**: Event detail pages and FAQ implementation
+
+### Summary
+Completed user-facing feature improvements to make the database more navigable and understandable. Added event detail pages showing all speakers at each event, and created a comprehensive FAQ page with dynamic statistics.
+
+### Achievements
+
+#### Event Detail Pages (Task #1 ✅)
+- ✅ **New `/event/<event_id>` route**
+  - Shows event title, date, location
+  - **Prominent external link button** to Asia Society event page
+  - Lists all speakers who participated
+  - Links to speaker profiles
+- ✅ **Database method**: `get_event_by_id()` in database.py
+- ✅ **Updated speaker profiles**
+  - Event titles now link to event detail page (internal navigation)
+  - External link icon button preserved for quick Asia Society access
+  - Better UX flow: speaker → events → other speakers at event
+- ✅ **User requirement met**: External links remain easily accessible
+
+#### FAQ Page (Task #2 ✅)
+- ✅ **Created FAQ.md** with comprehensive, non-technical explanations
+  - What the database is and how it works
+  - Data collection process (scraping, extraction, enrichment)
+  - Search functionality explained (hybrid name + semantic)
+  - Update schedule (twice daily at 6 AM/6 PM UTC)
+  - Privacy and accuracy approach
+  - Technology stack overview
+  - Contact information (nico.luchsinger@gmail.com)
+- ✅ **Dynamic statistics** via template variables
+  - Speaker count: `{{total_speakers}}`
+  - Event count: `{{total_events}}`
+  - Date range: `{{oldest_event_date}}` to `{{newest_event_date}}`
+  - Values refresh on every page load
+- ✅ **Markdown rendering** with clean typography
+  - Python markdown library with 'extra' and 'nl2br' extensions
+  - Custom prose styling for readability
+  - Section headers with borders
+  - Responsive layout
+- ✅ **Navigation link added** to main menu (between Stats and Logout)
+
+#### Deployment Fix
+- ✅ **Dockerfile updated** to include FAQ.md
+  - Original issue: FileNotFoundError in production
+  - Root cause: Dockerfile only copied `.py` files and `web_app/` directory
+  - Solution: Added `COPY FAQ.md ./` to line 65
+  - Railway auto-deploys with fix
+
+### Files Modified
+```
+Modified:
+- database.py (added get_event_by_id method)
+- web_app/app.py (added /event/<id> route, /faq route)
+- web_app/templates/speaker.html (events link to event detail page)
+- web_app/templates/base.html (added FAQ to navigation)
+- requirements.txt (added markdown library)
+- Dockerfile (copy FAQ.md into image)
+
+Created:
+- FAQ.md (source content with template variables)
+- web_app/templates/event.html (event detail page)
+- web_app/templates/faq.html (FAQ page template)
+
+Commits:
+- 845937d: feat: add event detail page showing all speakers
+- dafbd09: feat: add FAQ page with dynamic statistics
+- 09f4c34: fix: include FAQ.md in Docker image build
+```
+
+### Session Metrics
+
+**Database State:**
+- Total speakers: 978 (up from 954 in Session 8)
+- Total events: 435 (up from 415 in Session 8)
+- Event date range: April 7, 2025 to February 7, 2026
+- Enrichment coverage: 100%
+- Embedding coverage: 100%
+
+**Development:**
+- New routes added: 2 (`/event/<id>`, `/faq`)
+- New database methods: 1 (`get_event_by_id`)
+- Templates created: 2 (event.html, faq.html)
+- Lines of documentation: 116 (FAQ.md)
+
+### Current Status
+
+**User-Facing Features:**
+- ✅ Search functionality (hybrid name + semantic)
+- ✅ Speaker detail pages
+- ✅ Event detail pages (NEW)
+- ✅ Stats dashboard
+- ✅ FAQ page (NEW)
+- ✅ Dynamic speaker counts
+- ✅ Prominent external links preserved
+
+**System Health:**
+- ✅ Pipeline runs twice daily (6 AM/6 PM UTC)
+- ✅ All features consolidated in web service
+- ✅ Railway deployment working
+- ✅ FAQ.md properly included in Docker image
+
+### Task Completions
+
+**Completed This Session:**
+- ✅ Task #1: Add event detail page showing all speakers
+- ✅ Task #2: Create FAQ page with non-technical explanation
+
+**New Tasks Added:**
+- 🆕 Task #3: AI-verified speaker correction feature
+  - User can suggest edits on speaker profiles
+  - System runs web search for verification
+  - AI evaluates suggestion + search results
+  - Auto-updates if confidence threshold met
+  - Logs all suggestions for review
+
+**Outstanding Tasks:**
+- Task #3 (old): Scale to 1000+ speakers (current: 978, need 22 more)
+- Task #5: Show speaker location in search results
+- Task #14: Clean up Railway services (delete scraper)
+
+### User Feedback
+
+**Event Detail Pages:**
+- User requested: "important it remains easy to find the external link for a specific event, as it is now"
+- Implementation: Large blue button at top of event page + icon in speaker profiles
+- Result: ✅ External links prominent and accessible
+
+**FAQ Content:**
+- User comments addressed:
+  1. "Please make sure these values are displayed dynamically" → ✅ Template variables
+  2. "It doesn't [have bug reporting] but great idea" → ✅ Removed from FAQ, added to backlog
+- User provided: Contact email (nico.luchsinger@gmail.com)
+
+### Lessons Learned
+
+#### Docker COPY Instructions Must Be Explicit
+- **Issue**: FAQ.md not in Docker image despite being in git
+- **Root cause**: Dockerfile only had `COPY *.py` and `COPY web_app/`
+- **Solution**: Add explicit `COPY FAQ.md ./` instruction
+- **Takeaway**: Wildcard patterns don't catch everything - be explicit
+
+#### Dynamic Content Improves Documentation
+- **Template variables in markdown** make FAQ always accurate
+- Alternative (hardcoded values) would become stale quickly
+- Simple replacement strategy: `faq_content.replace('{{var}}', value)`
+- Python markdown library handles conversion cleanly
+
+#### User Navigation Patterns Matter
+- **Event as hub**: Shows all speakers at that event
+- **Preserved workflows**: External links still one click away
+- **Discovery path**: Speaker → Event → Other speakers → New connections
+- Better than: Direct external links (no discovery) or hidden links (poor UX)
+
+### Next Session - Immediate Tasks
+
+#### Priority 1: Monitor FAQ Deployment
+1. **Verify FAQ page works in production**
+   - Check Railway deployment completed
+   - Test `/faq` route with live data
+   - Verify dynamic stats render correctly
+   - Confirm markdown formatting looks good
+
+#### Priority 2: Continue Scaling (Task #3)
+2. **Reach 1000+ speaker milestone**
+   - Current: 978 speakers
+   - Target: 1000+ speakers
+   - Need: 22+ more speakers
+   - Strategy: Automated twice-daily runs should reach goal within 1-2 days
+
+#### Priority 3: AI-Verified Speaker Corrections (New Task)
+3. **Design and implement speaker correction workflow**
+   - Add "Suggest Edit" button on speaker profiles
+   - Create correction suggestion form
+   - Implement web search verification
+   - AI evaluation logic (Claude + search results → confidence score)
+   - Auto-update threshold decision
+   - Logging and audit trail
+   - Optional: Show pending suggestions to users
+
+#### Optional: Location Display (Task #5)
+4. **Show speaker location in search results**
+   - Display in search result cards
+   - Format: "City, Country" or "Region"
+   - Already implemented in speaker_search.py
+   - Just needs frontend display (search.js)
+
+---
+
 ## Session 1 - February 5, 2026
 **Focus**: Code quality improvements and development standards implementation
 
