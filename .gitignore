@@ -8,3 +8,4 @@ backups/
 *.log
 .DS_Store
 scraper_speakers.db
+*_production.db

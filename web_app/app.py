@@ -60,25 +60,95 @@ def get_db():
 # Pipeline scheduling
 def run_scheduled_pipeline():
     """Run the consolidated pipeline on a schedule"""
+    import sqlite3
+    from datetime import datetime, timezone
+
     logger.info("Starting scheduled pipeline run...")
+    db_path = get_db_path()
 
     try:
-        # Import here to avoid circular imports
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from pipeline_cron import run_pipeline
+        # Check if pipeline is already running (distributed lock across Railway instances)
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
 
-        # Run pipeline: 5 events, 20 existing speakers
-        success = run_pipeline(event_limit=5, existing_limit=20)
+        # Create lock table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pipeline_lock (
+                lock_id INTEGER PRIMARY KEY CHECK (lock_id = 1),
+                is_locked BOOLEAN NOT NULL DEFAULT 0,
+                locked_at TEXT,
+                locked_by TEXT
+            )
+        ''')
 
-        if success:
-            logger.info("✓ Scheduled pipeline completed successfully")
-        else:
-            logger.error("✗ Scheduled pipeline failed")
+        # Initialize lock row if it doesn't exist
+        cursor.execute('INSERT OR IGNORE INTO pipeline_lock (lock_id, is_locked) VALUES (1, 0)')
+        conn.commit()
+
+        # Try to acquire lock
+        cursor.execute('SELECT is_locked, locked_at FROM pipeline_lock WHERE lock_id = 1')
+        row = cursor.fetchone()
+        is_locked, locked_at = row[0], row[1]
+
+        # Check if lock is stale (older than 30 minutes - pipeline should never take that long)
+        if is_locked and locked_at:
+            import time
+            locked_time = datetime.fromisoformat(locked_at.replace('+00:00', ''))
+            elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - locked_time).total_seconds()
+            if elapsed > 1800:  # 30 minutes
+                logger.warning(f"⚠ Stale lock detected ({elapsed:.0f}s old), clearing it")
+                is_locked = False
+
+        if is_locked:
+            logger.info("⏭ Pipeline already running in another instance, skipping this execution")
+            conn.close()
+            return
+
+        # Acquire lock
+        instance_id = os.environ.get('RAILWAY_REPLICA_ID', 'local')
+        cursor.execute(
+            'UPDATE pipeline_lock SET is_locked = 1, locked_at = ?, locked_by = ? WHERE lock_id = 1',
+            (datetime.now(timezone.utc).isoformat(), instance_id)
+        )
+        conn.commit()
+        conn.close()
+        logger.info(f"✓ Acquired pipeline execution lock (instance: {instance_id})")
+
+        try:
+            # Import here to avoid circular imports
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from pipeline_cron import run_pipeline
+
+            # Run pipeline: 5 events, 20 existing speakers
+            success = run_pipeline(event_limit=5, existing_limit=20)
+
+            if success:
+                logger.info("✓ Scheduled pipeline completed successfully")
+            else:
+                logger.error("✗ Scheduled pipeline failed")
+
+        finally:
+            # Release lock
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE pipeline_lock SET is_locked = 0 WHERE lock_id = 1')
+            conn.commit()
+            conn.close()
+            logger.info("✓ Released pipeline execution lock")
 
     except Exception as e:
         logger.error(f"ERROR in scheduled pipeline: {e}")
         import traceback
         traceback.print_exc()
+        # Try to release lock on error
+        try:
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE pipeline_lock SET is_locked = 0 WHERE lock_id = 1')
+            conn.commit()
+            conn.close()
+        except:
+            pass
 
 
 # Initialize scheduler
@@ -91,7 +161,9 @@ scheduler.add_job(
     trigger=CronTrigger(hour='*/2'),  # Runs at even hours: 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
     id='pipeline_job',
     name='Run speaker pipeline at fixed 2-hour intervals',
-    replace_existing=True
+    replace_existing=True,
+    coalesce=True,  # If multiple runs are pending, only run once
+    max_instances=1  # Only allow one instance of this job to run at a time
 )
 
 logger.info("✓ Scheduler initialized: pipeline runs at 0:00, 2:00, 4:00, 6:00, 8:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC (5 events + 20 existing speakers)")
