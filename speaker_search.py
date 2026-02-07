@@ -185,6 +185,7 @@ class SpeakerSearch:
                 'bio': candidate.get('bio'),
                 'tags': tags,
                 'event_count': event_count,
+                'location': candidate.get('location'),
                 'score': final_score,
                 'semantic_score': semantic_score,
                 'preference_score': preference_score,
@@ -328,6 +329,28 @@ class SpeakerSearch:
         events = self.db.get_speaker_events(speaker_id)
         event_count = len(events) if events else 0
 
+        # Get primary location
+        locations = self.db.get_speaker_locations(speaker_id)
+        primary_location = None
+        if locations:
+            # Find primary location or use first location
+            for loc in locations:
+                if loc[5]:  # is_primary field
+                    primary_location = {
+                        'city': loc[2],
+                        'country': loc[3],
+                        'region': loc[4]
+                    }
+                    break
+            # If no primary, use first location
+            if not primary_location and locations:
+                loc = locations[0]
+                primary_location = {
+                    'city': loc[2],
+                    'country': loc[3],
+                    'region': loc[4]
+                }
+
         return {
             'speaker_id': speaker_id,
             'name': name,
@@ -336,7 +359,8 @@ class SpeakerSearch:
             'primary_affiliation': primary_affiliation,
             'bio': bio,
             'tags': tags,
-            'event_count': event_count
+            'event_count': event_count,
+            'location': primary_location
         }
 
     def _get_all_speakers_data(self) -> List[Dict]:
@@ -354,6 +378,28 @@ class SpeakerSearch:
             events = self.db.get_speaker_events(speaker_id)
             event_count = len(events) if events else 0
 
+            # Get primary location
+            locations = self.db.get_speaker_locations(speaker_id)
+            primary_location = None
+            if locations:
+                # Find primary location or use first location
+                for loc in locations:
+                    if loc[5]:  # is_primary field
+                        primary_location = {
+                            'city': loc[2],
+                            'country': loc[3],
+                            'region': loc[4]
+                        }
+                        break
+                # If no primary, use first location
+                if not primary_location and locations:
+                    loc = locations[0]
+                    primary_location = {
+                        'city': loc[2],
+                        'country': loc[3],
+                        'region': loc[4]
+                    }
+
             results.append({
                 'speaker_id': speaker_id,
                 'name': name,
@@ -362,6 +408,7 @@ class SpeakerSearch:
                 'bio': bio,
                 'tags': tags,
                 'event_count': event_count,
+                'location': primary_location,
                 'semantic_similarity': 0.5  # Neutral score when no semantic search
             })
 

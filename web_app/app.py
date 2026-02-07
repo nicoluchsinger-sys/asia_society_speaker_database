@@ -246,6 +246,7 @@ def api_search():
                 'bio': result.get('bio'),
                 'tags': result.get('tags', []),
                 'event_count': result.get('event_count', 0),
+                'location': result.get('location'),
                 'score': round(result['score'], 3),
                 'base_score': round(result.get('base_score', 0), 3),
                 'bonus': round(result.get('bonus', 0), 3)
