@@ -106,7 +106,6 @@ class SeleniumEventScraper:
         # Patterns to EXCLUDE (known bad links)
         exclude_patterns = [
             '/events/past',
-            '/events/state-asia',
             '/news/',
             '/about',
             '/center',
