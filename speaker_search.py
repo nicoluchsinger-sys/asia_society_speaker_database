@@ -32,6 +32,11 @@ class SpeakerSearch:
         """
         Search for speakers matching natural language query
 
+        Hybrid approach:
+        1. First check for exact/partial name matches (fast, guaranteed)
+        2. Then do semantic search (comprehensive)
+        3. Combine with name matches prioritized
+
         Args:
             query: Natural language search query
             top_k: Maximum number of results to return
@@ -47,8 +52,8 @@ class SpeakerSearch:
         if parsed.get('count'):
             top_k = min(top_k, parsed['count'])
 
-        # Stage 1: Candidate Retrieval (Semantic Search)
-        candidates = self._retrieve_candidates(parsed, top_k * 2)  # Get more for re-ranking
+        # Stage 1: Candidate Retrieval (Name + Semantic)
+        candidates = self._retrieve_candidates(parsed, query, top_k * 2)  # Get more for re-ranking
 
         # Stage 2: Ranking & Scoring
         scored_speakers = self._score_and_rank(candidates, parsed, explain)
@@ -58,16 +63,66 @@ class SpeakerSearch:
 
         return results
 
+    def _find_speakers_by_name(self, query: str) -> List[Dict]:
+        """
+        Find speakers by exact or partial name match
+
+        Args:
+            query: Search query (checked against speaker names)
+
+        Returns:
+            List of matching speakers with 'name_match' flag
+        """
+        # Clean query for name matching
+        query_clean = query.strip().lower()
+
+        # Skip if query is too short or looks like a topic search
+        if len(query_clean) < 3:
+            return []
+
+        # Get all speakers and filter by name match
+        all_speakers = self.db.get_all_speakers()
+        matches = []
+
+        for speaker_data in all_speakers:
+            speaker_id, name, title, affiliation, bio, first_seen, last_updated = speaker_data
+
+            if not name:
+                continue
+
+            name_lower = name.lower()
+
+            # Check for match (exact or partial)
+            if query_clean in name_lower or name_lower in query_clean:
+                # Get full speaker data
+                speaker_dict = self._get_speaker_data(speaker_id)
+                if speaker_dict:
+                    speaker_dict['name_match'] = True
+                    speaker_dict['semantic_similarity'] = 1.0  # High base score for name matches
+                    matches.append(speaker_dict)
+
+        return matches
+
     def _retrieve_candidates(
         self,
         parsed_query: Dict,
+        query: str,
         candidate_count: int
     ) -> List[Dict]:
         """
-        Stage 1: Retrieve candidates using semantic search
+        Stage 1: Retrieve candidates using hybrid approach
+
+        1. Name matching (exact/partial)
+        2. Semantic search (topic/expertise)
+        3. Combine and deduplicate
 
         Returns list of candidate speakers with their data
         """
+        # Step 1: Try name matching first
+        name_matches = self._find_speakers_by_name(query)
+        name_match_ids = {s['speaker_id'] for s in name_matches}
+
+        # Step 2: Semantic search
         # Check if there are expertise requirements
         expertise_reqs = [
             req for req in parsed_query.get('hard_requirements', [])
@@ -103,16 +158,27 @@ class SpeakerSearch:
             )
 
             # Get full speaker data for candidates
-            candidates = []
+            semantic_candidates = []
             for speaker_id, similarity in similar_speakers:
+                # Skip if already in name matches (avoid duplicates)
+                if speaker_id in name_match_ids:
+                    continue
+
                 speaker_data = self._get_speaker_data(speaker_id)
                 if speaker_data:
                     speaker_data['semantic_similarity'] = similarity
-                    candidates.append(speaker_data)
+                    semantic_candidates.append(speaker_data)
 
-            return candidates
+            # Combine: name matches first (high priority), then semantic matches
+            all_candidates = name_matches + semantic_candidates
+            return all_candidates
         else:
-            # No expertise requirements - return all speakers
+            # No expertise requirements
+            # If we have name matches, return those
+            if name_matches:
+                return name_matches
+
+            # Otherwise return all speakers for filtering
             return self._get_all_speakers_data()
 
     def _score_and_rank(
@@ -124,12 +190,13 @@ class SpeakerSearch:
         """
         Stage 2: Score and rank candidates
 
-        New scoring formula (gives preferences meaningful weight):
-        final_score = ((semantic_score * 0.6) + (preference_score * 0.4)) * quality_multiplier
+        Scoring formula with name match boost:
+        final_score = ((semantic_score * 0.6) + (preference_score * 0.4)) * quality_multiplier + name_boost
 
         - Semantic score (60%): Topic relevance from embeddings
         - Preference score (40%): Match on gender/location/language preferences
         - Quality multiplier (1.0-1.5x): Boost for high-quality profiles
+        - Name match boost (+0.5): Added when query matches speaker name
         """
         scored_candidates = []
 
@@ -171,10 +238,16 @@ class SpeakerSearch:
                 quality_multiplier += 0.15
                 quality_explanations.append(f"Active speaker ({event_count} events)")
 
+            # 4. Name match boost (if applicable)
+            name_match_boost = 0.0
+            if candidate.get('name_match'):
+                name_match_boost = 0.5  # Significant boost for exact name matches
+                quality_explanations.append("Exact name match")
+
             # Calculate final score
-            # Topic relevance (60%) + Preference match (40%), boosted by quality
+            # Topic relevance (60%) + Preference match (40%), boosted by quality + name match
             combined_score = (semantic_score * 0.6) + (preference_score * 0.4)
-            final_score = combined_score * quality_multiplier
+            final_score = (combined_score * quality_multiplier) + name_match_boost
 
             # Build result
             result = {
