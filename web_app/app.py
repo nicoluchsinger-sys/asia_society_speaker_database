@@ -10,6 +10,7 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
+import markdown
 
 # Add parent directory to path to access modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -410,6 +411,98 @@ def event_detail(event_id):
         event=event,
         speakers=formatted_speakers
     )
+
+
+@app.route('/faq')
+@login_required
+def faq():
+    """FAQ page with dynamic statistics"""
+    import sqlite3
+
+    database = get_db()
+
+    # Get current statistics for dynamic content
+    cursor = database.conn.cursor()
+
+    # Get speaker and event counts
+    cursor.execute('SELECT COUNT(*) FROM speakers')
+    total_speakers = cursor.fetchone()[0]
+
+    cursor.execute('SELECT COUNT(*) FROM events')
+    total_events = cursor.fetchone()[0]
+
+    # Get event date range (using same query as stats API)
+    cursor.execute('''
+        SELECT event_date
+        FROM events
+        WHERE event_date IS NOT NULL
+          AND event_date NOT LIKE '%T%'
+        ORDER BY
+            substr(event_date, 8, 4) ||
+            CASE substr(event_date, 4, 3)
+                WHEN 'Jan' THEN '01'
+                WHEN 'Feb' THEN '02'
+                WHEN 'Mar' THEN '03'
+                WHEN 'Apr' THEN '04'
+                WHEN 'May' THEN '05'
+                WHEN 'Jun' THEN '06'
+                WHEN 'Jul' THEN '07'
+                WHEN 'Aug' THEN '08'
+                WHEN 'Sep' THEN '09'
+                WHEN 'Oct' THEN '10'
+                WHEN 'Nov' THEN '11'
+                WHEN 'Dec' THEN '12'
+            END ||
+            substr(event_date, 1, 2)
+        ASC
+        LIMIT 1
+    ''')
+    oldest = cursor.fetchone()
+    oldest_event_date = oldest[0] if oldest else 'Unknown'
+
+    cursor.execute('''
+        SELECT event_date
+        FROM events
+        WHERE event_date IS NOT NULL
+          AND event_date NOT LIKE '%T%'
+        ORDER BY
+            substr(event_date, 8, 4) ||
+            CASE substr(event_date, 4, 3)
+                WHEN 'Jan' THEN '01'
+                WHEN 'Feb' THEN '02'
+                WHEN 'Mar' THEN '03'
+                WHEN 'Apr' THEN '04'
+                WHEN 'May' THEN '05'
+                WHEN 'Jun' THEN '06'
+                WHEN 'Jul' THEN '07'
+                WHEN 'Aug' THEN '08'
+                WHEN 'Sep' THEN '09'
+                WHEN 'Oct' THEN '10'
+                WHEN 'Nov' THEN '11'
+                WHEN 'Dec' THEN '12'
+            END ||
+            substr(event_date, 1, 2)
+        DESC
+        LIMIT 1
+    ''')
+    newest = cursor.fetchone()
+    newest_event_date = newest[0] if newest else 'Unknown'
+
+    # Read FAQ markdown file
+    faq_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'FAQ.md')
+    with open(faq_path, 'r', encoding='utf-8') as f:
+        faq_content = f.read()
+
+    # Replace template variables with actual values
+    faq_content = faq_content.replace('{{total_speakers}}', str(total_speakers))
+    faq_content = faq_content.replace('{{total_events}}', str(total_events))
+    faq_content = faq_content.replace('{{oldest_event_date}}', oldest_event_date)
+    faq_content = faq_content.replace('{{newest_event_date}}', newest_event_date)
+
+    # Convert markdown to HTML
+    faq_html = markdown.markdown(faq_content, extensions=['extra', 'nl2br'])
+
+    return render_template('faq.html', faq_content=faq_html)
 
 
 @app.route('/api/stats')
