@@ -639,6 +639,24 @@ class SpeakerDatabase:
         ''', (event_id,))
         return cursor.fetchall()
 
+    def get_event_by_id(self, event_id: int) -> Optional[Tuple]:
+        """
+        Get event details by ID.
+
+        Args:
+            event_id: Event ID
+
+        Returns:
+            Tuple: (event_id, url, title, event_date, location) or None if not found
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT event_id, url, title, event_date, location
+            FROM events
+            WHERE event_id = ?
+        ''', (event_id,))
+        return cursor.fetchone()
+
     def get_statistics(self) -> Dict[str, int]:
         """
         Get database statistics for all tables.

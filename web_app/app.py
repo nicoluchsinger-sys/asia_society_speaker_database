@@ -371,6 +371,47 @@ def speaker_detail(speaker_id):
     )
 
 
+@app.route('/event/<int:event_id>')
+@login_required
+def event_detail(event_id):
+    """Event detail page showing all speakers"""
+    database = get_db()
+
+    # Get event details
+    event_data = database.get_event_by_id(event_id)
+    if not event_data:
+        return "Event not found", 404
+
+    # Parse event data
+    event = {
+        'event_id': event_data[0],
+        'url': event_data[1],
+        'title': event_data[2],
+        'event_date': event_data[3],
+        'location': event_data[4]
+    }
+
+    # Get all speakers for this event
+    speakers_data = database.get_event_speakers(event_id)
+
+    # Format speakers
+    formatted_speakers = []
+    for speaker in speakers_data:
+        formatted_speakers.append({
+            'speaker_id': speaker[0],
+            'name': speaker[1],
+            'title': speaker[2],
+            'affiliation': speaker[3],
+            'role': speaker[4]
+        })
+
+    return render_template(
+        'event.html',
+        event=event,
+        speakers=formatted_speakers
+    )
+
+
 @app.route('/api/stats')
 def api_stats():
     """Enhanced database statistics with enrichment progress and costs"""
