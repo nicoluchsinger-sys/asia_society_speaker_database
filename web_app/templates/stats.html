@@ -37,7 +37,7 @@
 
             <!-- Total Events -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-3">
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Total Events</p>
                         <p id="totalEvents" class="text-3xl font-bold text-green-600">-</p>
@@ -46,6 +46,18 @@
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
+                    </div>
+                </div>
+                <div class="border-t pt-3">
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <div class="flex justify-between">
+                            <span>Oldest:</span>
+                            <span id="oldestEvent" class="font-medium">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Newest:</span>
+                            <span id="newestEvent" class="font-medium">-</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -204,6 +216,19 @@ async function loadStats() {
         document.getElementById('totalSpeakers').textContent = stats.total_speakers.toLocaleString();
         document.getElementById('totalEvents').textContent = stats.total_events.toLocaleString();
         document.getElementById('totalCost').textContent = '$' + stats.total_api_cost.toFixed(2);
+
+        // Update event date range
+        if (stats.oldest_event_date && stats.newest_event_date) {
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            };
+            document.getElementById('oldestEvent').textContent = formatDate(stats.oldest_event_date);
+            document.getElementById('newestEvent').textContent = formatDate(stats.newest_event_date);
+        } else {
+            document.getElementById('oldestEvent').textContent = 'N/A';
+            document.getElementById('newestEvent').textContent = 'N/A';
+        }
 
         // Update cost breakdown
         if (stats.cost_breakdown) {

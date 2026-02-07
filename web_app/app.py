@@ -119,8 +119,8 @@ def run_scheduled_pipeline():
             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             from pipeline_cron import run_pipeline
 
-            # Run pipeline: 5 events, 20 existing speakers
-            success = run_pipeline(event_limit=5, existing_limit=20)
+            # Run pipeline: 10 events, 20 existing speakers
+            success = run_pipeline(event_limit=10, existing_limit=20)
 
             if success:
                 logger.info("✓ Scheduled pipeline completed successfully")
@@ -155,18 +155,18 @@ def run_scheduled_pipeline():
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Add pipeline job - runs at fixed times (0:00, 2:00, 4:00, etc.)
+# Add pipeline job - runs twice daily at 6 AM and 6 PM UTC
 scheduler.add_job(
     func=run_scheduled_pipeline,
-    trigger=CronTrigger(hour='*/2'),  # Runs at even hours: 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
+    trigger=CronTrigger(hour='6,18'),  # Runs at 6:00 and 18:00 UTC
     id='pipeline_job',
-    name='Run speaker pipeline at fixed 2-hour intervals',
+    name='Run speaker pipeline twice daily',
     replace_existing=True,
     coalesce=True,  # If multiple runs are pending, only run once
     max_instances=1  # Only allow one instance of this job to run at a time
 )
 
-logger.info("✓ Scheduler initialized: pipeline runs at 0:00, 2:00, 4:00, 6:00, 8:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC (5 events + 20 existing speakers)")
+logger.info("✓ Scheduler initialized: pipeline runs at 6:00 and 18:00 UTC (10 events + 20 existing speakers per run)")
 
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
@@ -373,10 +373,29 @@ def speaker_detail(speaker_id):
 @app.route('/api/stats')
 def api_stats():
     """Enhanced database statistics with enrichment progress and costs"""
+    import sqlite3
+
     # Create new database connection for this request to avoid threading issues
     db_path = get_db_path()
     with SpeakerDatabase(db_path) as database:
         stats = database.get_enhanced_statistics()
+
+        # Get event date range
+        cursor = database.conn.cursor()
+        cursor.execute('''
+            SELECT
+                MIN(event_date) as oldest_event,
+                MAX(event_date) as newest_event
+            FROM events
+            WHERE event_date IS NOT NULL
+        ''')
+        date_range = cursor.fetchone()
+        if date_range and date_range[0] and date_range[1]:
+            stats['oldest_event_date'] = date_range[0]
+            stats['newest_event_date'] = date_range[1]
+        else:
+            stats['oldest_event_date'] = None
+            stats['newest_event_date'] = None
 
     # Add next scheduled pipeline run time
     try:
