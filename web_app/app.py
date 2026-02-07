@@ -380,22 +380,68 @@ def api_stats():
     with SpeakerDatabase(db_path) as database:
         stats = database.get_enhanced_statistics()
 
-        # Get event date range
+        # Get event date range (event_date is mostly text format "DD MMM YYYY", some ISO)
+        # Convert to sortable format by parsing and ordering correctly
         cursor = database.conn.cursor()
+
+        # Get oldest event by converting date format (handle both text and ISO formats)
         cursor.execute('''
-            SELECT
-                MIN(event_date) as oldest_event,
-                MAX(event_date) as newest_event
+            SELECT event_date
             FROM events
             WHERE event_date IS NOT NULL
+              AND event_date NOT LIKE '%T%'
+            ORDER BY
+                substr(event_date, 8, 4) ||
+                CASE substr(event_date, 4, 3)
+                    WHEN 'Jan' THEN '01'
+                    WHEN 'Feb' THEN '02'
+                    WHEN 'Mar' THEN '03'
+                    WHEN 'Apr' THEN '04'
+                    WHEN 'May' THEN '05'
+                    WHEN 'Jun' THEN '06'
+                    WHEN 'Jul' THEN '07'
+                    WHEN 'Aug' THEN '08'
+                    WHEN 'Sep' THEN '09'
+                    WHEN 'Oct' THEN '10'
+                    WHEN 'Nov' THEN '11'
+                    WHEN 'Dec' THEN '12'
+                END ||
+                substr(event_date, 1, 2)
+            ASC
+            LIMIT 1
         ''')
-        date_range = cursor.fetchone()
-        if date_range and date_range[0] and date_range[1]:
-            stats['oldest_event_date'] = date_range[0]
-            stats['newest_event_date'] = date_range[1]
-        else:
-            stats['oldest_event_date'] = None
-            stats['newest_event_date'] = None
+        oldest = cursor.fetchone()
+
+        # Get newest event
+        cursor.execute('''
+            SELECT event_date
+            FROM events
+            WHERE event_date IS NOT NULL
+              AND event_date NOT LIKE '%T%'
+            ORDER BY
+                substr(event_date, 8, 4) ||
+                CASE substr(event_date, 4, 3)
+                    WHEN 'Jan' THEN '01'
+                    WHEN 'Feb' THEN '02'
+                    WHEN 'Mar' THEN '03'
+                    WHEN 'Apr' THEN '04'
+                    WHEN 'May' THEN '05'
+                    WHEN 'Jun' THEN '06'
+                    WHEN 'Jul' THEN '07'
+                    WHEN 'Aug' THEN '08'
+                    WHEN 'Sep' THEN '09'
+                    WHEN 'Oct' THEN '10'
+                    WHEN 'Nov' THEN '11'
+                    WHEN 'Dec' THEN '12'
+                END ||
+                substr(event_date, 1, 2)
+            DESC
+            LIMIT 1
+        ''')
+        newest = cursor.fetchone()
+
+        stats['oldest_event_date'] = oldest[0] if oldest else None
+        stats['newest_event_date'] = newest[0] if newest else None
 
     # Add next scheduled pipeline run time
     try:
