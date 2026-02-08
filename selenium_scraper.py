@@ -396,6 +396,9 @@ class SeleniumEventScraper:
             already_scraped = set(row[0] for row in cursor.fetchall())
             print(f"   Database contains {len(already_scraped)} already-scraped events")
 
+            consecutive_empty_pages = 0
+            max_consecutive_empty = 3  # Stop after 3 consecutive empty pages
+
             while True:
                 page_url = f"{self.base_url}?page={page}"
                 print(f"   Page {page + 1}: {page_url}")
@@ -403,13 +406,26 @@ class SeleniumEventScraper:
 
                 if not html:
                     print("   ❌ Failed to fetch page")
-                    break
+                    consecutive_empty_pages += 1
+                    if consecutive_empty_pages >= max_consecutive_empty:
+                        print(f"   Stopping after {consecutive_empty_pages} consecutive failures")
+                        break
+                    page += 1
+                    continue
 
                 # Extract event links from this page
                 page_links = self.extract_event_links(html)
                 if not page_links:
-                    print("   No more events found")
-                    break
+                    print("   No events found on this page")
+                    consecutive_empty_pages += 1
+                    if consecutive_empty_pages >= max_consecutive_empty:
+                        print(f"   Stopping after {consecutive_empty_pages} consecutive empty pages")
+                        break
+                    page += 1
+                    continue
+
+                # Reset empty page counter when we find events
+                consecutive_empty_pages = 0
 
                 new_links = [l for l in page_links if l not in all_event_links]
                 all_event_links.extend(new_links)
