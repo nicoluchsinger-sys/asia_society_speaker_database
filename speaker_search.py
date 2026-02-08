@@ -195,7 +195,10 @@ class SpeakerSearch:
 
         - Semantic score (60%): Topic relevance from embeddings
         - Preference score (40%): Match on gender/location/language preferences
-        - Quality multiplier (1.0-1.5x): Boost for high-quality profiles
+        - Quality multiplier (1.0-1.4x): Boost for high-quality profiles
+          - +0.15 for high-confidence tags (>0.8)
+          - +0.10 for detailed bio (>200 chars)
+          - +0.15 for active speaker (>5 events)
         - Name match boost (+0.5): Added when query matches speaker name
         """
         scored_candidates = []
@@ -220,11 +223,6 @@ class SpeakerSearch:
                 if high_conf_tags:
                     quality_multiplier += 0.15
                     quality_explanations.append(f"High-confidence tags ({len(high_conf_tags)})")
-
-                # Multiple matching tags
-                if len(tags) >= 5:
-                    quality_multiplier += 0.1
-                    quality_explanations.append(f"Multiple expertise tags ({len(tags)})")
 
             # Bio completeness
             bio = candidate.get('bio', '')
