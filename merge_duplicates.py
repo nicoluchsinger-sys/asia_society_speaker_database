@@ -4,19 +4,35 @@ Merge duplicate speakers in the database.
 Finds speakers with the same name and merges them into a single record.
 """
 
-from database import SpeakerDatabase
+from database import SpeakerDatabase, normalize_name
+from collections import defaultdict
 
 
 def find_duplicate_groups(db):
-    """Find all speaker names that have multiple entries."""
+    """
+    Find all speaker names that have multiple entries.
+
+    Now uses name normalization to detect duplicates like:
+    - "Jane Smith" and "Dr. Jane Smith"
+    - "John Doe" and "Prof. John Doe"
+    """
     cursor = db.conn.cursor()
-    cursor.execute('''
-        SELECT LOWER(name) as normalized_name, GROUP_CONCAT(speaker_id) as ids
-        FROM speakers
-        GROUP BY LOWER(name)
-        HAVING COUNT(*) > 1
-    ''')
-    return cursor.fetchall()
+    cursor.execute('SELECT speaker_id, name FROM speakers')
+
+    # Group speakers by normalized name
+    groups = defaultdict(list)
+    for speaker_id, name in cursor.fetchall():
+        normalized = normalize_name(name).lower()
+        groups[normalized].append(speaker_id)
+
+    # Return only groups with duplicates
+    duplicate_groups = []
+    for normalized_name, speaker_ids in groups.items():
+        if len(speaker_ids) > 1:
+            # Format as (normalized_name, comma-separated IDs) to match original return format
+            duplicate_groups.append((normalized_name, ','.join(map(str, speaker_ids))))
+
+    return duplicate_groups
 
 
 def get_speaker_details(db, speaker_id):

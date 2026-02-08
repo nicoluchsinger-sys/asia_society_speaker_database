@@ -9,7 +9,61 @@ logic that uses fuzzy affiliation matching to prevent duplicate speaker records.
 import sqlite3
 from datetime import datetime
 import json
+import re
 from typing import Optional, List, Tuple, Dict, Any
+
+def normalize_name(name: str) -> str:
+    """
+    Normalize a speaker name by removing common titles and honorifics.
+
+    This helps with deduplication by ensuring "Dr. Jane Smith" matches "Jane Smith".
+
+    Args:
+        name: Full speaker name potentially including titles
+
+    Returns:
+        Normalized name with titles removed and whitespace cleaned
+
+    Examples:
+        >>> normalize_name("Dr. Jane Smith")
+        "Jane Smith"
+        >>> normalize_name("Professor John Doe")
+        "John Doe"
+        >>> normalize_name("Ambassador Maria Garcia")
+        "Maria Garcia"
+    """
+    if not name:
+        return name
+
+    # Common titles and honorifics to remove (case-insensitive)
+    # Pattern matches the title followed by optional period and space
+    titles = [
+        r'\bDr\.?\s*',
+        r'\bProf\.?\s*',
+        r'\bProfessor\s+',
+        r'\bMr\.?\s*',
+        r'\bMrs\.?\s*',
+        r'\bMs\.?\s*',
+        r'\bMiss\s+',
+        r'\bAmbassador\s+',
+        r'\bHon\.?\s*',
+        r'\bSir\s+',
+        r'\bLady\s+',
+        r'\bLord\s+',
+        r'\bRev\.?\s*',
+        r'\bFr\.?\s*',
+        r'\bSr\.?\s*',
+        r'\bJr\.?\s*',
+    ]
+
+    normalized = name
+    for title in titles:
+        normalized = re.sub(title, '', normalized, flags=re.IGNORECASE)
+
+    # Clean up extra whitespace and periods
+    normalized = ' '.join(normalized.split())
+
+    return normalized.strip()
 
 class SpeakerDatabase:
     """
@@ -390,11 +444,14 @@ class SpeakerDatabase:
 
     def find_existing_speaker(self, name: str) -> List[Tuple[int, str, str]]:
         """
-        Find all existing speaker records with matching name (case-insensitive).
+        Find all existing speaker records with matching name.
 
         This returns ALL speakers with the given name, not just one. The caller
         (typically add_speaker) then uses affiliation matching to determine which
         of these records (if any) represents the same person.
+
+        Name matching now normalizes titles (Dr., Prof., etc.) before comparison,
+        so "Dr. Jane Smith" will match "Jane Smith".
 
         Args:
             name: Speaker name to search for
@@ -404,16 +461,22 @@ class SpeakerDatabase:
             Empty list if no speakers found with this name
 
         Note:
-            Name matching is case-insensitive but must be exact (no fuzzy matching).
-            "John Smith" will match "JOHN SMITH" but not "Jon Smith".
+            Name matching is case-insensitive and strips common titles.
+            "Dr. John Smith" will match "John Smith" and "JOHN SMITH".
         """
+        normalized_search = normalize_name(name).lower()
+
         cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT speaker_id, affiliation, primary_affiliation
-            FROM speakers
-            WHERE LOWER(name) = LOWER(?)
-        ''', (name,))
-        return cursor.fetchall()
+        cursor.execute('SELECT speaker_id, name, affiliation, primary_affiliation FROM speakers')
+
+        # Filter results by comparing normalized names
+        matches = []
+        for row in cursor.fetchall():
+            speaker_id, stored_name, affiliation, primary_affiliation = row
+            if normalize_name(stored_name).lower() == normalized_search:
+                matches.append((speaker_id, affiliation, primary_affiliation))
+
+        return matches
 
     def add_speaker(self, name: str, title: Optional[str] = None,
                    affiliation: Optional[str] = None,
@@ -522,11 +585,15 @@ class SpeakerDatabase:
             result = cursor.fetchone()
             if result:
                 return result[0]
-            # Fallback: just get any speaker with this name
-            cursor.execute('SELECT speaker_id FROM speakers WHERE LOWER(name) = LOWER(?)', (name,))
-            result = cursor.fetchone()
-            if result:
-                return result[0]
+            # Fallback: find any speaker with matching normalized name
+            normalized_search = normalize_name(name).lower()
+            cursor.execute('SELECT speaker_id, name FROM speakers')
+            for row in cursor.fetchall():
+                speaker_id, stored_name = row
+                if normalize_name(stored_name).lower() == normalized_search:
+                    return speaker_id
+            # Should never reach here, but return None if somehow no match found
+            return None
     
     def link_speaker_to_event(self, event_id: int, speaker_id: int,
                              role_in_event: Optional[str] = None,
