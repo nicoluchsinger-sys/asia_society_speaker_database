@@ -436,7 +436,7 @@ def faq():
         SELECT event_date
         FROM events
         WHERE event_date IS NOT NULL
-          AND event_date NOT LIKE '%T%'
+          AND event_date NOT LIKE '%-%T%:%'
         ORDER BY
             substr(event_date, 8, 4) ||
             CASE substr(event_date, 4, 3)
@@ -464,7 +464,7 @@ def faq():
         SELECT event_date
         FROM events
         WHERE event_date IS NOT NULL
-          AND event_date NOT LIKE '%T%'
+          AND event_date NOT LIKE '%-%T%:%'
         ORDER BY
             substr(event_date, 8, 4) ||
             CASE substr(event_date, 4, 3)
@@ -524,7 +524,7 @@ def api_stats():
             SELECT event_date
             FROM events
             WHERE event_date IS NOT NULL
-              AND event_date NOT LIKE '%T%'
+              AND event_date NOT LIKE '%-%T%:%'
             ORDER BY
                 substr(event_date, 8, 4) ||
                 CASE substr(event_date, 4, 3)
@@ -552,7 +552,7 @@ def api_stats():
             SELECT event_date
             FROM events
             WHERE event_date IS NOT NULL
-              AND event_date NOT LIKE '%T%'
+              AND event_date NOT LIKE '%-%T%:%'
             ORDER BY
                 substr(event_date, 8, 4) ||
                 CASE substr(event_date, 4, 3)
