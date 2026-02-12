@@ -247,6 +247,66 @@ git push origin main
 
 ## Troubleshooting
 
+### Pipeline Lock Issues (NEW)
+
+The automated pipeline uses a distributed lock to prevent concurrent runs. If a pipeline run crashes or is interrupted, the lock may get stuck.
+
+**Symptoms:**
+- Pipeline triggers return immediately without processing
+- Logs show: "Pipeline already running in another instance, skipping this execution"
+- `/api/stats` shows no new speakers/events despite scheduled runs
+
+**Check Lock Status:**
+```bash
+# Via web interface (requires login)
+curl https://your-app.railway.app/admin/lock-status \
+  -H "Cookie: session=your_session_cookie"
+
+# Response shows:
+# {
+#   "is_locked": true/false,
+#   "locked_at": "2026-02-12T12:40:06",
+#   "locked_by": "replica-instance-id",
+#   "lock_age_seconds": 1234,
+#   "is_stale": true/false,
+#   "timeout_threshold_seconds": 1800
+# }
+```
+
+**Solution 1: Wait for Auto-Clear**
+- Stale locks (>30 minutes old) are automatically cleared on next pipeline run
+- Default timeout: 1800 seconds (30 minutes)
+- Configurable via `PIPELINE_LOCK_TIMEOUT_SECONDS` environment variable
+
+**Solution 2: Manually Clear Lock**
+```bash
+# Via web interface (requires login)
+curl -X POST https://your-app.railway.app/admin/unlock \
+  -H "Cookie: session=your_session_cookie"
+
+# Response confirms lock was cleared:
+# {
+#   "success": true,
+#   "message": "Pipeline lock cleared",
+#   "was_locked": true,
+#   "previous_owner": "replica-abc123",
+#   "previous_locked_at": "2026-02-12T12:40:06",
+#   "lock_age_seconds": 1089
+# }
+```
+
+**Solution 3: Adjust Timeout**
+If your pipeline runs take longer than 30 minutes, increase the timeout:
+```bash
+# In Railway dashboard, add environment variable:
+PIPELINE_LOCK_TIMEOUT_SECONDS=3600  # 1 hour
+```
+
+**Prevention:**
+- The lock is automatically released after pipeline completes
+- Logs show lock acquisition and release
+- Exception handling ensures lock is cleared even if pipeline fails
+
 ### "Database locked" Errors
 - Both services trying to write simultaneously
 - Solution: Only run scraper when web service is idle, or use separate databases and merge
