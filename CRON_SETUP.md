@@ -24,7 +24,8 @@ Changes are auto-applied if confidence >85%, otherwise saved as pending suggesti
 ./monthly_refresh.sh
 
 # Or use the Python script directly for more control
-python3 refresh_stale_speakers.py --limit 20 --months 6
+python3 refresh_stale_speakers.py --limit 20 --months 6  # Interactive (asks for confirmation)
+python3 refresh_stale_speakers.py --limit 20 --months 6 --non-interactive  # For automation (no prompts)
 python3 refresh_stale_speakers.py --dry-run  # Preview without changes
 ```
 

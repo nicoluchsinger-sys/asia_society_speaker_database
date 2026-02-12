@@ -21,9 +21,9 @@ LOG_FILE="${LOG_DIR}/speaker_refresh_$(date +%Y%m%d_%H%M%S).log"
 echo "Log file: $LOG_FILE"
 echo ""
 
-# Run refresh script
+# Run refresh script (non-interactive for automated execution)
 echo "Refreshing stale speakers (>$STALE_MONTHS months old, batch: $BATCH_SIZE)..."
-python3 refresh_stale_speakers.py --limit $BATCH_SIZE --months $STALE_MONTHS 2>&1 | tee -a "$LOG_FILE"
+python3 refresh_stale_speakers.py --limit $BATCH_SIZE --months $STALE_MONTHS --non-interactive 2>&1 | tee -a "$LOG_FILE"
 
 # Show updated statistics
 echo ""

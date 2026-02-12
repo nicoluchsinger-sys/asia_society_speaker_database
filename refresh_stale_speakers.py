@@ -30,7 +30,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-def refresh_stale_speakers(limit=20, months=6, dry_run=False):
+def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=False):
     """
     Refresh demographics for stale speakers
 
@@ -38,6 +38,7 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
         limit: Maximum number of speakers to refresh
         months: Age threshold in months
         dry_run: If True, only show what would be refreshed
+        non_interactive: If True, skip confirmation prompt (for cron jobs)
 
     Returns:
         Dictionary with refresh statistics
@@ -79,20 +80,26 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
                 'cost': 0
             }
 
-        # Confirm with user
+        # Confirm with user (unless running non-interactively)
         print(f"\nThis will re-enrich {len(stale_speakers)} speakers")
         estimated_cost = len(stale_speakers) * 0.0023  # Demographics + affiliation check
         print(f"Estimated cost: ${estimated_cost:.4f} (using Haiku)")
         print("Includes: demographics, locations, languages, affiliation, and title verification")
-        response = input("\nProceed with refresh? [y/N]: ").strip().lower()
 
-        if response not in ['y', 'yes']:
-            print("Refresh cancelled")
-            return {
-                'total_found': len(stale_speakers),
-                'refreshed': 0,
-                'cost': 0
-            }
+        if not non_interactive:
+            response = input("\nProceed with refresh? [y/N]: ").strip().lower()
+
+            if response not in ['y', 'yes']:
+                print("Refresh cancelled")
+                return {
+                    'total_found': len(stale_speakers),
+                    'refreshed': 0,
+                    'affiliation_changes': 0,
+                    'title_changes': 0,
+                    'cost': 0
+                }
+        else:
+            print("\n[Non-interactive mode] Proceeding automatically...")
 
         print("\nRefreshing speaker data (demographics, locations, languages, affiliation, title)...")
         print(f"Using Claude Haiku for cost efficiency")
@@ -304,6 +311,9 @@ Examples:
 
   # Preview what would be refreshed without making changes
   python3 refresh_stale_speakers.py --dry-run
+
+  # Non-interactive mode for cron/automation (no confirmation prompt)
+  python3 refresh_stale_speakers.py --limit 20 --non-interactive
         """
     )
 
@@ -327,6 +337,12 @@ Examples:
         help='Show what would be refreshed without making changes'
     )
 
+    parser.add_argument(
+        '--non-interactive',
+        action='store_true',
+        help='Skip confirmation prompt (for automated/cron execution)'
+    )
+
     args = parser.parse_args()
 
     # Validate arguments
@@ -343,7 +359,8 @@ Examples:
         stats = refresh_stale_speakers(
             limit=args.limit,
             months=args.months,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
+            non_interactive=args.non_interactive
         )
 
         # Summary
