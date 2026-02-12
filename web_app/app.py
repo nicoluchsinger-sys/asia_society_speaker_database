@@ -228,6 +228,9 @@ def stats_page():
 @login_required
 def api_search():
     """Search API endpoint"""
+    import time
+    start_time = time.time()
+
     data = request.get_json()
     query = data.get('query', '').strip()
     limit = data.get('limit', 10)
@@ -264,6 +267,16 @@ def api_search():
                 formatted_result['explanation'] = result['explanation']
 
             formatted_results.append(formatted_result)
+
+        # Log search query for analytics
+        execution_time = (time.time() - start_time) * 1000  # Convert to ms
+        database = get_db()
+        database.log_search(
+            query=query,
+            ip_address=request.remote_addr,
+            results_count=len(formatted_results),
+            execution_time_ms=execution_time
+        )
 
         return jsonify({
             'success': True,
@@ -1048,6 +1061,65 @@ def force_unlock():
     except Exception as e:
         logger.error(f"Error clearing lock: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/search-analytics')
+@login_required
+def search_analytics_page():
+    """Search analytics dashboard page"""
+    return render_template('search_analytics.html')
+
+
+@app.route('/api/search-analytics')
+@login_required
+def api_search_analytics():
+    """API endpoint for search analytics data"""
+    try:
+        days = int(request.args.get('days', 30))
+
+        db_path = get_db_path()
+        with SpeakerDatabase(db_path) as database:
+            analytics = database.get_search_analytics(days=days)
+
+        # Format data for JSON response
+        return jsonify({
+            'success': True,
+            'days': days,
+            'total_searches': analytics['total_searches'],
+            'avg_results_per_search': round(analytics['avg_results_per_search'], 2),
+            'avg_execution_time_ms': round(analytics['avg_execution_time_ms'], 2),
+            'top_queries': [
+                {
+                    'query': row[0],
+                    'count': row[1],
+                    'avg_results': round(row[2], 1)
+                }
+                for row in analytics['top_queries']
+            ],
+            'no_result_queries': [
+                {
+                    'query': row[0],
+                    'count': row[1]
+                }
+                for row in analytics['no_result_queries']
+            ],
+            'daily_volume': [
+                {
+                    'date': row[0],
+                    'count': row[1]
+                }
+                for row in analytics['daily_volume']
+            ]
+        })
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Search analytics error: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/admin/reset-costs', methods=['POST'])

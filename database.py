@@ -263,6 +263,18 @@ class SpeakerDatabase:
             )
         ''')
 
+        # Search logs table - track search queries for analytics
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS search_logs (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                query TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                ip_address TEXT,
+                results_count INTEGER DEFAULT 0,
+                execution_time_ms REAL
+            )
+        ''')
+
         # Add tagging_status column to speakers table if it doesn't exist
         cursor.execute("PRAGMA table_info(speakers)")
         columns = [col[1] for col in cursor.fetchall()]
@@ -286,6 +298,8 @@ class SpeakerDatabase:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_freshness_priority ON speaker_freshness(priority_score)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_corrections_speaker ON speaker_corrections(speaker_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_corrections_verified ON speaker_corrections(verified)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_logs_timestamp ON search_logs(timestamp)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_logs_query ON search_logs(query)')
 
         # Migration: add cost breakdown columns to pipeline_runs if they don't exist
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
@@ -1657,13 +1671,121 @@ class SpeakerDatabase:
 
         return cursor.fetchall()
 
+    def log_search(
+        self,
+        query: str,
+        ip_address: Optional[str],
+        results_count: int,
+        execution_time_ms: Optional[float] = None
+    ) -> int:
+        """
+        Log a search query for analytics.
+
+        Args:
+            query: The search query text
+            ip_address: IP address of the user (anonymized if needed)
+            results_count: Number of results returned
+            execution_time_ms: Query execution time in milliseconds
+
+        Returns:
+            log_id: ID of the logged search
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO search_logs (query, timestamp, ip_address, results_count, execution_time_ms)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            query,
+            datetime.now(timezone.utc).isoformat(),
+            ip_address,
+            results_count,
+            execution_time_ms
+        ))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_search_analytics(self, days: int = 30) -> Dict:
+        """
+        Get search analytics for the last N days.
+
+        Args:
+            days: Number of days to analyze
+
+        Returns:
+            Dictionary with analytics data
+        """
+        cursor = self.conn.cursor()
+
+        # Calculate date threshold
+        from datetime import timedelta
+        threshold = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+        analytics = {}
+
+        # Total searches
+        cursor.execute('SELECT COUNT(*) FROM search_logs WHERE timestamp >= ?', (threshold,))
+        analytics['total_searches'] = cursor.fetchone()[0]
+
+        # Most common queries (top 20)
+        cursor.execute('''
+            SELECT query, COUNT(*) as count, AVG(results_count) as avg_results
+            FROM search_logs
+            WHERE timestamp >= ?
+            GROUP BY query
+            ORDER BY count DESC
+            LIMIT 20
+        ''', (threshold,))
+        analytics['top_queries'] = cursor.fetchall()
+
+        # Queries with no results (top 20)
+        cursor.execute('''
+            SELECT query, COUNT(*) as count
+            FROM search_logs
+            WHERE timestamp >= ? AND results_count = 0
+            GROUP BY query
+            ORDER BY count DESC
+            LIMIT 20
+        ''', (threshold,))
+        analytics['no_result_queries'] = cursor.fetchall()
+
+        # Daily search volume
+        cursor.execute('''
+            SELECT DATE(timestamp) as date, COUNT(*) as count
+            FROM search_logs
+            WHERE timestamp >= ?
+            GROUP BY DATE(timestamp)
+            ORDER BY date DESC
+            LIMIT 30
+        ''', (threshold,))
+        analytics['daily_volume'] = cursor.fetchall()
+
+        # Average results per search
+        cursor.execute('''
+            SELECT AVG(results_count) as avg_results
+            FROM search_logs
+            WHERE timestamp >= ?
+        ''', (threshold,))
+        avg_results = cursor.fetchone()[0]
+        analytics['avg_results_per_search'] = avg_results if avg_results else 0
+
+        # Average execution time
+        cursor.execute('''
+            SELECT AVG(execution_time_ms) as avg_time
+            FROM search_logs
+            WHERE timestamp >= ? AND execution_time_ms IS NOT NULL
+        ''', (threshold,))
+        avg_time = cursor.fetchone()[0]
+        analytics['avg_execution_time_ms'] = avg_time if avg_time else 0
+
+        return analytics
+
     def close(self):
         """Close database connection"""
         if self.conn:
             self.conn.close()
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
