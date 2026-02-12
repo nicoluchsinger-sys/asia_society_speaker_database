@@ -766,8 +766,21 @@ class SpeakerDatabase:
         """
         cursor = self.conn.cursor()
 
+        # Convert "DD MMM YYYY" format to sortable ISO format for proper chronological ordering
+        # Event dates are stored as "20 Jan 2026" but need to sort as "2026-01-20"
+        date_conversion = '''
+            substr(e.event_date, -4) || '-' ||
+            CASE substr(e.event_date, 4, 3)
+                WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
+                WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
+                WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
+                WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
+                ELSE '00' END || '-' ||
+            substr('0' || substr(e.event_date, 1, 2), -2)
+        '''
+
         if location_filter:
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT
                     e.event_id,
                     e.title,
@@ -778,11 +791,11 @@ class SpeakerDatabase:
                 LEFT JOIN event_speakers es ON e.event_id = es.event_id
                 WHERE LOWER(e.location) LIKE ?
                 GROUP BY e.event_id
-                ORDER BY e.event_date DESC
+                ORDER BY {date_conversion} DESC
                 LIMIT ? OFFSET ?
             ''', (f'%{location_filter.lower()}%', limit, offset))
         else:
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT
                     e.event_id,
                     e.title,
@@ -792,7 +805,7 @@ class SpeakerDatabase:
                 FROM events e
                 LEFT JOIN event_speakers es ON e.event_id = es.event_id
                 GROUP BY e.event_id
-                ORDER BY e.event_date DESC
+                ORDER BY {date_conversion} DESC
                 LIMIT ? OFFSET ?
             ''', (limit, offset))
 
@@ -833,26 +846,35 @@ class SpeakerDatabase:
         """
         cursor = self.conn.cursor()
 
+        # Convert "DD MMM YYYY" format to ISO format for date comparison
+        # Event dates are stored as "20 Jan 2026" but need to compare as "2026-01-20"
+        date_conversion = '''
+            substr(e.event_date, -4) || '-' ||
+            CASE substr(e.event_date, 4, 3)
+                WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
+                WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
+                WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
+                WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
+                ELSE '00' END || '-' ||
+            substr('0' || substr(e.event_date, 1, 2), -2)
+        '''
+
         if months:
-            # Calculate date threshold
-            # event_date format is "DD MMM YYYY" (e.g., "12 Feb 2026")
-            # We'll use a simple approach: filter by year and month numerically
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT
                     s.speaker_id,
                     s.name,
                     s.affiliation,
                     COUNT(DISTINCT e.event_id) as event_count,
                     MAX(e.event_date) as last_event,
-                    GROUP_CONCAT(DISTINCT e.location, ' | ') as locations,
-                    (SELECT GROUP_CONCAT(DISTINCT st.tag_text, ', ')
-                     FROM speaker_tags st
-                     WHERE st.speaker_id = s.speaker_id
-                     LIMIT 3) as tags
+                    GROUP_CONCAT(DISTINCT e.location) as locations,
+                    (SELECT GROUP_CONCAT(st.tag_text)
+                     FROM (SELECT DISTINCT tag_text FROM speaker_tags
+                           WHERE speaker_id = s.speaker_id LIMIT 3) st) as tags
                 FROM speakers s
                 JOIN event_speakers es ON s.speaker_id = es.speaker_id
                 JOIN events e ON es.event_id = e.event_id
-                WHERE e.event_date >= date('now', '-' || ? || ' months')
+                WHERE {date_conversion} >= date('now', '-' || ? || ' months')
                 GROUP BY s.speaker_id
                 ORDER BY event_count DESC
                 LIMIT ?
@@ -866,11 +888,10 @@ class SpeakerDatabase:
                     s.affiliation,
                     COUNT(DISTINCT e.event_id) as event_count,
                     MAX(e.event_date) as last_event,
-                    GROUP_CONCAT(DISTINCT e.location, ' | ') as locations,
-                    (SELECT GROUP_CONCAT(DISTINCT st.tag_text, ', ')
-                     FROM speaker_tags st
-                     WHERE st.speaker_id = s.speaker_id
-                     LIMIT 3) as tags
+                    GROUP_CONCAT(DISTINCT e.location) as locations,
+                    (SELECT GROUP_CONCAT(st.tag_text)
+                     FROM (SELECT DISTINCT tag_text FROM speaker_tags
+                           WHERE speaker_id = s.speaker_id LIMIT 3) st) as tags
                 FROM speakers s
                 JOIN event_speakers es ON s.speaker_id = es.speaker_id
                 JOIN events e ON es.event_id = e.event_id

@@ -634,10 +634,10 @@ def api_leaderboard():
         for idx, speaker in enumerate(speakers, 1):
             speaker_id, name, affiliation, event_count, last_event, locations, tags = speaker
 
-            # Parse locations
+            # Parse locations (comma-separated from GROUP_CONCAT DISTINCT)
             unique_locations = []
             if locations:
-                unique_locations = list(set([loc.strip() for loc in locations.split('|') if loc.strip()]))
+                unique_locations = [loc.strip() for loc in locations.split(',') if loc.strip()]
 
             # Parse tags
             tag_list = []
