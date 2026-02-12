@@ -1117,8 +1117,9 @@ class SpeakerDatabase:
         ''', (six_months_ago,))
         stats['stale_speakers_count'] = cursor.fetchone()[0]
 
-        # Estimate cost to refresh all stale speakers ($0.0008 per speaker with Haiku)
-        stats['stale_refresh_cost'] = round(stats['stale_speakers_count'] * 0.0008, 2)
+        # Estimate cost to refresh all stale speakers
+        # $0.0008 for demographics + $0.0015 for affiliation/title check = $0.0023 per speaker
+        stats['stale_refresh_cost'] = round(stats['stale_speakers_count'] * 0.0023, 2)
 
         return stats
 

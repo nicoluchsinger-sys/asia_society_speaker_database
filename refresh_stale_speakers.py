@@ -21,6 +21,14 @@ import time
 from datetime import datetime
 from database import SpeakerDatabase
 from speaker_enricher import SpeakerEnricher
+from affiliation_checker import AffiliationChecker
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def refresh_stale_speakers(limit=20, months=6, dry_run=False):
     """
@@ -59,18 +67,23 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
 
         if dry_run:
             print("\n[DRY RUN] No changes made")
-            estimated_cost = len(stale_speakers) * 0.0008  # Haiku pricing
+            # Estimated cost: ~$0.0008 for demographics + ~$0.0015 for affiliation check
+            estimated_cost = len(stale_speakers) * 0.0023
             print(f"Estimated cost: ${estimated_cost:.4f}")
+            print("(Includes demographics refresh + affiliation/title verification)")
             return {
                 'total_found': len(stale_speakers),
                 'refreshed': 0,
+                'affiliation_changes': 0,
+                'title_changes': 0,
                 'cost': 0
             }
 
         # Confirm with user
         print(f"\nThis will re-enrich {len(stale_speakers)} speakers")
-        estimated_cost = len(stale_speakers) * 0.0008
+        estimated_cost = len(stale_speakers) * 0.0023  # Demographics + affiliation check
         print(f"Estimated cost: ${estimated_cost:.4f} (using Haiku)")
+        print("Includes: demographics, locations, languages, affiliation, and title verification")
         response = input("\nProceed with refresh? [y/N]: ").strip().lower()
 
         if response not in ['y', 'yes']:
@@ -81,16 +94,20 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
                 'cost': 0
             }
 
-        print("\nRefreshing speaker demographics...")
-        print(f"Using Claude Haiku for cost efficiency (${estimated_cost:.4f} estimated)")
+        print("\nRefreshing speaker data (demographics, locations, languages, affiliation, title)...")
+        print(f"Using Claude Haiku for cost efficiency")
 
-        # Initialize enricher
+        # Initialize enricher and affiliation checker
         enricher = SpeakerEnricher(model='claude-3-haiku-20240307')
+        affiliation_checker = AffiliationChecker(model='claude-3-haiku-20240307')
 
-        # Process each speaker
+        # Tracking stats
         refreshed_count = 0
         failed_count = 0
         total_tokens = 0
+        total_cost = 0.0
+        affiliation_changes = 0
+        title_changes = 0
 
         for i, (speaker_id, name, affiliation, enriched_at, event_count) in enumerate(stale_speakers, 1):
             print(f"  {i}/{len(stale_speakers)}: {name}...", end=" ")
@@ -168,7 +185,80 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
 
                     refreshed_count += 1
                     total_tokens += result.get('tokens_used', 0)
-                    print("✓")
+                    total_cost += result.get('cost', 0)
+
+                    # Check for affiliation/title changes
+                    print("✓ (demographics)", end=" ")
+                    print("checking affiliation/title...", end=" ")
+
+                    try:
+                        aff_check = affiliation_checker.check_current_affiliation(
+                            speaker_name=speaker_name,
+                            current_affiliation=affiliation,
+                            current_title=title
+                        )
+
+                        total_tokens += aff_check.get('tokens_used', 0)
+                        total_cost += aff_check.get('cost', 0)
+
+                        changes_made = []
+
+                        # Process affiliation change
+                        if aff_check.get('affiliation_changed') and aff_check.get('new_affiliation'):
+                            confidence = aff_check.get('affiliation_confidence', 0)
+
+                            # Save correction (auto-apply if high confidence)
+                            verified = confidence >= 0.85
+                            correction_id = database.save_correction(
+                                speaker_id=speaker_id,
+                                field_name='affiliation',
+                                current_value=affiliation,
+                                suggested_value=aff_check['new_affiliation'],
+                                suggestion_context="Detected during automated monthly refresh",
+                                submitted_by="automated_refresh",
+                                verified=verified,
+                                confidence=confidence,
+                                reasoning=aff_check.get('affiliation_reasoning', ''),
+                                sources=aff_check.get('sources', [])
+                            )
+
+                            if verified:
+                                database.apply_correction(speaker_id, 'affiliation', aff_check['new_affiliation'])
+                                changes_made.append(f"affiliation→{aff_check['new_affiliation'][:20]}")
+                                affiliation_changes += 1
+
+                        # Process title change
+                        if aff_check.get('title_changed') and aff_check.get('new_title'):
+                            confidence = aff_check.get('title_confidence', 0)
+
+                            # Save correction (auto-apply if high confidence)
+                            verified = confidence >= 0.85
+                            correction_id = database.save_correction(
+                                speaker_id=speaker_id,
+                                field_name='title',
+                                current_value=title,
+                                suggested_value=aff_check['new_title'],
+                                suggestion_context="Detected during automated monthly refresh",
+                                submitted_by="automated_refresh",
+                                verified=verified,
+                                confidence=confidence,
+                                reasoning=aff_check.get('title_reasoning', ''),
+                                sources=aff_check.get('sources', [])
+                            )
+
+                            if verified:
+                                database.apply_correction(speaker_id, 'title', aff_check['new_title'])
+                                changes_made.append(f"title→{aff_check['new_title'][:20]}")
+                                title_changes += 1
+
+                        if changes_made:
+                            print(f"✓ ({', '.join(changes_made)})")
+                        else:
+                            print("✓ (no changes)")
+
+                    except Exception as aff_error:
+                        print(f"⚠ (affiliation check failed: {str(aff_error)[:30]})")
+
                 else:
                     failed_count += 1
                     error_msg = result.get('error', 'Unknown error')
@@ -182,17 +272,17 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False):
             if i < len(stale_speakers):
                 time.sleep(0.5)
 
-        # Calculate actual cost (Haiku pricing: $0.25/MTok input, $1.25/MTok output)
-        # Approximate: ~800 tokens per enrichment with Haiku
-        actual_cost = (total_tokens / 1_000_000) * 0.75  # Average of input/output rates
-
         print(f"\n✓ Refreshed {refreshed_count}/{len(stale_speakers)} speakers")
-        print(f"Actual cost: ${actual_cost:.4f}")
+        print(f"Actual cost: ${total_cost:.4f}")
+        print(f"Affiliation updates: {affiliation_changes}")
+        print(f"Title updates: {title_changes}")
 
         return {
             'total_found': len(stale_speakers),
             'refreshed': refreshed_count,
-            'cost': actual_cost
+            'affiliation_changes': affiliation_changes,
+            'title_changes': title_changes,
+            'cost': total_cost
         }
 
     finally:
@@ -262,6 +352,8 @@ Examples:
         print("="*80)
         print(f"Stale speakers found: {stats['total_found']}")
         print(f"Speakers refreshed: {stats['refreshed']}")
+        print(f"Affiliation updates applied: {stats.get('affiliation_changes', 0)}")
+        print(f"Title updates applied: {stats.get('title_changes', 0)}")
         print(f"Total cost: ${stats['cost']:.4f}")
         print("="*80)
 
