@@ -687,6 +687,28 @@ class SpeakerDatabase:
         ''', (speaker_id,))
         return cursor.fetchall()
 
+    def get_speaker_events_with_descriptions(self, speaker_id: int) -> List[Tuple]:
+        """
+        Get all events where a specific speaker participated, including event descriptions.
+        Used for embedding generation to capture event context.
+
+        Args:
+            speaker_id: Speaker ID
+
+        Returns:
+            List of tuples: (event_id, title, role_in_event, body_text)
+            Ordered by event_date descending (most recent first)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT e.event_id, e.title, es.role_in_event, e.body_text
+            FROM events e
+            JOIN event_speakers es ON e.event_id = es.event_id
+            WHERE es.speaker_id = ?
+            ORDER BY e.event_date DESC
+        ''', (speaker_id,))
+        return cursor.fetchall()
+
     def get_event_speakers(self, event_id: int) -> List[Tuple]:
         """
         Get all speakers who participated in a specific event.

@@ -33,12 +33,17 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
     db = SpeakerDatabase(db_path)
     speakers_data = db.get_speakers_without_embeddings()
 
-    # Pre-fetch tags for all speakers to avoid repeated connections
-    speakers_with_tags = []
+    # Pre-fetch tags and events for all speakers to avoid repeated connections
+    speakers_with_data = []
     for speaker_data in speakers_data:
         speaker_id = speaker_data[0]
         tags = db.get_speaker_tags(speaker_id)
-        speakers_with_tags.append((speaker_data, tags))
+        # Fetch events with descriptions for embedding context
+        events = db.get_speaker_events_with_descriptions(speaker_id)
+        # Format: (event_id, title, role_in_event, body_text)
+        # Convert to (title, role, description) for embedding
+        event_data = [(title, role, body_text) for _, title, role, body_text in events]
+        speakers_with_data.append((speaker_data, tags, event_data))
 
     db.close()  # Close initial connection
 
@@ -59,14 +64,14 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
         engine = EmbeddingEngine(provider=provider)
 
     if limit:
-        speakers_with_tags = speakers_with_tags[:limit]
+        speakers_with_data = speakers_with_data[:limit]
 
-    if not speakers_with_tags:
+    if not speakers_with_data:
         if verbose:
             print("✓ All speakers already have embeddings!")
         return
 
-    total = len(speakers_with_tags)
+    total = len(speakers_with_data)
     if verbose:
         print(f"Generating embeddings for {total} speakers")
         print(f"Batch size: {batch_size}")
@@ -79,7 +84,7 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
     # Process in batches
     for batch_start in range(0, total, batch_size):
         batch_end = min(batch_start + batch_size, total)
-        batch = speakers_with_tags[batch_start:batch_end]
+        batch = speakers_with_data[batch_start:batch_end]
 
         if verbose:
             print(f"\nProcessing batch {batch_start//batch_size + 1} ({batch_start+1}-{batch_end}/{total})...")
@@ -88,10 +93,10 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
         batch_speakers = []
         batch_texts = []
 
-        for speaker_data, tags in batch:
+        for speaker_data, tags, events in batch:
             speaker_id, name, title, affiliation, primary_affiliation, bio = speaker_data
 
-            # Build speaker dict
+            # Build speaker dict with tags and events
             speaker = {
                 'speaker_id': speaker_id,
                 'name': name,
@@ -99,10 +104,11 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
                 'affiliation': affiliation,
                 'primary_affiliation': primary_affiliation,
                 'bio': bio,
-                'tags': tags
+                'tags': tags,
+                'events': events  # NEW: Include event data for embedding
             }
 
-            # Build embedding text
+            # Build embedding text (now includes event context)
             text = engine.build_embedding_text(speaker)
 
             batch_speakers.append(speaker)
@@ -200,12 +206,17 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db
     db = SpeakerDatabase(db_path)
     speakers_data = db.get_all_speakers()
 
-    # Pre-fetch tags for all speakers to avoid repeated connections
-    speakers_with_tags = []
+    # Pre-fetch tags and events for all speakers to avoid repeated connections
+    speakers_with_data = []
     for speaker_data in speakers_data:
         speaker_id = speaker_data[0]
         tags = db.get_speaker_tags(speaker_id)
-        speakers_with_tags.append((speaker_data, tags))
+        # Fetch events with descriptions for embedding context
+        events = db.get_speaker_events_with_descriptions(speaker_id)
+        # Format: (event_id, title, role_in_event, body_text)
+        # Convert to (title, role, description) for embedding
+        event_data = [(title, role, body_text) for _, title, role, body_text in events]
+        speakers_with_data.append((speaker_data, tags, event_data))
 
     db.close()  # Close initial connection
 
@@ -225,12 +236,12 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db
                 raise
         engine = EmbeddingEngine(provider=provider)
 
-    if not speakers_with_tags:
+    if not speakers_with_data:
         if verbose:
             print("No speakers found in database!")
         return
 
-    total = len(speakers_with_tags)
+    total = len(speakers_with_data)
     if verbose:
         print(f"Regenerating embeddings for {total} speakers")
         print("WARNING: This will overwrite existing embeddings!")
@@ -243,7 +254,7 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db
     # Process in batches
     for batch_start in range(0, total, batch_size):
         batch_end = min(batch_start + batch_size, total)
-        batch = speakers_with_tags[batch_start:batch_end]
+        batch = speakers_with_data[batch_start:batch_end]
 
         if verbose:
             print(f"\nProcessing batch {batch_start//batch_size + 1} ({batch_start+1}-{batch_end}/{total})...")
@@ -252,20 +263,21 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db
         batch_speakers = []
         batch_texts = []
 
-        for speaker_data, tags in batch:
+        for speaker_data, tags, events in batch:
             speaker_id, name, title, affiliation, bio, first_seen, last_updated = speaker_data
 
-            # Build speaker dict
+            # Build speaker dict with tags and events
             speaker = {
                 'speaker_id': speaker_id,
                 'name': name,
                 'title': title,
                 'affiliation': affiliation,
                 'bio': bio,
-                'tags': tags
+                'tags': tags,
+                'events': events  # NEW: Include event data for embedding
             }
 
-            # Build embedding text
+            # Build embedding text (now includes event context)
             text = engine.build_embedding_text(speaker)
 
             batch_speakers.append(speaker)

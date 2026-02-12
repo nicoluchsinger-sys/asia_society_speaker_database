@@ -88,10 +88,12 @@ class EmbeddingEngine:
         """
         Build text representation of a speaker for embedding
 
-        Combines: name + title + affiliation + bio + tags
+        Combines: name + title + affiliation + bio + tags + events
 
         Args:
-            speaker: Dictionary with speaker data including optional 'tags' list
+            speaker: Dictionary with speaker data including optional:
+                    - 'tags': list of expertise tags
+                    - 'events': list of (event_title, role) tuples
 
         Returns:
             Text string for embedding
@@ -119,6 +121,47 @@ class EmbeddingEngine:
         if speaker.get('tags'):
             tag_texts = [tag[0] if isinstance(tag, tuple) else tag for tag in speaker['tags']]
             parts.append(f"Expertise: {', '.join(tag_texts)}")
+
+        # Event participation (NEW - enables topic-based search)
+        # Includes event titles + first 500 chars of description for context
+        if speaker.get('events'):
+            events = speaker['events']
+
+            # Limit to most recent 10 events to avoid bloat
+            event_contexts = []
+            keynote_count = 0
+
+            for event_title, role, event_description in events[:10]:  # Most recent 10 events
+                if event_title:
+                    # Build event context: title + cleaned description preview
+                    context_parts = [event_title]
+
+                    if event_description:
+                        # Take first 500 chars and clean boilerplate
+                        desc_preview = event_description[:500]
+                        desc_preview = desc_preview.replace('VIEW EVENT DETAILS', '').strip()
+
+                        # Try to end at a sentence boundary if possible
+                        if desc_preview and desc_preview[-1] not in '.!?':
+                            last_period = desc_preview.rfind('.')
+                            if last_period > 200:  # Keep at least 200 chars
+                                desc_preview = desc_preview[:last_period + 1]
+
+                        if desc_preview:
+                            context_parts.append(desc_preview)
+
+                    event_contexts.append(' - '.join(context_parts))
+
+                # Count keynote/speaker roles for prominence signal
+                if role and ('keynote' in role.lower() or 'speaker' in role.lower()):
+                    keynote_count += 1
+
+            if event_contexts:
+                parts.append(f"Event participation:\n{chr(10).join(event_contexts)}")
+
+            # Add role prominence if they're a frequent keynote speaker
+            if keynote_count >= 3:
+                parts.append(f"Speaking roles: keynote speaker ({keynote_count} events)")
 
         return '\n'.join(parts)
 
