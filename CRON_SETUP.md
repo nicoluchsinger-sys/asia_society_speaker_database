@@ -9,10 +9,13 @@ The monthly refresh script (`monthly_refresh.sh`) re-enriches speaker profiles t
 ## What Gets Refreshed
 
 For each stale speaker (>6 months since last enrichment):
-- **Demographics**: Gender, nationality, birth year
-- **Locations**: Current city, country, region
-- **Languages**: Languages spoken
-- **Affiliations**: Updated via web search (if changed)
+- **Demographics**: Gender, nationality, birth year (re-enriched)
+- **Locations**: Current city, country, region (re-enriched)
+- **Languages**: Languages spoken (re-enriched)
+- **✨ Affiliation**: Detects job moves and institutional changes via web search + AI verification
+- **✨ Title**: Detects promotions and role changes via web search + AI verification
+
+Changes are auto-applied if confidence >85%, otherwise saved as pending suggestions.
 
 ## Manual Usage
 
@@ -76,9 +79,11 @@ cd /path/to/speaker_database
 
 ## Cost Estimates
 
-- **Per speaker**: ~$0.0008 (using Claude Haiku)
-- **Monthly batch (20 speakers)**: ~$0.016
-- **Annual cost**: ~$0.19 (assuming 20 speakers/month)
+- **Per speaker**: ~$0.0023 (using Claude Haiku)
+  - Demographics refresh: ~$0.0008
+  - Affiliation/title check: ~$0.0015
+- **Monthly batch (20 speakers)**: ~$0.046
+- **Annual cost**: ~$0.55 (assuming 20 speakers/month)
 
 ## Monitoring
 
