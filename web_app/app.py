@@ -368,6 +368,44 @@ def speaker_detail(speaker_id):
             'role': event[4]
         })
 
+    # Get speaker corrections (verified and unverified)
+    corrections = database.get_speaker_corrections(speaker_id)
+
+    # Format corrections
+    verified_corrections = []
+    unverified_suggestions = []
+
+    for correction in corrections:
+        import json
+        corr_id, field, current, suggested, context, submitted_at, submitted_by, \
+        verified, confidence, reasoning, sources_json, applied_at = correction
+
+        # Parse sources JSON
+        sources = []
+        if sources_json:
+            try:
+                sources = json.loads(sources_json)
+            except:
+                sources = []
+
+        formatted_corr = {
+            'correction_id': corr_id,
+            'field_name': field,
+            'current_value': current,
+            'suggested_value': suggested,
+            'context': context,
+            'submitted_at': submitted_at,
+            'confidence': confidence,
+            'reasoning': reasoning,
+            'sources': sources,
+            'applied_at': applied_at
+        }
+
+        if verified:
+            verified_corrections.append(formatted_corr)
+        else:
+            unverified_suggestions.append(formatted_corr)
+
     return render_template(
         'speaker.html',
         speaker=speaker,
@@ -375,7 +413,9 @@ def speaker_detail(speaker_id):
         events=formatted_events,
         demographics=demographics_data,
         locations=formatted_locations,
-        languages=formatted_languages
+        languages=formatted_languages,
+        verified_corrections=verified_corrections,
+        unverified_suggestions=unverified_suggestions
     )
 
 
@@ -724,6 +764,125 @@ def api_events():
         return jsonify({
             'success': False,
             'error': f'Failed to fetch events: {str(e)}'
+        }), 500
+
+
+@app.route('/api/speaker/<int:speaker_id>/suggest-correction', methods=['POST'])
+@login_required
+def suggest_correction(speaker_id):
+    """Submit a suggested correction for a speaker with AI verification"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data or 'field_name' not in data or 'suggested_value' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: field_name, suggested_value'
+            }), 400
+
+        field_name = data['field_name']
+        suggested_value = data['suggested_value']
+        suggestion_context = data.get('context', '')
+
+        # Validate field_name
+        allowed_fields = ['affiliation', 'title', 'bio', 'primary_affiliation']
+        if field_name not in allowed_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid field_name. Must be one of: {", ".join(allowed_fields)}'
+            }), 400
+
+        # Get current speaker data
+        db_path = get_db_path()
+        with SpeakerDatabase(db_path) as database:
+            speaker_data = database.get_speaker_by_id(speaker_id)
+
+            if not speaker_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Speaker not found'
+                }), 404
+
+            speaker_id_db, name, title, affiliation, primary_affiliation, bio, _, _ = speaker_data
+            current_value = None
+
+            # Get current value for the field
+            if field_name == 'affiliation':
+                current_value = affiliation
+            elif field_name == 'title':
+                current_value = title
+            elif field_name == 'bio':
+                current_value = bio
+            elif field_name == 'primary_affiliation':
+                current_value = primary_affiliation
+
+            # Don't process if suggestion is same as current value
+            if current_value == suggested_value:
+                return jsonify({
+                    'success': False,
+                    'error': 'Suggested value is the same as current value'
+                }), 400
+
+        # Verify correction with AI
+        from correction_verifier import verify_with_web_search
+
+        verification = verify_with_web_search(
+            speaker_name=name,
+            field_name=field_name,
+            current_value=current_value,
+            suggested_value=suggested_value,
+            user_context=suggestion_context
+        )
+
+        # Get submitter IP address
+        submitted_by = request.remote_addr
+
+        # Determine if we should auto-apply
+        verified = verification['confidence'] >= 0.85 and verification['is_correct']
+
+        # Save correction to database
+        with SpeakerDatabase(db_path) as database:
+            correction_id = database.save_correction(
+                speaker_id=speaker_id,
+                field_name=field_name,
+                current_value=current_value,
+                suggested_value=suggested_value,
+                suggestion_context=suggestion_context,
+                submitted_by=submitted_by,
+                verified=verified,
+                confidence=verification['confidence'],
+                reasoning=verification['reasoning'],
+                sources=verification['sources']
+            )
+
+            # If high confidence, apply the correction immediately
+            if verified:
+                database.apply_correction(speaker_id, field_name, suggested_value)
+
+        # Return result
+        return jsonify({
+            'success': True,
+            'correction_id': correction_id,
+            'applied': verified,
+            'confidence': verification['confidence'],
+            'reasoning': verification['reasoning'],
+            'sources': verification['sources'],
+            'message': (
+                f'Correction verified and applied automatically (confidence: {verification["confidence"]:.0%})'
+                if verified else
+                f'Suggestion saved but not verified (confidence: {verification["confidence"]:.0%}). '
+                'It will be shown as an unverified suggestion on the speaker page.'
+            )
+        })
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Correction submission error: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Failed to process correction: {str(e)}'
         }), 500
 
 

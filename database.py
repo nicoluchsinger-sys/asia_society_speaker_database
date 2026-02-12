@@ -7,7 +7,7 @@ logic that uses fuzzy affiliation matching to prevent duplicate speaker records.
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import re
 from typing import Optional, List, Tuple, Dict, Any
@@ -243,6 +243,26 @@ class SpeakerDatabase:
             )
         ''')
 
+        # Speaker corrections table - user-submitted edits with AI verification
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS speaker_corrections (
+                correction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                speaker_id INTEGER NOT NULL,
+                field_name TEXT NOT NULL,
+                current_value TEXT,
+                suggested_value TEXT NOT NULL,
+                suggestion_context TEXT,
+                submitted_at TEXT NOT NULL,
+                submitted_by TEXT,
+                verified BOOLEAN DEFAULT 0,
+                confidence REAL,
+                reasoning TEXT,
+                sources TEXT,
+                applied_at TEXT,
+                FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id) ON DELETE CASCADE
+            )
+        ''')
+
         # Add tagging_status column to speakers table if it doesn't exist
         cursor.execute("PRAGMA table_info(speakers)")
         columns = [col[1] for col in cursor.fetchall()]
@@ -264,6 +284,8 @@ class SpeakerDatabase:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_languages_speaker ON speaker_languages(speaker_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_freshness_needs_refresh ON speaker_freshness(needs_refresh)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_freshness_priority ON speaker_freshness(priority_score)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_corrections_speaker ON speaker_corrections(speaker_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_corrections_verified ON speaker_corrections(verified)')
 
         # Migration: add cost breakdown columns to pipeline_runs if they don't exist
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
@@ -1488,6 +1510,152 @@ class SpeakerDatabase:
 
         self.conn.commit()
         return merged_count
+
+    def save_correction(
+        self,
+        speaker_id: int,
+        field_name: str,
+        current_value: Optional[str],
+        suggested_value: str,
+        suggestion_context: Optional[str],
+        submitted_by: Optional[str],
+        verified: bool,
+        confidence: Optional[float],
+        reasoning: Optional[str],
+        sources: Optional[List[str]]
+    ) -> int:
+        """
+        Save a speaker correction (verified or unverified).
+
+        Args:
+            speaker_id: ID of speaker being corrected
+            field_name: Field being corrected (affiliation, title, etc.)
+            current_value: Current value of the field
+            suggested_value: New suggested value
+            suggestion_context: Optional user explanation
+            submitted_by: IP address or session ID
+            verified: Whether AI verified this correction
+            confidence: AI confidence score (0.0-1.0)
+            reasoning: AI explanation for verification result
+            sources: List of URLs used for verification
+
+        Returns:
+            correction_id: ID of the saved correction
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO speaker_corrections (
+                speaker_id, field_name, current_value, suggested_value,
+                suggestion_context, submitted_at, submitted_by, verified,
+                confidence, reasoning, sources, applied_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            speaker_id,
+            field_name,
+            current_value,
+            suggested_value,
+            suggestion_context,
+            datetime.now(timezone.utc).isoformat(),
+            submitted_by,
+            1 if verified else 0,
+            confidence,
+            reasoning,
+            json.dumps(sources) if sources else None,
+            datetime.now(timezone.utc).isoformat() if verified else None
+        ))
+
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_speaker_corrections(
+        self,
+        speaker_id: int,
+        include_verified: bool = True,
+        include_unverified: bool = True
+    ) -> List[Tuple]:
+        """
+        Get all corrections for a speaker.
+
+        Args:
+            speaker_id: Speaker ID
+            include_verified: Include verified/applied corrections
+            include_unverified: Include unverified suggestions
+
+        Returns:
+            List of tuples: (correction_id, field_name, current_value,
+                            suggested_value, suggestion_context, submitted_at,
+                            submitted_by, verified, confidence, reasoning,
+                            sources, applied_at)
+        """
+        cursor = self.conn.cursor()
+
+        if include_verified and include_unverified:
+            where_clause = "WHERE speaker_id = ?"
+        elif include_verified:
+            where_clause = "WHERE speaker_id = ? AND verified = 1"
+        elif include_unverified:
+            where_clause = "WHERE speaker_id = ? AND verified = 0"
+        else:
+            return []
+
+        cursor.execute(f'''
+            SELECT correction_id, field_name, current_value, suggested_value,
+                   suggestion_context, submitted_at, submitted_by, verified,
+                   confidence, reasoning, sources, applied_at
+            FROM speaker_corrections
+            {where_clause}
+            ORDER BY submitted_at DESC
+        ''', (speaker_id,))
+
+        return cursor.fetchall()
+
+    def apply_correction(self, speaker_id: int, field_name: str, new_value: str) -> None:
+        """
+        Apply a verified correction to a speaker record.
+
+        Args:
+            speaker_id: Speaker ID
+            field_name: Field to update
+            new_value: New value for the field
+        """
+        cursor = self.conn.cursor()
+
+        # Update the speaker record
+        cursor.execute(f'''
+            UPDATE speakers
+            SET {field_name} = ?, last_updated = ?
+            WHERE speaker_id = ?
+        ''', (new_value, datetime.now(timezone.utc).isoformat(), speaker_id))
+
+        self.conn.commit()
+
+    def get_recent_corrections(self, limit: int = 10, verified_only: bool = False) -> List[Tuple]:
+        """
+        Get recent corrections across all speakers.
+
+        Args:
+            limit: Maximum number of corrections to return
+            verified_only: Only return verified corrections
+
+        Returns:
+            List of tuples with correction data and speaker name
+        """
+        cursor = self.conn.cursor()
+
+        where_clause = "WHERE c.verified = 1" if verified_only else ""
+
+        cursor.execute(f'''
+            SELECT c.correction_id, c.speaker_id, s.name, c.field_name,
+                   c.current_value, c.suggested_value, c.submitted_at,
+                   c.verified, c.confidence, c.reasoning, c.applied_at
+            FROM speaker_corrections c
+            JOIN speakers s ON c.speaker_id = s.speaker_id
+            {where_clause}
+            ORDER BY c.submitted_at DESC
+            LIMIT ?
+        ''', (limit,))
+
+        return cursor.fetchall()
 
     def close(self):
         """Close database connection"""
