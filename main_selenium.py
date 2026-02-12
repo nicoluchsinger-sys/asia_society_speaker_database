@@ -15,6 +15,14 @@ from generate_embeddings import generate_embeddings
 import json
 
 
+def get_db_path():
+    """Get database path - /data/speakers.db on Railway, ./speakers.db locally"""
+    if os.path.exists('/data'):
+        # On Railway with persistent volume mounted at /data
+        return '/data/speakers.db'
+    return './speakers.db'
+
+
 # Anthropic pricing (as of 2024) - per million tokens
 PRICING = {
     'claude-sonnet-4-20250514': {
@@ -513,7 +521,8 @@ def main():
     print("-"*70)
 
     # Use a single database connection for the entire pipeline
-    with SpeakerDatabase() as db:
+    db_path = get_db_path()
+    with SpeakerDatabase(db_path) as db:
         # Step 1: Scrape events
         if args.skip_scrape:
             print("\nSkipping scraping (--skip-scrape)")

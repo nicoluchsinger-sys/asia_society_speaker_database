@@ -4,6 +4,14 @@ from database import SpeakerDatabase
 from speaker_extractor import SpeakerExtractor
 import json
 
+
+def get_db_path():
+    """Get database path - /data/speakers.db on Railway, ./speakers.db locally"""
+    if os.path.exists('/data'):
+        return '/data/speakers.db'
+    return './speakers.db'
+
+
 # Load API key
 if os.path.exists('.env'):
     with open('.env', 'r') as f:
@@ -16,7 +24,8 @@ if os.path.exists('.env'):
 print("🤖 EXTRACTING SPEAKERS WITH AI")
 print("="*70)
 
-with SpeakerDatabase() as db:
+db_path = get_db_path()
+with SpeakerDatabase(db_path) as db:
     unprocessed = db.get_unprocessed_events()
     
     print(f"Found {len(unprocessed)} unprocessed event(s)\n")

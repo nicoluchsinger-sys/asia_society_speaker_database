@@ -6,9 +6,17 @@ Saves ~50% cost and time vs separate tagging + enrichment
 
 import argparse
 import time
+import os
 from datetime import datetime
 from database import SpeakerDatabase
 from speaker_enricher_v2 import UnifiedSpeakerEnricher
+
+
+def get_db_path():
+    """Get database path - /data/speakers.db on Railway, ./speakers.db locally"""
+    if os.path.exists('/data'):
+        return '/data/speakers.db'
+    return './speakers.db'
 
 
 def enrich_speakers(
@@ -27,7 +35,7 @@ def enrich_speakers(
         verbose: Print progress messages
     """
     # Get list of speakers to process (then close connection)
-    db = SpeakerDatabase()
+    db = SpeakerDatabase(get_db_path())
     all_speakers = db.get_all_speakers()
 
     if not all_speakers:
@@ -104,7 +112,7 @@ def enrich_speakers(
 
             # Perform unified enrichment
             # Open fresh database connection for this speaker
-            db = SpeakerDatabase()
+            db = SpeakerDatabase(get_db_path())
 
             try:
                 result = enricher.enrich_speaker(speaker_id, db)
@@ -160,7 +168,7 @@ def enrich_speakers(
             print(f"Avg time per speaker: {elapsed/processed:.1f}s")
 
         # Check database stats (open fresh connection)
-        db = SpeakerDatabase()
+        db = SpeakerDatabase(get_db_path())
         stats = db.get_statistics()
 
         # Count enriched speakers
@@ -186,7 +194,7 @@ def enrich_speakers(
 
 def show_stats(verbose=True):
     """Show statistics about enrichment coverage"""
-    db = SpeakerDatabase()
+    db = SpeakerDatabase(get_db_path())
 
     stats = db.get_statistics()
     total_speakers = stats['total_speakers']
