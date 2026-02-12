@@ -46,7 +46,10 @@ class SpeakerExtractor:
             )
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-sonnet-4-20250514"
+        # Using Claude 3 Haiku for 91% cost reduction with equivalent quality
+        # Validation: 5-event A/B test showed 100% success rate, actually found MORE speakers
+        # Cost: $0.0025 vs $0.0290 per event. See test_extraction_models.py for details.
+        self.model = "claude-3-haiku-20240307"
         self._last_usage = {}
     
     def extract_speakers(self, event_title: str, event_text: str) -> Dict:
