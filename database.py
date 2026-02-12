@@ -746,6 +746,74 @@ class SpeakerDatabase:
         ''', (event_id,))
         return cursor.fetchone()
 
+    def get_all_events(
+        self,
+        location_filter: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Tuple]:
+        """
+        Get all events with optional location filtering and pagination.
+
+        Args:
+            location_filter: Filter by location (case-insensitive partial match)
+            limit: Maximum number of results to return
+            offset: Number of results to skip (for pagination)
+
+        Returns:
+            List of tuples: (event_id, title, event_date, location, speaker_count)
+            Ordered by event_date DESC (most recent first)
+        """
+        cursor = self.conn.cursor()
+
+        if location_filter:
+            cursor.execute('''
+                SELECT
+                    e.event_id,
+                    e.title,
+                    e.event_date,
+                    e.location,
+                    COUNT(DISTINCT es.speaker_id) as speaker_count
+                FROM events e
+                LEFT JOIN event_speakers es ON e.event_id = es.event_id
+                WHERE LOWER(e.location) LIKE ?
+                GROUP BY e.event_id
+                ORDER BY e.event_date DESC
+                LIMIT ? OFFSET ?
+            ''', (f'%{location_filter.lower()}%', limit, offset))
+        else:
+            cursor.execute('''
+                SELECT
+                    e.event_id,
+                    e.title,
+                    e.event_date,
+                    e.location,
+                    COUNT(DISTINCT es.speaker_id) as speaker_count
+                FROM events e
+                LEFT JOIN event_speakers es ON e.event_id = es.event_id
+                GROUP BY e.event_id
+                ORDER BY e.event_date DESC
+                LIMIT ? OFFSET ?
+            ''', (limit, offset))
+
+        return cursor.fetchall()
+
+    def get_unique_event_locations(self) -> List[str]:
+        """
+        Get list of unique event locations for filtering.
+
+        Returns:
+            List of unique location strings, sorted alphabetically
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT DISTINCT location
+            FROM events
+            WHERE location IS NOT NULL AND location != ''
+            ORDER BY location ASC
+        ''')
+        return [row[0] for row in cursor.fetchall()]
+
     def get_statistics(self) -> Dict[str, int]:
         """
         Get database statistics for all tables.

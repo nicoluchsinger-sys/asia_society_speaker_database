@@ -599,6 +599,67 @@ def api_stats():
     return jsonify(stats)
 
 
+@app.route('/events')
+@login_required
+def events_page():
+    """Events browse page"""
+    return render_template('events.html')
+
+
+@app.route('/api/events', methods=['GET'])
+@login_required
+def api_events():
+    """API endpoint for events listing with filtering"""
+    try:
+        # Get query parameters
+        location_filter = request.args.get('location', None)
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+
+        # Create new database connection for this request
+        db_path = get_db_path()
+        with SpeakerDatabase(db_path) as database:
+            # Get events
+            events = database.get_all_events(
+                location_filter=location_filter,
+                limit=limit,
+                offset=offset
+            )
+
+            # Get unique locations for filter dropdown
+            locations = database.get_unique_event_locations()
+
+        # Format events
+        formatted_events = []
+        for event in events:
+            event_id, title, event_date, location, speaker_count = event
+            formatted_events.append({
+                'event_id': event_id,
+                'title': title,
+                'event_date': event_date,
+                'location': location,
+                'speaker_count': speaker_count
+            })
+
+        return jsonify({
+            'success': True,
+            'events': formatted_events,
+            'locations': locations,
+            'count': len(formatted_events),
+            'offset': offset,
+            'limit': limit
+        })
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Events API error: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch events: {str(e)}'
+        }), 500
+
+
 @app.route('/admin/upload-db', methods=['POST'])
 def upload_database():
     """TEMPORARY: Upload database file - REMOVE AFTER USE"""
