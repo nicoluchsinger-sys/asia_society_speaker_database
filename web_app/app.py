@@ -891,6 +891,59 @@ def force_unlock():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/reset-costs', methods=['POST'])
+@login_required
+def reset_api_costs():
+    """Reset API cost tracking to zero for fresh start with new pricing"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Check if pipeline_runs table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No pipeline_runs table found - nothing to reset',
+                'runs_deleted': 0
+            })
+
+        # Get current stats before reset
+        cursor.execute('SELECT COUNT(*), COALESCE(SUM(total_cost), 0) FROM pipeline_runs')
+        count, total_cost = cursor.fetchone()
+
+        if count == 0:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No pipeline runs to reset',
+                'runs_deleted': 0,
+                'previous_total_cost': 0
+            })
+
+        # Clear the table
+        cursor.execute('DELETE FROM pipeline_runs')
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Reset API costs: deleted {count} pipeline runs totaling ${total_cost:.2f}")
+
+        return jsonify({
+            'success': True,
+            'message': f'API cost tracking reset - deleted {count} pipeline run records',
+            'runs_deleted': count,
+            'previous_total_cost': round(total_cost, 2)
+        })
+
+    except Exception as e:
+        logger.error(f"Error resetting API costs: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/debug-stats')
 def debug_stats():
     """Detailed diagnostic statistics"""
