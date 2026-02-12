@@ -20,26 +20,35 @@ The database is built entirely through automated processes:
    - Expertise tags based on speaking topics
    - Geographic information (when available)
    - Demographic data (handled conservatively to maintain accuracy)
+   - Languages spoken (when mentioned)
 4. **Search Indexing**: Speaker profiles are converted into semantic embeddings that enable intelligent search
+   - Embeddings include biographical data, expertise tags, and **event participation history**
+   - Each speaker's 10 most recent events are included with titles and topic descriptions
+   - This enables topic-based discovery (e.g., finding "climate experts" finds speakers from climate events)
 
 All data comes from publicly available information on Asia Society's website.
 
 ## How does the search work?
 
-The search combines two approaches to find the most relevant speakers:
+The search combines multiple approaches to find the most relevant speakers:
 
 **1. Exact Name Matching**
 If you search for a specific person by name (e.g., "James Crabtree"), the system will find exact or partial matches.
 
-**2. Semantic Search**
-When you search by topic or expertise (e.g., "climate policy experts" or "Southeast Asia trade"), the system understands the meaning of your query and finds speakers with relevant experience, even if they don't use those exact words.
+**2. Semantic Search with Event Context**
+When you search by topic or expertise (e.g., "climate policy experts" or "Southeast Asia trade"), the system understands the meaning of your query and finds speakers based on:
+- Their biographical information and expertise tags
+- **Events they've participated in** - including event titles and topics
+- Speaking roles (keynote speakers, panelists, moderators)
+
+This means searching for "climate experts" will find speakers who participated in climate-related events, even if their bio doesn't explicitly mention climate.
 
 **3. Smart Ranking**
 Results are ranked by:
-- Topic relevance (how well expertise matches your query)
+- Topic relevance (how well expertise and event history matches your query)
 - Name matches (get highest priority)
 - Profile quality (speakers with detailed bios and multiple events rank higher)
-- Activity level (frequent speakers at Asia Society events)
+- Activity level (frequent speakers rank higher, keynote speakers especially)
 
 You can also filter by preferences like location, language, or other criteria mentioned in your query (e.g., "female economists in China").
 
@@ -81,9 +90,11 @@ Each speaker profile may include:
 The system prioritizes **accuracy over completeness**:
 
 - **Speaker Extraction**: Uses advanced AI (Claude Sonnet 4) to carefully extract information from event pages, with ~95% accuracy
+- **Speaker Enrichment**: Uses Claude 3 Haiku to efficiently extract expertise tags, demographics, and location data with high accuracy while minimizing costs
 - **Deduplication**: Automatically merges duplicate entries when the same person appears at multiple events (fuzzy matching on name + affiliation)
-- **Conservative Enrichment**: Only adds demographic or location data when confidence is high (e.g., only 37% of speakers have location data because we won't guess)
+- **Conservative Approach**: Only adds demographic or location data when confidence is high (we won't guess)
 - **Source Tracking**: All enriched data includes confidence scores and timestamps
+- **Quality Validation**: A/B tested multiple AI models to ensure quality remains high while optimizing for cost
 
 ## Can I export or download data?
 
@@ -100,14 +111,15 @@ Bulk data exports are not available to prevent misuse.
 For those interested in the technical details:
 
 - **Web Scraping**: Selenium WebDriver (to handle dynamic content)
-- **Speaker Extraction**: Anthropic Claude AI (Sonnet 4 model)
-- **Search**: OpenAI embeddings with hybrid name/semantic matching
+- **Speaker Extraction**: Anthropic Claude AI (Sonnet 4 model for extraction)
+- **Speaker Enrichment**: Claude 3 Haiku (91% cheaper than Sonnet 4, equivalent quality)
+- **Search**: OpenAI embeddings with hybrid name/semantic matching + event context
 - **Database**: SQLite (simple, reliable, portable)
 - **Web Interface**: Flask + Tailwind CSS
 - **Hosting**: Railway (with automated deployments)
-- **Cost**: ~$8-10/month (mostly AI API calls)
+- **Cost**: ~$7-9/month (mostly AI API calls, optimized through careful model selection)
 
-The entire system is built with Python and runs on a single small server.
+The entire system is built with Python and runs on a single small server. Recent optimizations reduced enrichment costs by 91% while maintaining quality through A/B testing.
 
 ## Who built this?
 
