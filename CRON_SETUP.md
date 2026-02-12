@@ -1,10 +1,12 @@
 # Automated Refresh Setup
 
-This document explains how to set up automated speaker data refresh on a monthly schedule.
+This document explains how to set up **fully automated** speaker data refresh on a monthly schedule.
 
 ## Overview
 
 The monthly refresh script (`monthly_refresh.sh`) re-enriches speaker profiles that haven't been updated in over 6 months. This ensures that speaker affiliations, titles, locations, and demographics remain current as people change roles and organizations.
+
+**✅ Fully Automated:** Runs via cron with `--non-interactive` flag - no manual confirmation required. Set it and forget it!
 
 ## What Gets Refreshed
 
@@ -46,8 +48,10 @@ crontab -e
 **Explanation:**
 - `0 3 1 * *` = Run at 3:00 AM on the 1st day of every month
 - `cd /path/to/speaker_database` = Change to project directory
-- `./monthly_refresh.sh` = Run the refresh script
+- `./monthly_refresh.sh` = Run the refresh script (uses `--non-interactive` flag)
 - `>> /var/log/speaker_refresh.log 2>&1` = Append output to log file
+
+**✅ Fully Automated:** The script uses `--non-interactive` mode, so it runs completely hands-off with no confirmation prompts. The refresh will execute automatically every month.
 
 ### Option 2: Integrate into Existing Daily Pipeline
 
