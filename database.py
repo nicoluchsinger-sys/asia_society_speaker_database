@@ -814,6 +814,73 @@ class SpeakerDatabase:
         ''')
         return [row[0] for row in cursor.fetchall()]
 
+    def get_top_speakers(
+        self,
+        limit: int = 10,
+        months: Optional[int] = 12
+    ) -> List[Tuple]:
+        """
+        Get top speakers by event count (leaderboard).
+
+        Args:
+            limit: Number of top speakers to return
+            months: Time window in months (None = all time)
+
+        Returns:
+            List of tuples: (speaker_id, name, affiliation, event_count,
+                            last_event_date, unique_locations, tags)
+            Ordered by event_count DESC
+        """
+        cursor = self.conn.cursor()
+
+        if months:
+            # Calculate date threshold
+            # event_date format is "DD MMM YYYY" (e.g., "12 Feb 2026")
+            # We'll use a simple approach: filter by year and month numerically
+            cursor.execute('''
+                SELECT
+                    s.speaker_id,
+                    s.name,
+                    s.affiliation,
+                    COUNT(DISTINCT e.event_id) as event_count,
+                    MAX(e.event_date) as last_event,
+                    GROUP_CONCAT(DISTINCT e.location, ' | ') as locations,
+                    (SELECT GROUP_CONCAT(DISTINCT st.tag_text, ', ')
+                     FROM speaker_tags st
+                     WHERE st.speaker_id = s.speaker_id
+                     LIMIT 3) as tags
+                FROM speakers s
+                JOIN event_speakers es ON s.speaker_id = es.speaker_id
+                JOIN events e ON es.event_id = e.event_id
+                WHERE e.event_date >= date('now', '-' || ? || ' months')
+                GROUP BY s.speaker_id
+                ORDER BY event_count DESC
+                LIMIT ?
+            ''', (months, limit))
+        else:
+            # All time leaderboard
+            cursor.execute('''
+                SELECT
+                    s.speaker_id,
+                    s.name,
+                    s.affiliation,
+                    COUNT(DISTINCT e.event_id) as event_count,
+                    MAX(e.event_date) as last_event,
+                    GROUP_CONCAT(DISTINCT e.location, ' | ') as locations,
+                    (SELECT GROUP_CONCAT(DISTINCT st.tag_text, ', ')
+                     FROM speaker_tags st
+                     WHERE st.speaker_id = s.speaker_id
+                     LIMIT 3) as tags
+                FROM speakers s
+                JOIN event_speakers es ON s.speaker_id = es.speaker_id
+                JOIN events e ON es.event_id = e.event_id
+                GROUP BY s.speaker_id
+                ORDER BY event_count DESC
+                LIMIT ?
+            ''', (limit,))
+
+        return cursor.fetchall()
+
     def get_statistics(self) -> Dict[str, int]:
         """
         Get database statistics for all tables.

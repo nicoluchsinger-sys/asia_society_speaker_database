@@ -606,6 +606,73 @@ def events_page():
     return render_template('events.html')
 
 
+@app.route('/leaderboard')
+@login_required
+def leaderboard_page():
+    """Speaker leaderboard page"""
+    return render_template('leaderboard.html')
+
+
+@app.route('/api/leaderboard', methods=['GET'])
+@login_required
+def api_leaderboard():
+    """API endpoint for speaker leaderboard"""
+    try:
+        # Get query parameters
+        limit = int(request.args.get('limit', 10))
+        months = request.args.get('months', '12')
+        months = int(months) if months and months != 'all' else None
+
+        # Create new database connection for this request
+        db_path = get_db_path()
+        with SpeakerDatabase(db_path) as database:
+            # Get top speakers
+            speakers = database.get_top_speakers(limit=limit, months=months)
+
+        # Format speakers
+        formatted_speakers = []
+        for idx, speaker in enumerate(speakers, 1):
+            speaker_id, name, affiliation, event_count, last_event, locations, tags = speaker
+
+            # Parse locations
+            unique_locations = []
+            if locations:
+                unique_locations = list(set([loc.strip() for loc in locations.split('|') if loc.strip()]))
+
+            # Parse tags
+            tag_list = []
+            if tags:
+                tag_list = [tag.strip() for tag in tags.split(',')[:3]]  # Top 3 tags
+
+            formatted_speakers.append({
+                'rank': idx,
+                'speaker_id': speaker_id,
+                'name': name,
+                'affiliation': affiliation,
+                'event_count': event_count,
+                'last_event': last_event,
+                'locations': unique_locations,
+                'location_count': len(unique_locations),
+                'tags': tag_list
+            })
+
+        return jsonify({
+            'success': True,
+            'speakers': formatted_speakers,
+            'count': len(formatted_speakers),
+            'timeframe': f'{months} months' if months else 'all time'
+        })
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Leaderboard API error: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch leaderboard: {str(e)}'
+        }), 500
+
+
 @app.route('/api/events', methods=['GET'])
 @login_required
 def api_events():
