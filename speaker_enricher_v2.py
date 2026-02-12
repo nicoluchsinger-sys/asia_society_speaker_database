@@ -24,7 +24,10 @@ class UnifiedSpeakerEnricher:
             raise ValueError("ANTHROPIC_API_KEY not found. Please set it in .env file or pass it directly.")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-sonnet-4-20250514"
+        # Using Claude 3 Haiku for 91% cost reduction with equivalent quality
+        # Validation: 20-speaker A/B test showed 100% success rate, 0.857 confidence (vs 0.882 Sonnet 4)
+        # Cost: $0.0008 vs $0.0096 per speaker. See ENRICHMENT_COST_OPTIMIZATION.md for details.
+        self.model = "claude-3-haiku-20240307"
         self.search_delay = 1.5  # Rate limit for DuckDuckGo searches
 
     def web_search(self, query: str, max_results: int = 5) -> Dict:
