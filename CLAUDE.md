@@ -45,6 +45,10 @@ python3 test_api.py
 # Reset failed events back to pending status
 python3 reset_events.py
 
+# Refresh stale speaker demographics (>6 months old)
+python3 refresh_stale_speakers.py --limit 20 --months 6
+python3 refresh_stale_speakers.py --dry-run  # Preview without changes
+
 # Install dependencies
 pip3 install -r requirements.txt
 ```
