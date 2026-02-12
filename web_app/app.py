@@ -58,6 +58,9 @@ def get_db():
     return db
 
 
+# Pipeline lock configuration - configurable timeout via environment variable
+PIPELINE_LOCK_TIMEOUT = int(os.environ.get('PIPELINE_LOCK_TIMEOUT_SECONDS', '1800'))  # Default: 30 minutes
+
 # Pipeline scheduling
 def run_scheduled_pipeline():
     """Run the consolidated pipeline on a schedule"""
@@ -87,21 +90,25 @@ def run_scheduled_pipeline():
         conn.commit()
 
         # Try to acquire lock
-        cursor.execute('SELECT is_locked, locked_at FROM pipeline_lock WHERE lock_id = 1')
+        cursor.execute('SELECT is_locked, locked_at, locked_by FROM pipeline_lock WHERE lock_id = 1')
         row = cursor.fetchone()
-        is_locked, locked_at = row[0], row[1]
+        is_locked, locked_at, locked_by = row[0], row[1], row[2] if len(row) > 2 else 'unknown'
 
-        # Check if lock is stale (older than 30 minutes - pipeline should never take that long)
+        logger.info(f"Lock status: is_locked={is_locked}, locked_at={locked_at}, locked_by={locked_by}")
+
+        # Check if lock is stale (older than configured timeout - pipeline should never take that long)
         if is_locked and locked_at:
             import time
             locked_time = datetime.fromisoformat(locked_at.replace('+00:00', ''))
             elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - locked_time).total_seconds()
-            if elapsed > 1800:  # 30 minutes
-                logger.warning(f"⚠ Stale lock detected ({elapsed:.0f}s old), clearing it")
+            logger.info(f"Lock age: {elapsed:.0f}s (timeout threshold: {PIPELINE_LOCK_TIMEOUT}s)")
+
+            if elapsed > PIPELINE_LOCK_TIMEOUT:
+                logger.warning(f"⚠ Stale lock detected ({elapsed:.0f}s old, owner: {locked_by}), clearing it")
                 is_locked = False
 
         if is_locked:
-            logger.info("⏭ Pipeline already running in another instance, skipping this execution")
+            logger.info(f"⏭ Pipeline already running (locked by {locked_by} at {locked_at}), skipping this execution")
             conn.close()
             return
 
@@ -636,6 +643,123 @@ def manual_pipeline_trigger():
             'note': 'Check logs or /api/stats for progress'
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/lock-status', methods=['GET'])
+@login_required
+def lock_status():
+    """Check pipeline lock status - useful for debugging stuck locks"""
+    import sqlite3
+    from datetime import datetime, timezone
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Create lock table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pipeline_lock (
+                lock_id INTEGER PRIMARY KEY CHECK (lock_id = 1),
+                is_locked BOOLEAN NOT NULL DEFAULT 0,
+                locked_at TEXT,
+                locked_by TEXT
+            )
+        ''')
+
+        # Initialize lock row if it doesn't exist
+        cursor.execute('INSERT OR IGNORE INTO pipeline_lock (lock_id, is_locked) VALUES (1, 0)')
+        conn.commit()
+
+        # Get current lock status
+        cursor.execute('SELECT is_locked, locked_at, locked_by FROM pipeline_lock WHERE lock_id = 1')
+        row = cursor.fetchone()
+        conn.close()
+
+        is_locked = bool(row[0])
+        locked_at = row[1]
+        locked_by = row[2] if len(row) > 2 else 'unknown'
+
+        status = {
+            'is_locked': is_locked,
+            'locked_at': locked_at,
+            'locked_by': locked_by,
+            'timeout_threshold_seconds': PIPELINE_LOCK_TIMEOUT
+        }
+
+        # Calculate lock age if locked
+        if is_locked and locked_at:
+            try:
+                locked_time = datetime.fromisoformat(locked_at.replace('+00:00', ''))
+                elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - locked_time).total_seconds()
+                status['lock_age_seconds'] = int(elapsed)
+                status['is_stale'] = elapsed > PIPELINE_LOCK_TIMEOUT
+            except Exception as e:
+                logger.error(f"Error calculating lock age: {e}")
+                status['lock_age_seconds'] = None
+                status['is_stale'] = False
+
+        return jsonify(status)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/unlock', methods=['POST'])
+@login_required
+def force_unlock():
+    """Manually reset a stuck pipeline lock - use with caution"""
+    import sqlite3
+    from datetime import datetime, timezone
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get current lock status before clearing
+        cursor.execute('SELECT is_locked, locked_at, locked_by FROM pipeline_lock WHERE lock_id = 1')
+        row = cursor.fetchone()
+
+        if not row or not row[0]:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'Lock was already unlocked',
+                'was_locked': False
+            })
+
+        locked_at = row[1]
+        locked_by = row[2] if len(row) > 2 else 'unknown'
+
+        # Calculate how long it was locked
+        lock_age = None
+        if locked_at:
+            try:
+                locked_time = datetime.fromisoformat(locked_at.replace('+00:00', ''))
+                lock_age = int((datetime.now(timezone.utc).replace(tzinfo=None) - locked_time).total_seconds())
+            except:
+                pass
+
+        # Clear the lock
+        cursor.execute('UPDATE pipeline_lock SET is_locked = 0 WHERE lock_id = 1')
+        conn.commit()
+        conn.close()
+
+        logger.warning(f"⚠ Pipeline lock manually cleared (was locked by {locked_by} at {locked_at}, age: {lock_age}s)")
+
+        return jsonify({
+            'success': True,
+            'message': 'Pipeline lock cleared',
+            'was_locked': True,
+            'previous_owner': locked_by,
+            'previous_locked_at': locked_at,
+            'lock_age_seconds': lock_age
+        })
+
+    except Exception as e:
+        logger.error(f"Error clearing lock: {e}")
         return jsonify({'error': str(e)}), 500
 
 
