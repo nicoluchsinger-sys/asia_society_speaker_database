@@ -804,7 +804,7 @@ def suggest_correction(speaker_id):
                     'error': 'Speaker not found'
                 }), 404
 
-            speaker_id_db, name, title, affiliation, primary_affiliation, bio, _, _ = speaker_data
+            speaker_id_db, name, title, affiliation, primary_affiliation, bio = speaker_data
             current_value = None
 
             # Get current value for the field
