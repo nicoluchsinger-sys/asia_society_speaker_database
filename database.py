@@ -1103,18 +1103,17 @@ class SpeakerDatabase:
             }
 
         # Stale speakers needing re-enrichment (>6 months old)
+        # Only count speakers that HAVE been enriched before, not unenriched ones
         from datetime import datetime, timedelta
         six_months_ago = (datetime.now() - timedelta(days=180)).isoformat()
 
         cursor.execute('''
             SELECT COUNT(DISTINCT s.speaker_id)
             FROM speakers s
-            LEFT JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
+            INNER JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
             WHERE s.tagging_status = 'completed'
-            AND (
-                sd.enriched_at IS NULL
-                OR sd.enriched_at < ?
-            )
+            AND sd.enriched_at IS NOT NULL
+            AND sd.enriched_at < ?
         ''', (six_months_ago,))
         stats['stale_speakers_count'] = cursor.fetchone()[0]
 
@@ -1695,7 +1694,10 @@ class SpeakerDatabase:
 
     def get_stale_speakers(self, months: int = 6, limit: int = 20) -> List[Tuple]:
         """
-        Get speakers that need re-enrichment (>N months old).
+        Get speakers that need re-enrichment (enriched >N months ago).
+
+        Note: This only returns speakers that HAVE been enriched before.
+        Never-enriched speakers are not considered "stale".
 
         Args:
             months: Age threshold in months (default 6)
@@ -1708,6 +1710,7 @@ class SpeakerDatabase:
         cursor = self.conn.cursor()
 
         # Find speakers whose enrichment is older than N months
+        # Only includes speakers that HAVE been enriched (not unenriched ones)
         # Prioritize by event count (high-profile speakers first)
         cursor.execute(f'''
             SELECT
@@ -1717,15 +1720,13 @@ class SpeakerDatabase:
                 sd.enriched_at,
                 COUNT(DISTINCT es.event_id) as event_count
             FROM speakers s
-            LEFT JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
+            INNER JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
             LEFT JOIN event_speakers es ON s.speaker_id = es.speaker_id
             WHERE s.tagging_status = 'completed'
-            AND (
-                sd.enriched_at IS NULL
-                OR sd.enriched_at < date('now', '-' || ? || ' months')
-            )
+            AND sd.enriched_at IS NOT NULL
+            AND sd.enriched_at < date('now', '-' || ? || ' months')
             GROUP BY s.speaker_id
-            ORDER BY event_count DESC, sd.enriched_at ASC NULLS FIRST
+            ORDER BY event_count DESC, sd.enriched_at ASC
             LIMIT ?
         ''', (months, limit))
 
