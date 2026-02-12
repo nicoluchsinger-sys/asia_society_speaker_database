@@ -1,0 +1,290 @@
+{
+  "sonnet-4": {
+    "model_name": "sonnet-4",
+    "model_id": "claude-sonnet-4-20250514",
+    "results": [
+      {
+        "event_id": 48,
+        "title": "Big Picture: Contemporary South Korea With Author Bora Chung",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Bora Chung",
+            "title": "Author",
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "featured speaker",
+            "bio": "Writer of science fiction and generally unrealistic stories. Also translates modern literary works from Russian and Polish into Korean. Has published four novels and five books of collected short stories in Korean. Her work 'Cursed Bunny' was shortlisted for the 2022 International Booker Prize and the 2023 National Book Awards for translated literature. Followed up with 'Your Utopia' and has upcoming novel 'Red Sword' publishing in English. Lives in Pohang, South Korea."
+          },
+          {
+            "name": "Khanh Trinh",
+            "title": "Curator",
+            "affiliation": "Museum Rietberg",
+            "primary_affiliation": "Museum Rietberg",
+            "role_in_event": "tour guide",
+            "bio": "Curator at Museum Rietberg who leads private art tours on South Korea's pop culture"
+          }
+        ],
+        "input_tokens": 8289,
+        "output_tokens": 344,
+        "cost": 0.030027
+      },
+      {
+        "event_id": 308,
+        "title": "Gen A: Working Lunch with Anand Mahindra",
+        "success": true,
+        "speakers_found": 1,
+        "speakers": [
+          {
+            "name": "Anand Mahindra",
+            "title": "Chairman",
+            "affiliation": "Mahindra Group",
+            "primary_affiliation": "Mahindra Group",
+            "role_in_event": "keynote speaker",
+            "bio": "Led a wide-ranging and reflective conversation with Gen A members, sharing powerful stories and insights about leadership, empathy, creativity, tenacity, and self-belief. Believes leadership is defined by the ability to listen, learn, and lead with empathy."
+          }
+        ],
+        "input_tokens": 2377,
+        "output_tokens": 205,
+        "cost": 0.010206
+      },
+      {
+        "event_id": 13,
+        "title": "Batang West Side",
+        "success": true,
+        "speakers_found": 1,
+        "speakers": [
+          {
+            "name": "Lav Diaz",
+            "title": "Filmmaker",
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "filmmaker providing extended introduction",
+            "bio": "Filipino filmmaker who directed Batang West Side (2001) and Norte, The End of History. His latest film MAGELLAN opens Friday, January 9 at IFC. Batang West Side was his sole film shot in the United States and was the longest film to be made by a Southeast Asia director at the time."
+          }
+        ],
+        "input_tokens": 4877,
+        "output_tokens": 216,
+        "cost": 0.017871
+      },
+      {
+        "event_id": 338,
+        "title": "2025 Young Leaders Institute: Issues in International Security",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Antoine de Cazotte",
+            "title": "Producer",
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "discussion participant",
+            "bio": "Producer of the film 'Alone on a Secret Atoll'"
+          },
+          {
+            "name": "Dr. Alejandro Chaoul",
+            "title": "Dr.",
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "workshop instructor",
+            "bio": "Tibetan meditation instructor"
+          }
+        ],
+        "input_tokens": 15532,
+        "output_tokens": 252,
+        "cost": 0.050376
+      },
+      {
+        "event_id": 191,
+        "title": "In Conversation: Musician Andy Summers (The Police) and author Roland Kelts (Japanamerica)",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Andy Summers",
+            "title": "Musician, Guitarist, Photographer, Author",
+            "affiliation": "The Police",
+            "primary_affiliation": "The Police",
+            "role_in_event": "speaker and performer",
+            "bio": "Rose to fame in the early 1980's as the guitarist of the multi-million record selling rock band - The Police. Built a prolific career as a solo artist, recording fourteen albums, composing for film, photographic exhibitions, and international tours. His 2006 memoir One Train Later was voted as the number one music book of the year in the UK by Mojo Magazine. Has published five books of his photographs and created multimedia performance Harmonics of the Night. Honors include induction to the Rock and Roll Hall of Fame, the Guitar Player Hall of Fame, five Grammys, the keys to New York City, an honorary doctorate, and the Chevalier De L'Ordre Des Arts et Des Lettres by the government of France."
+          },
+          {
+            "name": "Roland Nozomu Kelts",
+            "title": "Visiting Professor, Author, Journalist, Editor, Scholar",
+            "affiliation": "Waseda University, Monkey: New Writing from Japan, Harvard University",
+            "primary_affiliation": "Waseda University",
+            "role_in_event": "speaker",
+            "bio": "Award-winning Japanese American journalist, author, editor and scholar. Best known for his highly acclaimed bestseller, Japanamerica: How Japanese Pop Culture Has Invaded the US, and the more recent, Blade Runner: Black Lotus. Contributes to numerous media including the BBC, CNN, NHK, The Wall Street Journal, The Atlantic, The New Yorker, The Guardian and The New York Times. Has been a contributing editor to the literary journal Monkey: New Writing from Japan since its inception in 2011. Was a Nieman Fellow in Journalism at Harvard in 2017. Currently a Visiting Professor at Waseda University in Tokyo."
+          }
+        ],
+        "input_tokens": 9491,
+        "output_tokens": 542,
+        "cost": 0.036603
+      }
+    ],
+    "summary": {
+      "success_rate": 100.0,
+      "successful_count": 5,
+      "total_events": 5,
+      "total_speakers": 8,
+      "avg_speakers_per_event": 1.6,
+      "total_input_tokens": 40566,
+      "total_output_tokens": 1559,
+      "total_cost": 0.145083,
+      "avg_cost_per_event": 0.029016599999999997
+    }
+  },
+  "haiku-3": {
+    "model_name": "haiku-3",
+    "model_id": "claude-3-haiku-20240307",
+    "results": [
+      {
+        "event_id": 48,
+        "title": "Big Picture: Contemporary South Korea With Author Bora Chung",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Bora Chung",
+            "title": "Writer",
+            "affiliation": null,
+            "primary_affiliation": "Pohang, South Korea",
+            "role_in_event": "Keynote speaker, live reading",
+            "bio": "Bora Chung is a writer of science fiction and generally unrealistic stories. She also translates modern literary works from Russian and Polish into Korean. She has published four novels and five books of collected short stories in Korean. Among them, Cursed Bunny was shortlisted for the 2022 International Booker Prize and the 2023 National Book Awards for translated literature. Last year, Bora Chung followed up with a second collection of translated short stories, Your Utopia. This May, her novel Red Sword will be published in English, set on another planet, ravaged by war between competing empires. She lives in Pohang, South Korea."
+          },
+          {
+            "name": "Khanh Trinh",
+            "title": "Curator",
+            "affiliation": "Museum Rietberg",
+            "primary_affiliation": "Museum Rietberg",
+            "role_in_event": "Private art tour guide",
+            "bio": null
+          }
+        ],
+        "input_tokens": 8289,
+        "output_tokens": 381,
+        "cost": 0.0025485
+      },
+      {
+        "event_id": 308,
+        "title": "Gen A: Working Lunch with Anand Mahindra",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Anand Mahindra",
+            "title": "Chairman",
+            "affiliation": "Mahindra Group",
+            "primary_affiliation": "Mahindra Group",
+            "role_in_event": "Keynote speaker",
+            "bio": null
+          },
+          {
+            "name": null,
+            "title": null,
+            "affiliation": "Gen A members",
+            "primary_affiliation": "Gen A",
+            "role_in_event": "Participants in the conversation",
+            "bio": null
+          }
+        ],
+        "input_tokens": 2377,
+        "output_tokens": 233,
+        "cost": 0.0008855
+      },
+      {
+        "event_id": 13,
+        "title": "Batang West Side",
+        "success": true,
+        "speakers_found": 3,
+        "speakers": [
+          {
+            "name": "Lav Diaz",
+            "title": "Filmmaker",
+            "affiliation": "Asia Society, Asian CineVision",
+            "primary_affiliation": "Asia Society",
+            "role_in_event": "Filmmaker, extended introduction",
+            "bio": "Filmmaker of the film 'Batang West Side' and 'Norte, The End of History'"
+          },
+          {
+            "name": "Yul Servo",
+            "title": null,
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "Actor, playing the role of Hanzel",
+            "bio": null
+          },
+          {
+            "name": "Joel Torres",
+            "title": "Police detective",
+            "affiliation": null,
+            "primary_affiliation": null,
+            "role_in_event": "Actor, playing the role of police detective Juan Mijares",
+            "bio": null
+          }
+        ],
+        "input_tokens": 4877,
+        "output_tokens": 323,
+        "cost": 0.001623
+      },
+      {
+        "event_id": 338,
+        "title": "2025 Young Leaders Institute: Issues in International Security",
+        "success": true,
+        "speakers_found": 1,
+        "speakers": [
+          {
+            "name": null,
+            "title": null,
+            "affiliation": "Asia Society Texas",
+            "primary_affiliation": "Asia Society Texas",
+            "role_in_event": "staff, providing feedback and guidance to students",
+            "bio": null
+          }
+        ],
+        "input_tokens": 15532,
+        "output_tokens": 143,
+        "cost": 0.00406175
+      },
+      {
+        "event_id": 191,
+        "title": "In Conversation: Musician Andy Summers (The Police) and author Roland Kelts (Japanamerica)",
+        "success": true,
+        "speakers_found": 2,
+        "speakers": [
+          {
+            "name": "Andy Summers",
+            "title": "Musician",
+            "affiliation": "The Police",
+            "primary_affiliation": "The Police",
+            "role_in_event": "Keynote speaker, performer",
+            "bio": "Andy Summers rose to fame in the early 1980's as the guitarist of the multi-million record selling rock band - The Police topping the charts worldwide. His distinctive and innovative style reshaped guitar playing, influencing generations of musicians. Following the band's breakup at the height of their success, Summers built a prolific career as a solo artist, recording fourteen albums, composing for film, photographic exhibitions, and international tours as well as collaboration with many other artists. His 2006 his memoir One Train Later was voted as the number one music book of the year in the UK by Mojo Magazine, later inspiring the documentary, Can't Stand Losing You (2015). In 2007, the Police reunited for a world tour that became the third highest grossing tour of all time. Summers has since released albums including Metal Dog (2015) and Triboluminescence, embracing what he calls the New Exotic. Summers has been a dedicated photographer since the early days of The Police, and has published five books of his photographs many of which are featured in the film Can't Stand Losing You. His latest book A Certain Strangeness (2019) was released in 2019 and its exhibition drew 40,000 visitors in Montpellier and later traveled to Maastricht. He also created the multimedia performance Harmonics of the Night, presented at venues including the Metropolitan Museum of Art. Honors include induction to the Rock and Roll Hall of Fame, the Guitar Player Hall of Fame, five Grammys, the keys to New York City, and an honorary doctorate. Summers has also been awarded the Chevalier De L'Ordre Des Arts et Des Lettres by the government of France."
+          },
+          {
+            "name": "Roland Kelts",
+            "title": "Author",
+            "affiliation": "BBC, CNN, NHK, The Wall Street Journal, The Atlantic, The New Yorker, The Guardian, The New York Times, Monkey: New Writing from Japan, Waseda University",
+            "primary_affiliation": "Waseda University",
+            "role_in_event": "Keynote speaker, conversation partner",
+            "bio": "Roland Nozomu Kelts is an award-winning Japanese American journalist, author, editor and scholar. He is best known for his highly acclaimed bestseller, Japanamerica: How Japanese Pop Culture Has Invaded the US, and the more recent, Blade Runner: Black Lotus. He contributes to numerous media in Japan, the US and Europe, including the BBC, CNN, NHK, The Wall Street Journal, The Atlantic, The New Yorker, The Guardian and The New York Times, and has been a contributing editor to the literary journal \"Monkey: New Writing from Japan\" since its inception in 2011. He has worked as an author, editor and consultant for publishers in Japan, the UK and the US for over twenty years, and was a Nieman Fellow in Journalism at Harvard in 2017. He is currently a Visiting Professor at Waseda University in Tokyo."
+          }
+        ],
+        "input_tokens": 9491,
+        "output_tokens": 826,
+        "cost": 0.00340525
+      }
+    ],
+    "summary": {
+      "success_rate": 100.0,
+      "successful_count": 5,
+      "total_events": 5,
+      "total_speakers": 10,
+      "avg_speakers_per_event": 2.0,
+      "total_input_tokens": 40566,
+      "total_output_tokens": 1906,
+      "total_cost": 0.012524,
+      "avg_cost_per_event": 0.0025048
+    }
+  }
+}

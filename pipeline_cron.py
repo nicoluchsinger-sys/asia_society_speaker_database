@@ -35,9 +35,9 @@ class PipelineStats:
         self.embeddings_generated = 0
 
         # API costs (based on current pricing)
-        self.extraction_cost_per_event = 0.015  # per event
+        self.extraction_cost_per_event = 0.015  # per event (Claude Sonnet 4)
         self.embedding_cost_per_speaker = 0.00001  # per speaker (text-embedding-3-small)
-        self.enrichment_cost_per_speaker = 0.0075  # per speaker (web search + Claude)
+        self.enrichment_cost_per_speaker = 0.0008  # per speaker (Claude 3 Haiku + web search)
 
         # Track costs by service
         self.extraction_cost = 0.0  # Claude for extraction
