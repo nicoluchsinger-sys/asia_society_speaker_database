@@ -1,0 +1,2930 @@
+{
+  "speakers_tested": 20,
+  "models": [
+    "sonnet-4",
+    "haiku-3.5",
+    "haiku-3"
+  ],
+  "comparisons": [
+    {
+      "speaker_id": 73,
+      "speaker_name": "Kasing Lung",
+      "event_count": 17,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "character design",
+              "confidence": 0.95
+            },
+            {
+              "text": "art toys",
+              "confidence": 0.9
+            },
+            {
+              "text": "creative direction",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.8,
+            "nationality": "HK",
+            "nationality_confidence": 0.95,
+            "birth_year": 1972
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "Chinese",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Hong Kong-born artist (1972) known for creating LABUBU character and art toys, currently Artistic Director for ComplexCon Hong Kong 2026. Strong expertise in character design and art toy industry leadership.",
+          "usage": {
+            "input_tokens": 1383,
+            "output_tokens": 322
+          },
+          "cost": {
+            "input": 0.004149,
+            "output": 0.00483,
+            "total": 0.008979000000000001
+          },
+          "duration": 4.735508918762207,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18867802619934082,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V2mnR2hLWRjcJzYEp7'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "art",
+              "confidence": 0.9
+            },
+            {
+              "text": "art toy industry",
+              "confidence": 0.8
+            },
+            {
+              "text": "youth culture",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "HK",
+            "nationality_confidence": 0.9,
+            "birth_year": 1972
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            },
+            {
+              "language": "Cantonese",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Based on the information provided, Kasing Lung is a Hong Kong-born male artist who is known for creating the globally iconic LABUBU character and THE MONSTERS series. He has been named the Artistic Director for ComplexCon Hong Kong 2026, which suggests his expertise lies in the art, art toy industry, and youth culture. He is fluent in English and a native Cantonese speaker.",
+          "usage": {
+            "input_tokens": 1371,
+            "output_tokens": 448
+          },
+          "cost": {
+            "input": 0.00034275,
+            "output": 0.00056,
+            "total": 0.0009027499999999999
+          },
+          "duration": 3.582427978515625,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 21,
+      "speaker_name": "Ronnie C. Chan",
+      "event_count": 8,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "china relations",
+              "confidence": 0.9
+            },
+            {
+              "text": "real estate",
+              "confidence": 0.85
+            },
+            {
+              "text": "philanthropy",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.95,
+            "nationality": "HK,US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "fluent",
+              "confidence": 0.75
+            }
+          ],
+          "reasoning": "Hong Kong business leader with extensive China operations through Hang Lung Group, US education (USC MBA), chairs multiple Asia-focused organizations, moderates China-related events, and works extensively in philanthropy and cultural heritage preservation.",
+          "usage": {
+            "input_tokens": 1664,
+            "output_tokens": 328
+          },
+          "cost": {
+            "input": 0.004992,
+            "output": 0.00492,
+            "total": 0.009912
+          },
+          "duration": 5.423168897628784,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.20342397689819336,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V4JDXnKcg8VoDdyoyj'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "real estate",
+              "confidence": 0.9
+            },
+            {
+              "text": "philanthropy",
+              "confidence": 0.85
+            },
+            {
+              "text": "international relations",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.95,
+            "nationality": "HK",
+            "nationality_confidence": 0.9,
+            "birth_year": 1949
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.95
+            }
+          ],
+          "languages": [
+            {
+              "language": "Cantonese",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Based on the given information, Ronnie C. Chan appears to be an experienced real estate developer and investor, with a strong focus on philanthropic and international relations work. He has held leadership roles in various organizations and institutions, indicating expertise in these areas.",
+          "usage": {
+            "input_tokens": 1692,
+            "output_tokens": 365
+          },
+          "cost": {
+            "input": 0.000423,
+            "output": 0.00045624999999999995,
+            "total": 0.0008792499999999999
+          },
+          "duration": 2.7566800117492676,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 18,
+      "speaker_name": "Jesper Koll",
+      "event_count": 6,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "japan economics",
+              "confidence": 0.95
+            },
+            {
+              "text": "investment strategy",
+              "confidence": 0.9
+            },
+            {
+              "text": "financial markets",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "DK,JP",
+            "nationality_confidence": 0.7,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Tokyo",
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Japanese",
+              "proficiency": "fluent",
+              "confidence": 0.85
+            }
+          ],
+          "reasoning": "Jesper Koll is clearly a Japan economics expert who moved to Japan in 1986 and has been there for decades. His name suggests Scandinavian origin (likely Danish), he's written books in Japanese indicating fluency, and his Tokyo-based roles at Monex Group and various Japanese organizations confirm his primary location.",
+          "usage": {
+            "input_tokens": 1488,
+            "output_tokens": 348
+          },
+          "cost": {
+            "input": 0.004464,
+            "output": 0.00522,
+            "total": 0.009684
+          },
+          "duration": 5.834325313568115,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.19953203201293945,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V5nSSZtVqFhSQqnn8e'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "economics",
+              "confidence": 0.9
+            },
+            {
+              "text": "japan economy",
+              "confidence": 0.8
+            },
+            {
+              "text": "investment strategy",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "JP",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Tokyo",
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            },
+            {
+              "language": "Japanese",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Based on the information provided, Jesper Koll appears to be an expert in economics, the Japanese economy, and investment strategy. He has a strong affiliation with Japan, having lived there since 1986, and is fluent in both English and Japanese. His roles include serving as a global ambassador, board member, and advisor for various organizations in Japan.",
+          "usage": {
+            "input_tokens": 1488,
+            "output_tokens": 365
+          },
+          "cost": {
+            "input": 0.000372,
+            "output": 0.00045624999999999995,
+            "total": 0.00082825
+          },
+          "duration": 3.276230812072754,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 6,
+      "speaker_name": "Natasha Ponciano",
+      "event_count": 5,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "yoga instruction",
+              "confidence": 0.95
+            },
+            {
+              "text": "wellness coaching",
+              "confidence": 0.8
+            },
+            {
+              "text": "trauma recovery",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.9,
+            "nationality": "CA",
+            "nationality_confidence": 0.95,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Houston",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Canadian-born individual now living in Houston as owner/instructor of Lost Lotus Yoga Studio. Expertise in yoga instruction with specialization in trauma recovery following her own 2014 car accident experience. Multiple events as yoga instructor confirm professional expertise.",
+          "usage": {
+            "input_tokens": 1374,
+            "output_tokens": 294
+          },
+          "cost": {
+            "input": 0.004122,
+            "output": 0.00441,
+            "total": 0.008532
+          },
+          "duration": 4.438510894775391,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.2536940574645996,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V73Dxw5M8aTFK6i3Vf'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "yoga",
+              "confidence": 0.9
+            },
+            {
+              "text": "wellness",
+              "confidence": 0.85
+            },
+            {
+              "text": "mindfulness",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.95,
+            "nationality": "CA",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Houston",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Houston",
+              "country": "US",
+              "region": "North America",
+              "is_primary": false,
+              "confidence": 0.85
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Based on the information provided, Natasha Ponciano is a female yoga instructor with expertise in yoga, wellness, and mindfulness. She is a Canadian-born Houston transplant, indicating her nationality is Canadian. The information suggests her primary location is Houston, USA, where she works at the Lost Lotus Yoga Studio. Her native language is English.",
+          "usage": {
+            "input_tokens": 1456,
+            "output_tokens": 390
+          },
+          "cost": {
+            "input": 0.000364,
+            "output": 0.0004875,
+            "total": 0.0008515
+          },
+          "duration": 3.001410961151123,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 77,
+      "speaker_name": "John Lee",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "china analysis",
+              "confidence": 0.95
+            },
+            {
+              "text": "tech policy",
+              "confidence": 0.9
+            },
+            {
+              "text": "geopolitics",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.95,
+            "nationality": "AU",
+            "nationality_confidence": 0.85,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Leiden",
+              "country": "NL",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.75
+            },
+            {
+              "location_type": "workplace",
+              "city": "Singapore",
+              "country": "SG",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "John Lee is identified as male from name and context. Australian nationality inferred from Australian legal practitioner qualification and service in Australian government departments. Current work locations at Leiden Asia Centre (Netherlands) and visiting fellowship at ISEAS in Singapore. Expertise clearly focused on China analysis, technology policy, and geopolitical issues based on his roles and research focus on semiconductors, AI, and China's foreign relations.",
+          "usage": {
+            "input_tokens": 1402,
+            "output_tokens": 388
+          },
+          "cost": {
+            "input": 0.004206,
+            "output": 0.00582,
+            "total": 0.010026
+          },
+          "duration": 6.141592741012573,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.17856383323669434,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V8JchkaT6n11uPNibn'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "china relations",
+              "confidence": 0.9
+            },
+            {
+              "text": "political economy",
+              "confidence": 0.9
+            },
+            {
+              "text": "high-tech industries",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "AU,GB",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Berlin",
+              "country": "DE",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.7
+            },
+            {
+              "location_type": "workplace",
+              "city": "Singapore",
+              "country": "SG",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.7
+            },
+            {
+              "location_type": "workplace",
+              "city": "Leiden",
+              "country": "NL",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "fluent",
+              "confidence": 0.7
+            }
+          ],
+          "reasoning": "The speaker's expertise is in the areas of China's foreign relations, political economy, and high-tech industries including semiconductors, electric vehicles, and AI. He has a background in Australian and British academia and government, and currently works in Europe and Asia. He is proficient in both English and Mandarin.",
+          "usage": {
+            "input_tokens": 1366,
+            "output_tokens": 459
+          },
+          "cost": {
+            "input": 0.0003415,
+            "output": 0.00057375,
+            "total": 0.00091525
+          },
+          "duration": 3.377980947494507,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 134,
+      "speaker_name": "Yoshio Taniguchi",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "architecture",
+              "confidence": 1.0
+            },
+            {
+              "text": "minimalism",
+              "confidence": 0.9
+            },
+            {
+              "text": "museum design",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 1.0,
+            "nationality": "JP",
+            "nationality_confidence": 1.0,
+            "birth_year": 1937
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Tokyo",
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "Japanese",
+              "proficiency": "native",
+              "confidence": 1.0
+            },
+            {
+              "language": "English",
+              "proficiency": "conversational",
+              "confidence": 0.7
+            }
+          ],
+          "reasoning": "Yoshio Taniguchi was clearly identified as a Japanese architect (1937-2024) famous for MoMA redesign. His expertise in architecture, minimalism, and museum design is well-documented. As a Japanese national who worked internationally, he would have native Japanese and likely conversational English. Location inferred as Tokyo based on Japanese nationality and typical residence patterns for Japanese architects.",
+          "usage": {
+            "input_tokens": 1301,
+            "output_tokens": 357
+          },
+          "cost": {
+            "input": 0.0039030000000000002,
+            "output": 0.005355,
+            "total": 0.009258
+          },
+          "duration": 5.786081075668335,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.24954700469970703,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4V9jVCXogL2qnoPLz93'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "architecture",
+              "confidence": 1.0
+            },
+            {
+              "text": "design",
+              "confidence": 1.0
+            },
+            {
+              "text": "minimalism",
+              "confidence": 1.0
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 1.0,
+            "nationality": "JP",
+            "nationality_confidence": 1.0,
+            "birth_year": 1937
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": null,
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 1.0
+            },
+            {
+              "location_type": "workplace",
+              "city": "New York",
+              "country": "US",
+              "region": "North America",
+              "is_primary": false,
+              "confidence": 1.0
+            }
+          ],
+          "languages": [
+            {
+              "language": "Japanese",
+              "proficiency": "native",
+              "confidence": 1.0
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "The speaker, Yoshio Taniguchi, is a male Japanese architect known for his minimalist design philosophy and use of natural materials. He is best known for redesigning the Museum of Modern Art in New York City, which is his primary workplace location. He is described as being private and rarely giving interviews or promoting his work.",
+          "usage": {
+            "input_tokens": 1291,
+            "output_tokens": 397
+          },
+          "cost": {
+            "input": 0.00032275,
+            "output": 0.00049625,
+            "total": 0.000819
+          },
+          "duration": 3.356003999710083,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 195,
+      "speaker_name": "Philippe Le Corre",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "china relations",
+              "confidence": 0.95
+            },
+            {
+              "text": "geopolitics",
+              "confidence": 0.9
+            },
+            {
+              "text": "asian studies",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "FR",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Paris",
+              "country": "FR",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.8
+            },
+            {
+              "location_type": "workplace",
+              "city": "Singapore",
+              "country": "SG",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "French",
+              "proficiency": "native",
+              "confidence": 0.85
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "French name and affiliation with French institutions (ESSEC, \u00c9cole Sp\u00e9ciale Militaire de Saint-Cyr, Asia Society France) strongly suggest French nationality. Works at ESSEC with campuses in Paris and Singapore. Expertise clearly focused on China-Europe relations, geopolitics, and Asian studies based on roles and bio.",
+          "usage": {
+            "input_tokens": 1345,
+            "output_tokens": 408
+          },
+          "cost": {
+            "input": 0.004035,
+            "output": 0.00612,
+            "total": 0.010155
+          },
+          "duration": 5.732356071472168,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18575286865234375,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VB5oMZHnj1SBF8tsSA'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "china relations",
+              "confidence": 0.9
+            },
+            {
+              "text": "geopolitics",
+              "confidence": 0.9
+            },
+            {
+              "text": "asian studies",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.95,
+            "nationality": "FR",
+            "nationality_confidence": 0.95,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Paris",
+              "country": "FR",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Singapore",
+              "country": "SG",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "French",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Based on the provided information, Philippe Le Corre is an expert in China-related topics, geopolitics, and Asian studies. He is a male French national who works primarily in Paris, France but also has a presence in Singapore. He is fluent in both French and English.",
+          "usage": {
+            "input_tokens": 1748,
+            "output_tokens": 410
+          },
+          "cost": {
+            "input": 0.000437,
+            "output": 0.0005124999999999999,
+            "total": 0.0009494999999999999
+          },
+          "duration": 3.272123336791992,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 211,
+      "speaker_name": "Ali Khamraev",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "filmmaking",
+              "confidence": 0.95
+            },
+            {
+              "text": "central asian cinema",
+              "confidence": 0.9
+            },
+            {
+              "text": "documentary",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "UZ",
+            "nationality_confidence": 0.95,
+            "birth_year": 1937
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Tashkent",
+              "country": "UZ",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "Uzbek",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "Russian",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Ali Khamraev is an established Uzbek filmmaker born in 1937 in Tashkent with over 20 films across fiction and documentary. His Uzbek nationality and birth location in Tashkent indicate native Uzbek language skills, while working in the former USSR context suggests Russian fluency. His expertise spans filmmaking, Central Asian cinema, and documentary work based on his career spanning six decades.",
+          "usage": {
+            "input_tokens": 1444,
+            "output_tokens": 376
+          },
+          "cost": {
+            "input": 0.004332,
+            "output": 0.00564,
+            "total": 0.009972
+          },
+          "duration": 6.142363786697388,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.19462084770202637,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VCWyxPs5hGmd4xtALA'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "film directing",
+              "confidence": 0.9
+            },
+            {
+              "text": "film writing",
+              "confidence": 0.9
+            },
+            {
+              "text": "international film community",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "UZ",
+            "nationality_confidence": 0.9,
+            "birth_year": 1937
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Tashkent",
+              "country": "UZ",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "Uzbek",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Russian",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Based on the information provided, Ali Khamraev is a renowned Uzbek filmmaker known for his directing and writing work in both fiction and documentary films. He has a long career spanning over six decades and continues to be active in the international film community. His expertise is primarily in the areas of film directing, film writing, and engagement with the international film community. He was born in Tashkent, Uzbekistan in 1937 and is likely a native Uzbek speaker with fluency in Russian as well.",
+          "usage": {
+            "input_tokens": 1442,
+            "output_tokens": 412
+          },
+          "cost": {
+            "input": 0.0003605,
+            "output": 0.0005149999999999999,
+            "total": 0.0008755
+          },
+          "duration": 3.3767502307891846,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 212,
+      "speaker_name": "Gulcha Tashbayeva",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "soviet cinema",
+              "confidence": 0.9
+            },
+            {
+              "text": "central asian film",
+              "confidence": 0.8
+            },
+            {
+              "text": "dramatic performance",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.95,
+            "nationality": "CN",
+            "nationality_confidence": 0.8,
+            "birth_year": 1954
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Ghulja",
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "Russian",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            },
+            {
+              "language": "Uyghur",
+              "proficiency": "native",
+              "confidence": 0.7
+            },
+            {
+              "language": "Chinese",
+              "proficiency": "conversational",
+              "confidence": 0.6
+            }
+          ],
+          "reasoning": "Soviet-era actress born in Ghulja, China in 1954. Worked extensively in Soviet and Central Asian cinema with films spanning 1979-1985. Birth location and career suggest multilingual abilities in regional languages plus Russian for Soviet film industry.",
+          "usage": {
+            "input_tokens": 1401,
+            "output_tokens": 372
+          },
+          "cost": {
+            "input": 0.004203,
+            "output": 0.00558,
+            "total": 0.009783
+          },
+          "duration": 5.538360834121704,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18983912467956543,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VDwgHhhQBm64dCNM8d'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "soviet cinema",
+              "confidence": 0.9
+            },
+            {
+              "text": "central asian cinema",
+              "confidence": 0.8
+            },
+            {
+              "text": "actress",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.9,
+            "nationality": "CN",
+            "nationality_confidence": 0.8,
+            "birth_year": 1954
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Ghulja",
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "Russian",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "The given information indicates that Gulcha Tashbayeva is a female actress born in 1954 in Ghulja, China, and is known for her work in Soviet and Central Asian cinema. Her expertise is in the areas of Soviet cinema, Central Asian cinema, and acting. The information suggests she is likely a native Russian speaker.",
+          "usage": {
+            "input_tokens": 1401,
+            "output_tokens": 336
+          },
+          "cost": {
+            "input": 0.00035025,
+            "output": 0.00041999999999999996,
+            "total": 0.0007702499999999999
+          },
+          "duration": 2.8260338306427,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 297,
+      "speaker_name": "Antoine de Cazotte",
+      "event_count": 4,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "filmmaking",
+              "confidence": 0.95
+            },
+            {
+              "text": "documentary production",
+              "confidence": 0.8
+            },
+            {
+              "text": "environmental films",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "FR",
+            "nationality_confidence": 0.95,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Los Angeles",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "French",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.85
+            }
+          ],
+          "reasoning": "French filmmaker who moved from Paris to America, currently based in Los Angeles per LinkedIn. Professional focus on filmmaking and documentary production, with specific mention of environmental films. Name and native Paris origin indicate French nationality and native French language skills, with English fluency inferred from successful US career transition.",
+          "usage": {
+            "input_tokens": 1211,
+            "output_tokens": 336
+          },
+          "cost": {
+            "input": 0.003633,
+            "output": 0.005039999999999999,
+            "total": 0.008673
+          },
+          "duration": 5.730349063873291,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.19506311416625977,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VFF4pteCmVAE84UQ9G'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "film industry",
+              "confidence": 0.9
+            },
+            {
+              "text": "storytelling",
+              "confidence": 0.8
+            },
+            {
+              "text": "international affairs",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "FR",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Paris",
+              "country": "FR",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.8
+            },
+            {
+              "location_type": "workplace",
+              "city": "Los Angeles",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.85
+            }
+          ],
+          "languages": [
+            {
+              "language": "French",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Based on the provided information, Antoine de Cazotte is a French male filmmaker who moved from Paris to the United States to advance his film career. He has expertise in the film industry, storytelling, and international affairs, as evidenced by his participation in events related to energy, security, and cultural topics. He is fluent in both French and English.",
+          "usage": {
+            "input_tokens": 1211,
+            "output_tokens": 424
+          },
+          "cost": {
+            "input": 0.00030275,
+            "output": 0.00053,
+            "total": 0.0008327499999999999
+          },
+          "duration": 3.477828025817871,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 19,
+      "speaker_name": "Bill Emmott",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "japan studies",
+              "confidence": 0.95
+            },
+            {
+              "text": "geopolitics",
+              "confidence": 0.9
+            },
+            {
+              "text": "international affairs",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "GB",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "London",
+              "country": "GB",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.8
+            },
+            {
+              "location_type": "workplace",
+              "city": "Tokyo",
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.75
+            },
+            {
+              "location_type": "workplace",
+              "city": "Oxford",
+              "country": "GB",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Japanese",
+              "proficiency": "conversational",
+              "confidence": 0.6
+            }
+          ],
+          "reasoning": "Bill Emmott is clearly a Japan specialist with extensive experience as former Economist editor-in-chief and current IISS chair. His British nationality is inferred from UK-based roles and institutions. Multiple workplace locations reflect his international affiliations, with London as primary base. Japanese proficiency inferred from extensive Japan work and contributions to Japanese publications.",
+          "usage": {
+            "input_tokens": 1505,
+            "output_tokens": 459
+          },
+          "cost": {
+            "input": 0.004515,
+            "output": 0.006885,
+            "total": 0.0114
+          },
+          "duration": 6.549755811691284,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.19541621208190918,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VGdawa9xkwxxqivVT9'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "international affairs",
+              "confidence": 0.9
+            },
+            {
+              "text": "japan relations",
+              "confidence": 0.85
+            },
+            {
+              "text": "geopolitics",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "GB",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "London",
+              "country": "GB",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Tokyo",
+              "country": "JP",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.8
+            },
+            {
+              "location_type": "workplace",
+              "city": "Oxford",
+              "country": "GB",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.8
+            },
+            {
+              "location_type": "workplace",
+              "city": "Dublin",
+              "country": "IE",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.75
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "Japanese",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Bill Emmott is an independent writer, lecturer and consultant on international affairs, with a focus on Japan relations and geopolitics. He has held various academic and advisory roles in the UK, Japan, and Ireland, indicating expertise in these areas. The information provided suggests he is male, British, and fluent in English and Japanese.",
+          "usage": {
+            "input_tokens": 1427,
+            "output_tokens": 534
+          },
+          "cost": {
+            "input": 0.00035675,
+            "output": 0.0006674999999999999,
+            "total": 0.00102425
+          },
+          "duration": 3.950057029724121,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 49,
+      "speaker_name": "Yin Mei",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "dance choreography",
+              "confidence": 0.95
+            },
+            {
+              "text": "cultural identity",
+              "confidence": 0.9
+            },
+            {
+              "text": "performing arts",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.95,
+            "nationality": "CN,US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "New York",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.85
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Yin Mei is a dance choreographer and professor at NYU Tisch School of the Arts. Born in China during Cultural Revolution, moved to US in 1985, creating works that bridge Chinese and Western cultural traditions. Strong confidence in dance/choreography expertise and Chinese-American cultural identity focus.",
+          "usage": {
+            "input_tokens": 1743,
+            "output_tokens": 346
+          },
+          "cost": {
+            "input": 0.005229,
+            "output": 0.00519,
+            "total": 0.010419000000000001
+          },
+          "duration": 6.392624139785767,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18447375297546387,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VJ9cjxHJfyzLA224qH'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "dance",
+              "confidence": 0.9
+            },
+            {
+              "text": "dance education",
+              "confidence": 0.8
+            },
+            {
+              "text": "visual arts",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.9,
+            "nationality": "CN",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "New York",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.85
+            }
+          ],
+          "languages": [
+            {
+              "language": "Mandarin",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Based on the information provided, Yin Mei is a Chinese-born dance artist, educator and visual artist who is currently affiliated with the Tisch School of the Arts at New York University, where she is a professor and the director of the Dance Graduate Program. Her expertise spans traditional Chinese dance, modern dance, and dance education, as well as visual arts. She is known for bridging cultural and artistic divides through her work.",
+          "usage": {
+            "input_tokens": 1313,
+            "output_tokens": 384
+          },
+          "cost": {
+            "input": 0.00032825,
+            "output": 0.00048,
+            "total": 0.0008082499999999999
+          },
+          "duration": 3.2980968952178955,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 74,
+      "speaker_name": "Nico Luchsinger",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "geopolitics",
+              "confidence": 0.95
+            },
+            {
+              "text": "asia relations",
+              "confidence": 0.9
+            },
+            {
+              "text": "china policy",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.8,
+            "nationality": "CH",
+            "nationality_confidence": 0.85,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Zurich",
+              "country": "CH",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Geneva",
+              "country": "CH",
+              "region": "Europe",
+              "is_primary": false,
+              "confidence": 0.85
+            }
+          ],
+          "languages": [
+            {
+              "language": "German",
+              "proficiency": "native",
+              "confidence": 0.8
+            },
+            {
+              "language": "French",
+              "proficiency": "fluent",
+              "confidence": 0.7
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.85
+            }
+          ],
+          "reasoning": "Nico is identified as male through name convention and Swiss nationality inferred from his work with Swiss organizations, studies in Zurich/Geneva, and focus on Asia-Switzerland relations. His expertise in geopolitics and Asia relations is evident from his title and decade of work fostering Asia competence. Languages inferred from Swiss nationality (German/French) and international work requiring English proficiency.",
+          "usage": {
+            "input_tokens": 1550,
+            "output_tokens": 450
+          },
+          "cost": {
+            "input": 0.00465,
+            "output": 0.00675,
+            "total": 0.0114
+          },
+          "duration": 6.243746042251587,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.19006991386413574,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VKj7A63CukCMfME2wB'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "geopolitical analysis",
+              "confidence": 0.9
+            },
+            {
+              "text": "asia affairs",
+              "confidence": 0.85
+            },
+            {
+              "text": "geopolitical commentary",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "CH",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Zurich",
+              "country": "CH",
+              "region": "Europe",
+              "is_primary": true,
+              "confidence": 0.95
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            },
+            {
+              "language": "German",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Based on the information provided, Nico Luchsinger appears to be a male geopolitical analyst and commentator from Switzerland, with expertise in Asia-related affairs. He is currently the Executive Director of Asia Society Switzerland, which suggests his primary area of work is in geopolitical analysis and commentary, particularly focused on Asia.",
+          "usage": {
+            "input_tokens": 1247,
+            "output_tokens": 366
+          },
+          "cost": {
+            "input": 0.00031175,
+            "output": 0.0004575,
+            "total": 0.00076925
+          },
+          "duration": 2.7211380004882812,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 236,
+      "speaker_name": "Laurence Brahm",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "himalayan exploration",
+              "confidence": 0.9
+            },
+            {
+              "text": "documentary filmmaking",
+              "confidence": 0.9
+            },
+            {
+              "text": "social enterprise",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": null,
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.85
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Laurence Brahm is clearly identified as a Himalayan explorer and documentary filmmaker through Shambhala Studio. His education at Duke University and study of Mandarin at Chinese institutions, combined with living in China as mentioned in bio, indicates US nationality with China residence. His intensive Mandarin study and long-term China residence suggests fluent Mandarin proficiency.",
+          "usage": {
+            "input_tokens": 1333,
+            "output_tokens": 357
+          },
+          "cost": {
+            "input": 0.003999,
+            "output": 0.005355,
+            "total": 0.009354000000000001
+          },
+          "duration": 5.956540822982788,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.21460890769958496,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VLxtuUqrNJtPdrEPvK'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "himalayan exploration",
+              "confidence": 0.9
+            },
+            {
+              "text": "documentary filmmaking",
+              "confidence": 0.9
+            },
+            {
+              "text": "social enterprise",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "CN",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "China",
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Based on the information provided, Laurence Brahm appears to be an expert in Himalayan exploration, documentary filmmaking, and social enterprise. He is male, likely Chinese nationality, and is currently based in China, where he runs his media company Shambhala Studio. He is fluent in English.",
+          "usage": {
+            "input_tokens": 1316,
+            "output_tokens": 327
+          },
+          "cost": {
+            "input": 0.000329,
+            "output": 0.00040875,
+            "total": 0.0007377499999999999
+          },
+          "duration": 4.707664728164673,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 247,
+      "speaker_name": "Bhakti Wong",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "somatic therapy",
+              "confidence": 0.95
+            },
+            {
+              "text": "mindfulness",
+              "confidence": 0.9
+            },
+            {
+              "text": "yoga instruction",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.8,
+            "nationality": "HK",
+            "nationality_confidence": 0.7,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Profile clearly indicates expertise in somatic therapy, mindfulness, and yoga based on professional title and bio. Gender inferred from name and typical usage. Hong Kong location suggested by web search result mentioning 'Hong Kong's Top Wellness Practitioners'. Corporate background at Turner mentioned but no specific location details provided.",
+          "usage": {
+            "input_tokens": 1236,
+            "output_tokens": 310
+          },
+          "cost": {
+            "input": 0.0037079999999999995,
+            "output": 0.00465,
+            "total": 0.008357999999999999
+          },
+          "duration": 5.323230028152466,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.20414495468139648,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VNf1SDyvYVjo71Bja7'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "somatic psychotherapy",
+              "confidence": 0.9
+            },
+            {
+              "text": "yoga and meditation",
+              "confidence": 0.9
+            },
+            {
+              "text": "mindfulness mentoring",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.9,
+            "nationality": null,
+            "nationality_confidence": 0.0,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": null,
+              "country": null,
+              "region": null,
+              "is_primary": true,
+              "confidence": 0.6
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Based on the provided information, Bhakti Wong's key areas of expertise are somatic psychotherapy, yoga and meditation, and mindfulness mentoring. Her gender is identified as female with high confidence. However, her nationality and birth year are not clearly stated. The information indicates she is likely based in a workplace, but the specific location details are not provided. English is inferred to be her native language.",
+          "usage": {
+            "input_tokens": 1349,
+            "output_tokens": 322
+          },
+          "cost": {
+            "input": 0.00033725,
+            "output": 0.0004025,
+            "total": 0.00073975
+          },
+          "duration": 2.599191188812256,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 319,
+      "speaker_name": "Gary Rieschel",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "venture capital",
+              "confidence": 0.95
+            },
+            {
+              "text": "china investment",
+              "confidence": 0.9
+            },
+            {
+              "text": "healthcare tech",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Seattle",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Shanghai",
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "Mandarin",
+              "proficiency": "conversational",
+              "confidence": 0.6
+            }
+          ],
+          "reasoning": "Gary Rieschel is a prominent venture capitalist with 30+ years experience, founding managing partner of Qiming Venture Partners ($8-9.5B AUM) focused on China investments. His expertise spans venture capital, China markets, and healthcare/cleantech. Lives in Seattle currently but worked extensively in China (Shanghai 2005-2016). US nationality inferred from Reed College/Harvard MBA education and current Seattle residence.",
+          "usage": {
+            "input_tokens": 1575,
+            "output_tokens": 428
+          },
+          "cost": {
+            "input": 0.004725,
+            "output": 0.00642,
+            "total": 0.011145
+          },
+          "duration": 6.154006004333496,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18158578872680664,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VQ5UNqprRHxGhFpecj'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "venture capital",
+              "confidence": 0.9
+            },
+            {
+              "text": "technology",
+              "confidence": 0.9
+            },
+            {
+              "text": "healthcare",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "US",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": "Seattle",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            },
+            {
+              "location_type": "workplace",
+              "city": "Shanghai",
+              "country": "CN",
+              "region": "Asia",
+              "is_primary": false,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            },
+            {
+              "language": "Japanese",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            }
+          ],
+          "reasoning": "Based on the information provided, Gary Rieschel has extensive expertise in venture capital, technology, and healthcare, as evidenced by his founding and leadership roles at Qiming Venture Partners, a leading VC firm in China. He has lived and worked in both the US and China, and is fluent in English and Japanese.",
+          "usage": {
+            "input_tokens": 1412,
+            "output_tokens": 396
+          },
+          "cost": {
+            "input": 0.000353,
+            "output": 0.000495,
+            "total": 0.000848
+          },
+          "duration": 3.4187891483306885,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 398,
+      "speaker_name": "Bernard Kwan",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "qigong",
+              "confidence": 0.95
+            },
+            {
+              "text": "martial arts",
+              "confidence": 0.9
+            },
+            {
+              "text": "meditation",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "HK",
+            "nationality_confidence": 0.7,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Hong Kong",
+              "country": "HK",
+              "region": "Asia",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.8
+            },
+            {
+              "language": "Chinese",
+              "proficiency": "native",
+              "confidence": 0.7
+            }
+          ],
+          "reasoning": "Bernard Kwan is identified as male with expertise in qigong, martial arts, and meditation based on his extensive teaching background. Location inferred from Asia Society Hong Kong events. Language proficiency estimated from Hong Kong location and surname.",
+          "usage": {
+            "input_tokens": 1147,
+            "output_tokens": 326
+          },
+          "cost": {
+            "input": 0.003441,
+            "output": 0.00489,
+            "total": 0.008331
+          },
+          "duration": 4.768768072128296,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18816065788269043,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VRQKy9cAY4FCYWLRjV'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "mind and body principles",
+              "confidence": 0.9
+            },
+            {
+              "text": "eastern and western practices",
+              "confidence": 0.8
+            },
+            {
+              "text": "qigong, tai chi and baguazhang",
+              "confidence": 0.9
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "unknown",
+            "nationality_confidence": 0.5,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "unknown",
+              "country": "unknown",
+              "region": "unknown",
+              "is_primary": true,
+              "confidence": 0.7
+            }
+          ],
+          "languages": [
+            {
+              "language": "unknown",
+              "proficiency": "unknown",
+              "confidence": 0.5
+            }
+          ],
+          "reasoning": "Based on the information provided, Bernard Kwan appears to be an expert in mind and body practices, including Qigong, Tai Chi, and Baguazhang. He has studied a variety of Eastern and Western disciplines related to this field for over 20 years and currently offers classes and coaching services. However, his specific demographic details such as nationality, birth year, and languages spoken are not clearly stated in the given information.",
+          "usage": {
+            "input_tokens": 1238,
+            "output_tokens": 364
+          },
+          "cost": {
+            "input": 0.0003095,
+            "output": 0.000455,
+            "total": 0.0007645
+          },
+          "duration": 3.0290000438690186,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 418,
+      "speaker_name": "Katie Soo",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "media leadership",
+              "confidence": 0.9
+            },
+            {
+              "text": "diversity advocacy",
+              "confidence": 0.9
+            },
+            {
+              "text": "asian american affairs",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.9,
+            "nationality": "US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Los Angeles",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Katie Soo is clearly identified as female and serves as Chair of Asia Society Southern California, indicating Los Angeles area location. Her extensive media/tech executive background at HBO Max, Warner Bros., and role in founding AWE for AAPI women leadership demonstrates expertise in media leadership and diversity advocacy. Described as 'West Coast native' supports US nationality inference.",
+          "usage": {
+            "input_tokens": 1393,
+            "output_tokens": 319
+          },
+          "cost": {
+            "input": 0.0041789999999999996,
+            "output": 0.004785,
+            "total": 0.008964
+          },
+          "duration": 5.932953834533691,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.26490187644958496,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VSsnF7Pau9ez7Hmhss'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "media",
+              "confidence": 0.9
+            },
+            {
+              "text": "technology",
+              "confidence": 0.8
+            },
+            {
+              "text": "leadership",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "female",
+            "gender_confidence": 0.95,
+            "nationality": "US",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Los Angeles",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Based on the information provided, Katie Soo has expertise in media, technology, and leadership. She is a female of US nationality, currently based in Los Angeles, California. The information indicates she is a native English speaker.",
+          "usage": {
+            "input_tokens": 1383,
+            "output_tokens": 303
+          },
+          "cost": {
+            "input": 0.00034575,
+            "output": 0.00037874999999999996,
+            "total": 0.0007244999999999999
+          },
+          "duration": 3.278477907180786,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 579,
+      "speaker_name": "Anthony Bubalo",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "diplomacy",
+              "confidence": 0.95
+            },
+            {
+              "text": "middle east",
+              "confidence": 0.9
+            },
+            {
+              "text": "asia policy",
+              "confidence": 0.85
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "AU",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Sydney",
+              "country": "AU",
+              "region": "Oceania",
+              "is_primary": true,
+              "confidence": 0.8
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Anthony Bubalo is clearly identified as an Australian diplomat and CEO of Asia Society Australia based in Greater Sydney Area. His 30+ year career includes diplomatic posts in Saudi Arabia and Israel, intelligence analysis, and Middle East expertise evidenced by his book 'Remaking the Middle East' and establishment of West Asia Program. Current role focuses on Australia-Asia relations.",
+          "usage": {
+            "input_tokens": 1186,
+            "output_tokens": 319
+          },
+          "cost": {
+            "input": 0.003558,
+            "output": 0.004785,
+            "total": 0.008343
+          },
+          "duration": 5.33999490737915,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.18779206275939941,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VUKkE98JGWDCqbrJWy'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "foreign policy",
+              "confidence": 0.9
+            },
+            {
+              "text": "middle east affairs",
+              "confidence": 0.9
+            },
+            {
+              "text": "social cohesion and democratic inclusion",
+              "confidence": 0.8
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "AU",
+            "nationality_confidence": 0.9,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "Sydney",
+              "country": "AU",
+              "region": "Oceania",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.95
+            }
+          ],
+          "reasoning": "Based on the information provided, the key findings are: 1) Anthony Bubalo's areas of expertise include foreign policy, Middle East affairs, and social cohesion and democratic inclusion. 2) He is a male Australian national. 3) His primary workplace location is Sydney, Australia. 4) He is a native English speaker.",
+          "usage": {
+            "input_tokens": 1193,
+            "output_tokens": 337
+          },
+          "cost": {
+            "input": 0.00029825,
+            "output": 0.00042125,
+            "total": 0.0007195000000000001
+          },
+          "duration": 2.658486843109131,
+          "error": null
+        }
+      }
+    },
+    {
+      "speaker_id": 619,
+      "speaker_name": "Ahmad Kiarostami",
+      "event_count": 3,
+      "results": {
+        "sonnet-4": {
+          "success": true,
+          "tags": [
+            {
+              "text": "iranian cinema",
+              "confidence": 0.9
+            },
+            {
+              "text": "film curation",
+              "confidence": 0.8
+            },
+            {
+              "text": "documentary film",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "IR,US",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "workplace",
+              "city": "San Francisco",
+              "country": "US",
+              "region": "North America",
+              "is_primary": true,
+              "confidence": 0.9
+            }
+          ],
+          "languages": [
+            {
+              "language": "English",
+              "proficiency": "native",
+              "confidence": 0.8
+            },
+            {
+              "language": "Persian",
+              "proficiency": "native",
+              "confidence": 0.9
+            }
+          ],
+          "reasoning": "Ahmad Kiarostami is president of the Kiarostami Foundation in San Francisco, son of Iranian filmmaker Abbas Kiarostami. His expertise spans Iranian cinema (presenting father's trilogy), film curation (guest curator at Asia Society), and documentary films (Docunight founder). Iranian heritage and US residence suggest dual nationality and bilingual proficiency.",
+          "usage": {
+            "input_tokens": 1173,
+            "output_tokens": 355
+          },
+          "cost": {
+            "input": 0.003519,
+            "output": 0.005325,
+            "total": 0.008844
+          },
+          "duration": 5.756605863571167,
+          "error": null
+        },
+        "haiku-3.5": {
+          "success": false,
+          "tags": [],
+          "demographics": {},
+          "locations": [],
+          "languages": [],
+          "reasoning": "",
+          "usage": null,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "total": 0
+          },
+          "duration": 0.30379486083984375,
+          "error": "API call failed: Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-3-5-haiku-20241022'}, 'request_id': 'req_011CY4VVhwEuce1Tst1KrXwm'}"
+        },
+        "haiku-3": {
+          "success": true,
+          "tags": [
+            {
+              "text": "film",
+              "confidence": 0.9
+            },
+            {
+              "text": "film presentation",
+              "confidence": 0.8
+            },
+            {
+              "text": "film introduction",
+              "confidence": 0.7
+            }
+          ],
+          "demographics": {
+            "gender": "male",
+            "gender_confidence": 0.9,
+            "nationality": "IR",
+            "nationality_confidence": 0.8,
+            "birth_year": null
+          },
+          "locations": [
+            {
+              "location_type": "residence",
+              "city": null,
+              "country": "IR",
+              "region": "Middle East",
+              "is_primary": true,
+              "confidence": 0.7
+            },
+            {
+              "location_type": "workplace",
+              "city": "San Francisco",
+              "country": "US",
+              "region": "North America",
+              "is_primary": false,
+              "confidence": 0.6
+            }
+          ],
+          "languages": [
+            {
+              "language": "Persian",
+              "proficiency": "native",
+              "confidence": 0.9
+            },
+            {
+              "language": "English",
+              "proficiency": "fluent",
+              "confidence": 0.7
+            }
+          ],
+          "reasoning": "The available information indicates that Ahmad Kiarostami is a male Iranian national who is primarily based in Iran but also has a workplace in San Francisco, USA. He has expertise in film, particularly in film presentation and introduction, as he has participated in events showcasing his father's Koker Trilogy films. He is likely fluent in both Persian and English.",
+          "usage": {
+            "input_tokens": 1218,
+            "output_tokens": 404
+          },
+          "cost": {
+            "input": 0.0003045,
+            "output": 0.000505,
+            "total": 0.0008095
+          },
+          "duration": 3.2707340717315674,
+          "error": null
+        }
+      }
+    }
+  ],
+  "statistics": {
+    "sonnet-4": {
+      "success_rate": 1.0,
+      "avg_tags": 3.0,
+      "avg_confidence": 0.8816666666666666,
+      "avg_demographics": 1.0,
+      "avg_locations": 1.3,
+      "avg_languages": 1.85,
+      "avg_cost": 0.0095766,
+      "total_cost": 0.19153199999999998,
+      "avg_duration": 5.696042156219482,
+      "avg_input_tokens": 1392.7,
+      "avg_output_tokens": 359.9
+    },
+    "haiku-3.5": {
+      "success_rate": 0.0,
+      "avg_tags": 0,
+      "avg_confidence": 0,
+      "avg_demographics": 0,
+      "avg_locations": 0,
+      "avg_languages": 0,
+      "avg_cost": 0,
+      "total_cost": 0,
+      "avg_duration": 0,
+      "avg_input_tokens": 0,
+      "avg_output_tokens": 0
+    },
+    "haiku-3": {
+      "success_rate": 1.0,
+      "avg_tags": 3.0,
+      "avg_confidence": 0.8566666666666668,
+      "avg_demographics": 1.0,
+      "avg_locations": 1.6,
+      "avg_languages": 1.7,
+      "avg_cost": 0.0008284625,
+      "total_cost": 0.01656925,
+      "avg_duration": 3.2617552995681764,
+      "avg_input_tokens": 1378.1,
+      "avg_output_tokens": 387.15
+    }
+  }
+}
