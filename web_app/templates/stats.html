@@ -123,6 +123,38 @@
             </div>
         </div>
 
+        <!-- Speaker Refresh Status -->
+        <div class="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg shadow-md border border-orange-200 p-6 mb-8">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Data Freshness</h2>
+                    <p class="text-sm text-gray-600">Speakers enriched more than 6 months ago need updating</p>
+                </div>
+                <div class="text-orange-500">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white rounded-lg p-4 border border-orange-200">
+                    <p class="text-sm text-gray-600 mb-1">Stale Speakers</p>
+                    <p id="staleSpeakersCount" class="text-2xl font-bold text-orange-600">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Need re-enrichment</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 border border-orange-200">
+                    <p class="text-sm text-gray-600 mb-1">Refresh Cost</p>
+                    <p id="staleRefreshCost" class="text-2xl font-bold text-purple-600">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Estimated (Haiku)</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 border border-green-200">
+                    <p class="text-sm text-gray-600 mb-1">Re-enriched (7d)</p>
+                    <p id="reEnriched7Days" class="text-2xl font-bold text-green-600">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Profiles updated</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Last 7 Days Activity -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Last 7 Days Activity</h2>
@@ -164,7 +196,7 @@
                 </div>
                 <div class="text-center">
                     <p class="text-xl font-bold text-gray-800" id="lastRunExistingEnriched">-</p>
-                    <p class="text-sm text-gray-600">Existing Enriched</p>
+                    <p class="text-sm text-gray-600">Re-enriched</p>
                 </div>
                 <div class="text-center">
                     <p class="text-xl font-bold text-orange-600" id="lastRunCost">-</p>
@@ -243,6 +275,14 @@ async function loadStats() {
         document.getElementById('enrichmentBar').style.width = enrichmentPercent + '%';
         document.getElementById('enrichedCount').textContent = stats.enriched_speakers.toLocaleString() + ' enriched';
         document.getElementById('unenrichedCount').textContent = stats.unenriched_speakers.toLocaleString() + ' remaining';
+
+        // Update stale speakers section
+        document.getElementById('staleSpeakersCount').textContent = stats.stale_speakers_count.toLocaleString();
+        document.getElementById('staleRefreshCost').textContent = '$' + stats.stale_refresh_cost.toFixed(2);
+
+        // Re-enriched speakers in last 7 days
+        const reEnriched7Days = stats.last_7_days.existing_speakers_enriched || 0;
+        document.getElementById('reEnriched7Days').textContent = reEnriched7Days.toLocaleString();
 
         // Update stats grid
         document.getElementById('speakersWithEmbeddings').textContent = stats.speakers_with_embeddings.toLocaleString();

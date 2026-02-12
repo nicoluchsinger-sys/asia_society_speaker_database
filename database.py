@@ -1058,7 +1058,8 @@ class SpeakerDatabase:
                 SELECT
                     COALESCE(SUM(events_scraped), 0),
                     COALESCE(SUM(speakers_extracted), 0),
-                    COALESCE(SUM(new_speakers_enriched + existing_speakers_enriched), 0),
+                    COALESCE(SUM(new_speakers_enriched), 0),
+                    COALESCE(SUM(existing_speakers_enriched), 0),
                     COALESCE(SUM(total_cost), 0)
                 FROM pipeline_runs
                 WHERE timestamp > ?
@@ -1068,8 +1069,10 @@ class SpeakerDatabase:
             stats['last_7_days'] = {
                 'events_scraped': row[0],
                 'speakers_extracted': row[1],
-                'speakers_enriched': row[2],
-                'api_cost': round(row[3], 2)
+                'new_speakers_enriched': row[2],
+                'existing_speakers_enriched': row[3],
+                'speakers_enriched': row[2] + row[3],  # Total enriched
+                'api_cost': round(row[4], 2)
             }
 
             # Most recent run
@@ -1098,6 +1101,25 @@ class SpeakerDatabase:
                 'speakers_enriched': 0,
                 'api_cost': 0
             }
+
+        # Stale speakers needing re-enrichment (>6 months old)
+        from datetime import datetime, timedelta
+        six_months_ago = (datetime.now() - timedelta(days=180)).isoformat()
+
+        cursor.execute('''
+            SELECT COUNT(DISTINCT s.speaker_id)
+            FROM speakers s
+            LEFT JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
+            WHERE s.tagging_status = 'completed'
+            AND (
+                sd.enriched_at IS NULL
+                OR sd.enriched_at < ?
+            )
+        ''', (six_months_ago,))
+        stats['stale_speakers_count'] = cursor.fetchone()[0]
+
+        # Estimate cost to refresh all stale speakers ($0.0008 per speaker with Haiku)
+        stats['stale_refresh_cost'] = round(stats['stale_speakers_count'] * 0.0008, 2)
 
         return stats
 
@@ -1670,6 +1692,64 @@ class SpeakerDatabase:
         ''', (limit,))
 
         return cursor.fetchall()
+
+    def get_stale_speakers(self, months: int = 6, limit: int = 20) -> List[Tuple]:
+        """
+        Get speakers that need re-enrichment (>N months old).
+
+        Args:
+            months: Age threshold in months (default 6)
+            limit: Maximum number of speakers to return
+
+        Returns:
+            List of tuples: (speaker_id, name, affiliation, enriched_at, event_count)
+            Ordered by priority (more events = higher priority)
+        """
+        cursor = self.conn.cursor()
+
+        # Find speakers whose enrichment is older than N months
+        # Prioritize by event count (high-profile speakers first)
+        cursor.execute(f'''
+            SELECT
+                s.speaker_id,
+                s.name,
+                s.affiliation,
+                sd.enriched_at,
+                COUNT(DISTINCT es.event_id) as event_count
+            FROM speakers s
+            LEFT JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
+            LEFT JOIN event_speakers es ON s.speaker_id = es.speaker_id
+            WHERE s.tagging_status = 'completed'
+            AND (
+                sd.enriched_at IS NULL
+                OR sd.enriched_at < date('now', '-' || ? || ' months')
+            )
+            GROUP BY s.speaker_id
+            ORDER BY event_count DESC, sd.enriched_at ASC NULLS FIRST
+            LIMIT ?
+        ''', (months, limit))
+
+        return cursor.fetchall()
+
+    def get_speaker_enrichment_date(self, speaker_id: int) -> Optional[str]:
+        """
+        Get the last enrichment date for a speaker.
+
+        Args:
+            speaker_id: Speaker ID
+
+        Returns:
+            ISO timestamp of last enrichment, or None if never enriched
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT enriched_at
+            FROM speaker_demographics
+            WHERE speaker_id = ?
+        ''', (speaker_id,))
+
+        result = cursor.fetchone()
+        return result[0] if result else None
 
     def log_search(
         self,

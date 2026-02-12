@@ -156,6 +156,16 @@
                 {% endif %}
             </div>
         </div>
+        {% if demographics and demographics.enriched_at %}
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <p class="text-xs text-gray-500">
+                <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Demographics last updated: {{ demographics.enriched_at[:10] }}
+            </p>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -251,6 +261,8 @@
                         <option value="title">Title</option>
                         <option value="primary_affiliation">Primary Affiliation</option>
                         <option value="bio">Biography</option>
+                        <option value="location">Location</option>
+                        <option value="languages">Languages Spoken</option>
                     </select>
                 </div>
 
