@@ -159,6 +159,103 @@ def run_scheduled_pipeline():
             pass
 
 
+def run_monthly_refresh():
+    """Run the monthly speaker refresh on a schedule"""
+    import sqlite3
+    from datetime import datetime, timezone
+
+    logger.info("Starting monthly speaker refresh...")
+    db_path = get_db_path()
+
+    try:
+        # Check if refresh is already running (distributed lock)
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Create lock table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS refresh_lock (
+                lock_id INTEGER PRIMARY KEY CHECK (lock_id = 1),
+                is_locked BOOLEAN NOT NULL DEFAULT 0,
+                locked_at TEXT,
+                locked_by TEXT
+            )
+        ''')
+
+        # Initialize lock row if it doesn't exist
+        cursor.execute('INSERT OR IGNORE INTO refresh_lock (lock_id, is_locked) VALUES (1, 0)')
+        conn.commit()
+
+        # Try to acquire lock
+        cursor.execute('SELECT is_locked, locked_at, locked_by FROM refresh_lock WHERE lock_id = 1')
+        row = cursor.fetchone()
+        is_locked, locked_at, locked_by = row[0], row[1], row[2] if len(row) > 2 else 'unknown'
+
+        logger.info(f"Refresh lock status: is_locked={is_locked}, locked_at={locked_at}, locked_by={locked_by}")
+
+        # Check if lock is stale (older than 2 hours - refresh should never take that long)
+        if is_locked and locked_at:
+            import time
+            locked_time = datetime.fromisoformat(locked_at.replace('+00:00', ''))
+            elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - locked_time).total_seconds()
+            logger.info(f"Refresh lock age: {elapsed:.0f}s (timeout: 7200s)")
+
+            if elapsed > 7200:  # 2 hours
+                logger.warning(f"⚠ Stale refresh lock detected ({elapsed:.0f}s old, owner: {locked_by}), clearing it")
+                is_locked = False
+
+        if is_locked:
+            logger.info(f"⏭ Monthly refresh already running (locked by {locked_by} at {locked_at}), skipping")
+            conn.close()
+            return
+
+        # Acquire lock
+        instance_id = os.environ.get('RAILWAY_REPLICA_ID', 'local')
+        cursor.execute(
+            'UPDATE refresh_lock SET is_locked = 1, locked_at = ?, locked_by = ? WHERE lock_id = 1',
+            (datetime.now(timezone.utc).isoformat(), instance_id)
+        )
+        conn.commit()
+        conn.close()
+        logger.info(f"✓ Acquired refresh execution lock (instance: {instance_id})")
+
+        try:
+            # Import refresh function
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from refresh_stale_speakers import refresh_stale_speakers
+
+            # Run refresh: 20 speakers, >6 months old, non-interactive
+            result = refresh_stale_speakers(limit=20, months=6, non_interactive=True)
+
+            logger.info(f"✓ Monthly refresh completed: {result['refreshed']} speakers refreshed, "
+                       f"{result.get('affiliation_changes', 0)} affiliation updates, "
+                       f"{result.get('title_changes', 0)} title updates, "
+                       f"cost: ${result['cost']:.4f}")
+
+        finally:
+            # Release lock
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE refresh_lock SET is_locked = 0 WHERE lock_id = 1')
+            conn.commit()
+            conn.close()
+            logger.info("✓ Released refresh execution lock")
+
+    except Exception as e:
+        logger.error(f"ERROR in monthly refresh: {e}")
+        import traceback
+        traceback.print_exc()
+        # Try to release lock on error
+        try:
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE refresh_lock SET is_locked = 0 WHERE lock_id = 1')
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
+
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -175,6 +272,19 @@ scheduler.add_job(
 )
 
 logger.info("✓ Scheduler initialized: pipeline runs at 6:00 and 18:00 UTC (10 events + 20 existing speakers per run)")
+
+# Add monthly refresh job - runs on the 1st of each month at 3 AM UTC
+scheduler.add_job(
+    func=run_monthly_refresh,
+    trigger=CronTrigger(day=1, hour=3),  # 1st of month at 3:00 AM UTC
+    id='monthly_refresh_job',
+    name='Run monthly speaker refresh',
+    replace_existing=True,
+    coalesce=True,
+    max_instances=1
+)
+
+logger.info("✓ Monthly refresh scheduled: runs 1st of each month at 3:00 AM UTC (refreshes stale speakers >6 months old)")
 
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
