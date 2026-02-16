@@ -1,10 +1,12 @@
 # Frequently Asked Questions (FAQ)
 
-## What is this database?
+## What is this database, and why does it exist?
 
 The Asia Society Speaker Database is a searchable collection of speakers who have participated in Asia Society events worldwide. It helps you discover experts, thought leaders, and practitioners across various fields related to Asia and global affairs.
 
 Currently, the database contains **{{total_speakers}} speakers** from **{{total_events}} events** spanning from {{oldest_event_date}} to {{newest_event_date}}.
+
+The database solves a fundamental problem: A global database of speakers would be great to have for a distributed organization like Asia Society, but building and maintaining it manually was never viable. This automated approach leverages the fact that most information is already public - either on the Asia Society website, or on the wider web. It uses AI to extract speaker information from published events, and to regularly enrich and update their profiles. The result is a comprehensive database that updates automatically for a total cost of around $8 per month (see breakdown below).
 
 ## How does it work?
 
@@ -89,22 +91,12 @@ Each speaker profile may include:
 
 The system prioritizes **accuracy over completeness**:
 
-- **Speaker Extraction**: Uses advanced AI (Claude Sonnet 4) to carefully extract information from event pages, with ~95% accuracy
+- **Speaker Extraction**: Uses advanced AI (Claude Haiku 3) to carefully extract information from event pages, with ~95% accuracy
 - **Speaker Enrichment**: Uses Claude 3 Haiku to efficiently extract expertise tags, demographics, and location data with high accuracy while minimizing costs
 - **Deduplication**: Automatically merges duplicate entries when the same person appears at multiple events (fuzzy matching on name + affiliation)
 - **Conservative Approach**: Only adds demographic or location data when confidence is high (we won't guess)
 - **Source Tracking**: All enriched data includes confidence scores and timestamps
 - **Quality Validation**: A/B tested multiple AI models to ensure quality remains high while optimizing for cost
-
-## Can I export or download data?
-
-Authenticated users can:
-- View individual speaker profiles
-- Browse event details
-- Use the search interface
-- View aggregate statistics
-
-Bulk data exports are not available to prevent misuse.
 
 ## What technology powers this?
 
@@ -117,12 +109,23 @@ For those interested in the technical details:
 - **Database**: SQLite (simple, reliable, portable)
 - **Web Interface**: Flask + Tailwind CSS
 - **Hosting**: Railway (with automated deployments)
-- **Cost**: ~$7-9/month (mostly AI API calls, optimized through careful model selection)
 
-The entire system is built with Python and runs on a single small server. Recent optimizations reduced enrichment costs by 91% while maintaining quality through A/B testing.
+
+The entire system is built with Python and runs on a single small server. 
+
+## How much does it cost?
+
+The database uses the Anthropic and OpenAI APIs for various tasks. Each call to the APIs costs a little bit of money. Here is an estimated breakdown of monthly costs:
+
+- **Speaker Extraction**: 600 events x $0.0025 = $1.50
+- **Speaker enrichment**: 600 speakers x $0.0023 = $1.38
+- **Embedding new speakers**: 360 speakers x $0.00002 = $0.001
+- **Search costs**: 150 queries x $0.0006 = $0.09
+- **Hosting**: Railway.com Hobby plan = $5
+
+The total monthly costs are around $8.
+
 
 ## Who built this?
 
-This database was created as a research tool to make Asia Society's speaker network more discoverable. It demonstrates how AI and automation can help surface expertise and facilitate connections.
-
-The system is maintained by Nico Luchsinger ({{contact_email}})
+This database was created as a research tool to make Asia Society's speaker network more discoverable. It demonstrates how AI and automation can help surface expertise and facilitate connections. It was built using Claude Code by Nico Luchsinger ({{contact_email}}).
