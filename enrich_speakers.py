@@ -1,13 +1,22 @@
 """
-CLI tool for enriching speaker data with demographics, locations, and languages
-Uses web search and Claude AI to extract information
+CLI tool for unified speaker enrichment
+Extracts tags + demographics + locations + languages in ONE pass
+Saves ~50% cost and time vs separate tagging + enrichment
 """
 
 import argparse
 import time
+import os
 from datetime import datetime
 from database import SpeakerDatabase
-from speaker_enricher import SpeakerEnricher
+from speaker_enricher import UnifiedSpeakerEnricher
+
+
+def get_db_path():
+    """Get database path - /data/speakers.db on Railway, ./speakers.db locally"""
+    if os.path.exists('/data'):
+        return '/data/speakers.db'
+    return './speakers.db'
 
 
 def enrich_speakers(
@@ -17,7 +26,7 @@ def enrich_speakers(
     verbose=True
 ):
     """
-    Enrich speakers with demographics, locations, and languages
+    Unified enrichment: tags + demographics + locations + languages in one pass
 
     Args:
         batch_size: Number of speakers to process before showing progress
@@ -26,10 +35,10 @@ def enrich_speakers(
         verbose: Print progress messages
     """
     # Get list of speakers to process (then close connection)
-    db = SpeakerDatabase()
-    speakers_data = db.get_all_speakers()
+    db = SpeakerDatabase(get_db_path())
+    all_speakers = db.get_all_speakers()
 
-    if not speakers_data:
+    if not all_speakers:
         if verbose:
             print("No speakers found in database!")
         db.close()
@@ -38,12 +47,16 @@ def enrich_speakers(
     # Filter out speakers with existing enrichment if requested
     if skip_existing:
         speakers_to_process = []
-        for speaker_data in speakers_data:
+        for speaker_data in all_speakers:
             speaker_id = speaker_data[0]
+            # Check for either demographics OR tags
             demographics = db.get_speaker_demographics(speaker_id)
-            if not demographics:
+            tags = db.get_speaker_tags(speaker_id)
+            if not demographics and not tags:
                 speakers_to_process.append(speaker_data)
         speakers_data = speakers_to_process
+    else:
+        speakers_data = all_speakers
 
     db.close()  # Close initial connection
 
@@ -57,9 +70,17 @@ def enrich_speakers(
 
     total = len(speakers_data)
     if verbose:
-        print(f"Enriching {total} speakers")
+        print("="*70)
+        print("🔄 UNIFIED SPEAKER ENRICHMENT")
+        print("="*70)
+        print(f"\nProcessing: {total} speakers")
         print(f"Batch size: {batch_size}")
-        print("=" * 60)
+        print(f"\nExtracting in ONE pass:")
+        print("  • Expertise tags (3 per speaker)")
+        print("  • Demographics (gender, nationality)")
+        print("  • Locations (city, country, region)")
+        print("  • Languages (with proficiency)")
+        print("="*70)
 
     start_time = time.time()
     total_tokens = 0
@@ -67,14 +88,14 @@ def enrich_speakers(
     succeeded = 0
     failed = 0
 
-    enricher = SpeakerEnricher()
+    enricher = UnifiedSpeakerEnricher()
 
     # Process speakers
     for i, speaker_data in enumerate(speakers_data, 1):
         speaker_id, name, title, affiliation, bio, first_seen, last_updated = speaker_data
 
         if verbose and i % batch_size == 1:
-            print(f"\nProcessing batch {(i-1)//batch_size + 1} (speakers {i}-{min(i+batch_size-1, total)}/{total})...")
+            print(f"\nBatch {(i-1)//batch_size + 1} (speakers {i}-{min(i+batch_size-1, total)}/{total})...")
 
         try:
             # Build speaker dict
@@ -89,78 +110,31 @@ def enrich_speakers(
             if verbose:
                 print(f"  {i}/{total}: {name}...", end=" ")
 
-            # Perform enrichment
-            result = enricher.enrich_speaker(speaker)
+            # Perform unified enrichment
+            # Open fresh database connection for this speaker
+            db = SpeakerDatabase(get_db_path())
 
-            if result['success']:
-                # Open fresh database connection for saving
-                # This prevents long-held connections that cause locking issues
-                db = SpeakerDatabase()
+            try:
+                result = enricher.enrich_speaker(speaker_id, db)
 
-                try:
-                    # Save demographics
-                    demographics = result.get('demographics', {})
-                    if demographics and any([
-                        demographics.get('gender'),
-                        demographics.get('nationality'),
-                        demographics.get('birth_year')
-                    ]):
-                        db.save_speaker_demographics(
-                            speaker_id,
-                            gender=demographics.get('gender'),
-                            gender_confidence=demographics.get('gender_confidence'),
-                            nationality=demographics.get('nationality'),
-                            nationality_confidence=demographics.get('nationality_confidence'),
-                            birth_year=demographics.get('birth_year')
-                        )
-
-                    # Save locations
-                    locations = result.get('locations', [])
-                    for loc in locations:
-                        db.save_speaker_location(
-                            speaker_id,
-                            location_type=loc.get('location_type', 'unknown'),
-                            city=loc.get('city'),
-                            country=loc.get('country'),
-                            region=loc.get('region'),
-                            is_primary=loc.get('is_primary', False),
-                            confidence=loc.get('confidence'),
-                            source='web_search'
-                        )
-
-                    # Save languages
-                    languages = result.get('languages', [])
-                    for lang in languages:
-                        db.save_speaker_language(
-                            speaker_id,
-                            language=lang.get('language'),
-                            proficiency=lang.get('proficiency'),
-                            confidence=lang.get('confidence'),
-                            source='web_search'
-                        )
-
+                if result['success']:
                     succeeded += 1
                     if verbose:
-                        print("✓")
-
-                except Exception as db_error:
+                        tags_str = ', '.join([t['text'] for t in result['tags']])
+                        print(f"✓ ({tags_str})")
+                else:
                     failed += 1
                     if verbose:
-                        print(f"✗ (DB error: {str(db_error)[:50]})")
-                finally:
-                    # Always close connection after each speaker
-                    db.close()
+                        error_msg = result.get('error', 'Unknown error')
+                        print(f"✗ ({error_msg[:50]})")
 
-                # Track usage
-                usage = enricher.get_last_usage()
-                if usage:
-                    total_tokens += usage['input_tokens'] + usage['output_tokens']
+            finally:
+                db.close()  # Always close connection after each speaker
 
-            else:
-                failed += 1
-                if verbose:
-                    error_msg = result.get('error', 'Unknown error')
-                    print(f"✗ ({error_msg[:50]})")
+            # Track usage
+            usage = enricher.get_last_usage()
+            if usage:
+                total_tokens += usage['input_tokens'] + usage['output_tokens']
 
         except Exception as e:
             failed += 1
@@ -169,13 +143,16 @@ def enrich_speakers(
 
         processed += 1
 
+        # Rate limiting already handled in enricher
+        # time.sleep(1.5)
+
     elapsed = time.time() - start_time
 
     # Print summary
     if verbose:
-        print("\n" + "=" * 60)
-        print("Summary")
-        print("=" * 60)
+        print("\n" + "="*70)
+        print("📊 SUMMARY")
+        print("="*70)
         print(f"Speakers processed: {processed}/{total}")
         print(f"  Succeeded: {succeeded}")
         print(f"  Failed: {failed}")
@@ -190,12 +167,34 @@ def enrich_speakers(
         if processed > 0:
             print(f"Avg time per speaker: {elapsed/processed:.1f}s")
 
+        # Check database stats (open fresh connection)
+        db = SpeakerDatabase(get_db_path())
+        stats = db.get_statistics()
+
+        # Count enriched speakers
+        cursor = db.conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM speaker_demographics')
+        demographics_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_locations')
+        locations_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_languages')
+        languages_count = cursor.fetchone()[0]
+
+        db.close()
+
+        print(f"\n📊 Updated Database Status:")
+        print(f"  Total speakers: {stats['total_speakers']}")
+        print(f"  Tagged speakers: {stats['tagged_speakers']}")
+        print(f"  With demographics: {demographics_count}")
+        print(f"  With locations: {locations_count}")
+        print(f"  With languages: {languages_count}")
+
         print("\n✓ Enrichment complete!")
 
 
-def show_enrichment_stats(verbose=True):
+def show_stats(verbose=True):
     """Show statistics about enrichment coverage"""
-    db = SpeakerDatabase()
+    db = SpeakerDatabase(get_db_path())
 
     stats = db.get_statistics()
     total_speakers = stats['total_speakers']
@@ -213,68 +212,76 @@ def show_enrichment_stats(verbose=True):
     languages_count = cursor.fetchone()[0]
 
     if verbose:
-        print("\n" + "=" * 60)
-        print("Enrichment Statistics")
-        print("=" * 60)
+        print("\n" + "="*70)
+        print("📊 ENRICHMENT STATISTICS")
+        print("="*70)
         print(f"Total speakers: {total_speakers}")
-        print(f"Speakers with demographics: {demographics_count} ({demographics_count/total_speakers*100:.1f}%)")
-        print(f"Speakers with locations: {locations_count} ({locations_count/total_speakers*100:.1f}%)")
-        print(f"Speakers with languages: {languages_count} ({languages_count/total_speakers*100:.1f}%)")
+        print(f"Tagged speakers: {stats['tagged_speakers']} ({stats['tagged_speakers']/total_speakers*100:.1f}%)")
+        print(f"With demographics: {demographics_count} ({demographics_count/total_speakers*100:.1f}%)")
+        print(f"With locations: {locations_count} ({locations_count/total_speakers*100:.1f}%)")
+        print(f"With languages: {languages_count} ({languages_count/total_speakers*100:.1f}%)")
+
+        # Count fully enriched (has ALL data)
+        cursor.execute('''
+            SELECT COUNT(DISTINCT s.speaker_id)
+            FROM speakers s
+            JOIN speaker_tags st ON s.speaker_id = st.speaker_id
+            JOIN speaker_demographics sd ON s.speaker_id = sd.speaker_id
+        ''')
+        fully_enriched = cursor.fetchone()[0]
+        print(f"Fully enriched (tags + demographics): {fully_enriched} ({fully_enriched/total_speakers*100:.1f}%)")
+
+        # Calculate remaining
+        cursor.execute('''
+            SELECT COUNT(*)
+            FROM speakers s
+            WHERE s.speaker_id NOT IN (SELECT speaker_id FROM speaker_demographics)
+            AND s.speaker_id NOT IN (SELECT DISTINCT speaker_id FROM speaker_tags)
+        ''')
+        remaining = cursor.fetchone()[0]
+        print(f"\nRemaining to enrich: {remaining}")
+        if remaining > 0:
+            est_cost = (remaining * 0.01)
+            est_time = (remaining * 1.5) / 60
+            print(f"  Estimated cost: ${est_cost:.2f}")
+            print(f"  Estimated time: ~{est_time:.1f} minutes")
 
         # Show sample enriched speakers
         cursor.execute('''
-            SELECT s.name, d.gender, d.nationality
+            SELECT s.name, GROUP_CONCAT(st.tag_text, ', ') as tags, d.gender, d.nationality
             FROM speakers s
-            JOIN speaker_demographics d ON s.speaker_id = d.speaker_id
+            LEFT JOIN speaker_tags st ON s.speaker_id = st.speaker_id
+            LEFT JOIN speaker_demographics d ON s.speaker_id = d.speaker_id
+            WHERE st.tag_text IS NOT NULL OR d.gender IS NOT NULL
+            GROUP BY s.speaker_id
             LIMIT 5
         ''')
         samples = cursor.fetchall()
 
         if samples:
             print("\nSample enriched speakers:")
-            for name, gender, nationality in samples:
-                print(f"  - {name}: {gender or 'N/A'}, {nationality or 'N/A'}")
+            for name, tags, gender, nationality in samples:
+                print(f"  • {name}")
+                if tags:
+                    print(f"    Tags: {tags}")
+                if gender or nationality:
+                    print(f"    Demographics: {gender or 'N/A'}, {nationality or 'N/A'}")
 
-        print("=" * 60)
-
-    db.close()
-
-
-def clear_enrichment_data(verbose=True):
-    """Clear all enrichment data from database"""
-    db = SpeakerDatabase()
-
-    if verbose:
-        response = input("WARNING: This will delete all enrichment data. Are you sure? (yes/no): ")
-        if response.lower() != 'yes':
-            print("Operation cancelled.")
-            db.close()
-            return
-
-    cursor = db.conn.cursor()
-
-    cursor.execute('DELETE FROM speaker_demographics')
-    cursor.execute('DELETE FROM speaker_locations')
-    cursor.execute('DELETE FROM speaker_languages')
-
-    db.conn.commit()
-
-    if verbose:
-        print("✓ All enrichment data cleared.")
+        print("="*70)
 
     db.close()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Enrich speaker data with demographics, locations, and languages',
+        description='Unified speaker enrichment (tags + demographics + locations + languages)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python enrich_speakers.py --limit 10         # Enrich first 10 unenriched speakers
-  python enrich_speakers.py --all             # Enrich all unenriched speakers
-  python enrich_speakers.py --stats           # Show enrichment statistics
-  python enrich_speakers.py --clear           # Clear all enrichment data
+  python enrich_speakers.py --all              # Enrich all unenriched speakers
+  python enrich_speakers.py --stats            # Show enrichment statistics
+  python enrich_speakers.py --force --limit 5  # Re-enrich 5 speakers
         """
     )
 
@@ -290,8 +297,6 @@ Examples:
                        help='Re-enrich speakers even if they have existing data')
     parser.add_argument('--stats', action='store_true',
                        help='Show enrichment statistics')
-    parser.add_argument('--clear', action='store_true',
-                       help='Clear all enrichment data (use with caution!)')
     parser.add_argument('--quiet', action='store_true',
                        help='Suppress progress messages')
 
@@ -300,9 +305,7 @@ Examples:
     verbose = not args.quiet
 
     if args.stats:
-        show_enrichment_stats(verbose)
-    elif args.clear:
-        clear_enrichment_data(verbose)
+        show_stats(verbose)
     else:
         skip_existing = args.skip_existing and not args.force
 

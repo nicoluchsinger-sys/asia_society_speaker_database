@@ -179,7 +179,7 @@ def verify_with_web_search(
     Returns:
         Verification result dictionary
     """
-    from speaker_enricher_v2 import UnifiedSpeakerEnricher
+    from speaker_enricher import UnifiedSpeakerEnricher
 
     # Perform web search
     enricher = UnifiedSpeakerEnricher()

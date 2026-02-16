@@ -20,7 +20,7 @@ import argparse
 import time
 from datetime import datetime
 from database import SpeakerDatabase
-from speaker_enricher import SpeakerEnricher
+from speaker_enricher import UnifiedSpeakerEnricher
 from affiliation_checker import AffiliationChecker
 import logging
 
@@ -68,10 +68,10 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
 
         if dry_run:
             print("\n[DRY RUN] No changes made")
-            # Estimated cost: ~$0.0008 for demographics + ~$0.0015 for affiliation check
+            # Estimated cost: ~$0.0008 for unified enrichment (tags+demographics+locations+languages) + ~$0.0015 for affiliation check
             estimated_cost = len(stale_speakers) * 0.0023
             print(f"Estimated cost: ${estimated_cost:.4f}")
-            print("(Includes demographics refresh + affiliation/title verification)")
+            print("(Includes unified enrichment + affiliation/title verification)")
             return {
                 'total_found': len(stale_speakers),
                 'refreshed': 0,
@@ -82,9 +82,9 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
 
         # Confirm with user (unless running non-interactively)
         print(f"\nThis will re-enrich {len(stale_speakers)} speakers")
-        estimated_cost = len(stale_speakers) * 0.0023  # Demographics + affiliation check
-        print(f"Estimated cost: ${estimated_cost:.4f} (using Haiku)")
-        print("Includes: demographics, locations, languages, affiliation, and title verification")
+        estimated_cost = len(stale_speakers) * 0.0023  # Unified enrichment + affiliation check
+        print(f"Estimated cost: ${estimated_cost:.4f} (using Haiku - 91% cheaper than Sonnet)")
+        print("Includes: tags, demographics, locations, languages, affiliation, and title verification")
 
         if not non_interactive:
             response = input("\nProceed with refresh? [y/N]: ").strip().lower()
@@ -101,11 +101,11 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
         else:
             print("\n[Non-interactive mode] Proceeding automatically...")
 
-        print("\nRefreshing speaker data (demographics, locations, languages, affiliation, title)...")
-        print(f"Using Claude Haiku for cost efficiency")
+        print("\nRefreshing speaker data (tags, demographics, locations, languages, affiliation, title)...")
+        print(f"Using Claude Haiku for cost efficiency (91% cost reduction)")
 
-        # Initialize enricher and affiliation checker
-        enricher = SpeakerEnricher(model='claude-3-haiku-20240307')
+        # Initialize unified enricher (v2 - tags + demographics in one pass) and affiliation checker
+        enricher = UnifiedSpeakerEnricher()
         affiliation_checker = AffiliationChecker(model='claude-3-haiku-20240307')
 
         # Tracking stats
@@ -120,10 +120,10 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
             print(f"  {i}/{len(stale_speakers)}: {name}...", end=" ")
 
             try:
-                # Get full speaker data
+                # Get speaker data for affiliation checking
                 cursor = database.conn.cursor()
                 cursor.execute('''
-                    SELECT name, title, affiliation, bio
+                    SELECT name, title, affiliation
                     FROM speakers
                     WHERE speaker_id = ?
                 ''', (speaker_id,))
@@ -134,19 +134,10 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
                     failed_count += 1
                     continue
 
-                speaker_name, title, affiliation, bio = row
+                speaker_name, title, affiliation = row
 
-                # Build speaker dict
-                speaker = {
-                    'speaker_id': speaker_id,
-                    'name': speaker_name,
-                    'title': title,
-                    'affiliation': affiliation,
-                    'bio': bio
-                }
-
-                # Perform enrichment
-                result = enricher.enrich_speaker(speaker)
+                # Perform unified enrichment (v2 - gets speaker data itself)
+                result = enricher.enrich_speaker(speaker_id, database)
 
                 if result['success']:
                     # Save demographics (this will update enriched_at timestamp)
@@ -195,7 +186,7 @@ def refresh_stale_speakers(limit=20, months=6, dry_run=False, non_interactive=Fa
                     total_cost += result.get('cost', 0)
 
                     # Check for affiliation/title changes
-                    print("✓ (demographics)", end=" ")
+                    print("✓ (tags+demographics)", end=" ")
                     print("checking affiliation/title...", end=" ")
 
                     try:

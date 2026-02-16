@@ -5,7 +5,7 @@ Freshness manager for tracking speaker data staleness and managing refreshes
 import argparse
 from datetime import datetime, timedelta
 from database import SpeakerDatabase
-from speaker_enricher import SpeakerEnricher
+from speaker_enricher import UnifiedSpeakerEnricher
 import time
 
 
@@ -13,7 +13,7 @@ class FreshnessManager:
     def __init__(self, db_path='speakers.db'):
         """Initialize freshness manager"""
         self.db = SpeakerDatabase(db_path)
-        self.enricher = SpeakerEnricher()
+        self.enricher = UnifiedSpeakerEnricher()
 
     def calculate_staleness(self, last_enrichment_date: str, event_count: int = 0) -> float:
         """

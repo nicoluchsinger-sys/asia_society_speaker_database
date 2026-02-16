@@ -62,7 +62,7 @@ class AffiliationChecker:
             }
         """
         # Perform web search using DuckDuckGo
-        from speaker_enricher_v2 import UnifiedSpeakerEnricher
+        from speaker_enricher import UnifiedSpeakerEnricher
 
         search_query = f'"{speaker_name}" current position affiliation 2026'
         logger.info(f"Searching for: {search_query}")
