@@ -286,7 +286,8 @@ speaker_database/
 - **Initial enrichment**: ~$0.01 per speaker (Claude Haiku) - **OPTIONAL**
 
 ### Ongoing Costs
-- **Query parsing**: ~$0.005 per search (Claude Haiku)
+- **Query parsing**: ~$0.0006 per search (Claude Haiku - 80% cheaper than Sonnet)
+- **Query embedding**: ~$0.0000004 per search (OpenAI - negligible)
 - **Data refresh**: ~$0.01 per speaker (Claude Haiku)
 - **Embedding new speakers**: ~$0.00002 per speaker (OpenAI)
 

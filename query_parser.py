@@ -21,7 +21,9 @@ class QueryParser:
             raise ValueError("ANTHROPIC_API_KEY not found. Please set it in .env file or pass it directly.")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-sonnet-4-20250514"
+        # Using Claude 3 Haiku for cost efficiency (80% cheaper than Sonnet 4)
+        # Query parsing is straightforward - Haiku handles it perfectly
+        self.model = "claude-3-haiku-20240307"
 
     def parse_query(self, query: str) -> Dict:
         """
