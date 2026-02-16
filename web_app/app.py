@@ -127,8 +127,8 @@ def run_scheduled_pipeline():
             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             from pipeline_cron import run_pipeline
 
-            # Run pipeline: 10 events, 20 existing speakers
-            success = run_pipeline(event_limit=10, existing_limit=20)
+            # Run pipeline: 20 events, 20 existing speakers
+            success = run_pipeline(event_limit=20, existing_limit=20)
 
             if success:
                 logger.info("✓ Scheduled pipeline completed successfully")
@@ -271,7 +271,7 @@ scheduler.add_job(
     max_instances=1  # Only allow one instance of this job to run at a time
 )
 
-logger.info("✓ Scheduler initialized: pipeline runs at 6:00 and 18:00 UTC (10 events + 20 existing speakers per run)")
+logger.info("✓ Scheduler initialized: pipeline runs at 6:00 and 18:00 UTC (20 events + 20 existing speakers per run)")
 
 # Add monthly refresh job - runs on the 1st of each month at 3 AM UTC
 scheduler.add_job(

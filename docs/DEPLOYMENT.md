@@ -7,7 +7,7 @@ Complete guide to deploying the Asia Society Speaker Database to Railway.
 The application is deployed on **Railway** with:
 - ✅ **Web service** - Flask app with search interface
 - ✅ **Persistent volume** - SQLite database storage
-- ✅ **Automated pipeline** - Scrapes 10 events + enriches 20 speakers twice daily (6 AM/PM UTC)
+- ✅ **Automated pipeline** - Scrapes 20 events + enriches 20 speakers twice daily (6 AM/PM UTC)
 - ✅ **Monthly refresh** - Updates stale speaker data (>6 months old) on 1st of each month
 - ✅ **Zero maintenance** - Fully automated via APScheduler
 
@@ -85,7 +85,7 @@ railway link
 railway run --service web bash -c 'cat > /data/speakers.db' < speakers.db
 ```
 
-Or let the automated pipeline build the database from scratch (will scrape 10 events twice daily).
+Or let the automated pipeline build the database from scratch (will scrape 20 events twice daily).
 
 ### Step 5: Generate Public URL
 
@@ -107,11 +107,11 @@ The Flask app (`web_app/app.py`) runs two automated jobs via APScheduler:
 **1. Daily Scraping & Enrichment**
 - **Schedule:** Twice daily at 6:00 AM and 6:00 PM UTC
 - **Actions:**
-  - Scrapes 10 new Asia Society events
+  - Scrapes 20 new Asia Society events
   - Extracts speakers using Claude AI
   - Enriches 20 existing speaker profiles
   - Updates search indexes
-- **Cost:** ~$0.50-1.00 per run
+- **Cost:** ~$0.08-0.10 per run
 - **Logs:** Check Railway logs for status
 
 **2. Monthly Speaker Refresh**

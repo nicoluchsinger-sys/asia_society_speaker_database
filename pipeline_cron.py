@@ -1,12 +1,12 @@
 """
 Consolidated pipeline for scheduled execution on Railway
 
-Runs every 2 hours to:
-1. Scrape 10 new events
+Runs twice daily (6 AM/PM UTC) to:
+1. Scrape 20 new events
 2. Extract speakers from new events
 3. Generate embeddings for new speakers
 4. Enrich NEW speakers first (priority)
-5. Enrich 10 existing untagged speakers (backfill)
+5. Enrich 20 existing speakers (backfill)
 
 Designed to complete within 25 minutes to fit Railway's execution limits.
 Tracks API costs and logs progress.

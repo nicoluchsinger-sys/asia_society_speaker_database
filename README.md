@@ -293,8 +293,8 @@ speaker_database/
 
 ### Production Deployment (Railway)
 - **Hosting**: $5/month (Railway)
-- **Automated pipeline**: Scrapes 10 events twice daily + enriches 20 speakers
-- **Total**: ~$7-9/month (includes API calls)
+- **Automated pipeline**: Scrapes 20 events twice daily + enriches 20 speakers
+- **Total**: ~$9-10/month (includes API calls)
 
 ## Why Selenium?
 
