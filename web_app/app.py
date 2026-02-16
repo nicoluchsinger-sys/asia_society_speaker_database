@@ -669,6 +669,10 @@ def faq():
     faq_content = faq_content.replace('{{oldest_event_date}}', oldest_event_date)
     faq_content = faq_content.replace('{{newest_event_date}}', newest_event_date)
 
+    # Replace contact email from environment variable (not stored in repo)
+    contact_email = os.environ.get('CONTACT_EMAIL', 'contact@example.com')
+    faq_content = faq_content.replace('{{contact_email}}', contact_email)
+
     # Convert markdown to HTML
     faq_html = markdown.markdown(faq_content, extensions=['extra', 'nl2br'])
 

@@ -49,6 +49,7 @@ OPENAI_API_KEY=sk-xxxxx            # Your OpenAI key
 # Application Settings
 PORT=5001                           # Flask port (Railway auto-detects)
 SITE_PASSWORD=your_secure_password  # Password for web interface
+CONTACT_EMAIL=your@email.com        # Contact email shown on FAQ page (optional)
 
 # Optional: Customize pipeline lock timeout (default: 1800 seconds = 30 min)
 PIPELINE_LOCK_TIMEOUT_SECONDS=1800
@@ -141,6 +142,7 @@ When multiple Railway instances run (e.g., horizontal scaling), the app uses SQL
 | `ANTHROPIC_API_KEY` | Yes | - | Claude AI for speaker extraction |
 | `OPENAI_API_KEY` | Yes | - | OpenAI for semantic embeddings |
 | `SITE_PASSWORD` | No | `asiasociety123` | Web interface password |
+| `CONTACT_EMAIL` | No | `contact@example.com` | Contact email shown on FAQ page |
 | `PORT` | No | `5001` | Flask server port |
 | `PIPELINE_LOCK_TIMEOUT_SECONDS` | No | `1800` | Lock timeout in seconds (30 min) |
 

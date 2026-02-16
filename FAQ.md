@@ -125,4 +125,4 @@ The entire system is built with Python and runs on a single small server. Recent
 
 This database was created as a research tool to make Asia Society's speaker network more discoverable. It demonstrates how AI and automation can help surface expertise and facilitate connections.
 
-The system is maintained by Nico Luchsinger (nico.luchsinger@gmail.com)
+The system is maintained by Nico Luchsinger ({{contact_email}})
