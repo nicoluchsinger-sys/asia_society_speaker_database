@@ -75,9 +75,9 @@ Guide to adding a second Railway service for long-running scraping tasks.
 2. Add these variables (same as web service):
 
 ```
-ANTHROPIC_API_KEY=***REMOVED***
+ANTHROPIC_API_KEY=sk-ant-xxxxx
 
-OPENAI_API_KEY=***REMOVED***
+OPENAI_API_KEY=sk-xxxxx
 ```
 
 3. Click **"Add"** for each variable
