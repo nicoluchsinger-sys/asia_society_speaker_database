@@ -9,3 +9,8 @@ backups/
 .DS_Store
 scraper_speakers.db
 *_production.db
+
+# Session logs (personal development notes)
+SESSION_LOG.md
+SESSION_SUMMARY.md
+session_reports.md
