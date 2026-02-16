@@ -1,66 +1,55 @@
-# Asia Society Speaker Database Builder
+# Asia Society Speaker Database
 
-An AI-powered tool that scrapes event pages from Asia Society's **global events website**, extracts speaker information using Claude AI, and stores comprehensive data in SQLite.
+An AI-powered tool that scrapes event pages from Asia Society's **global events website**, extracts speaker information using Claude AI, and stores comprehensive data in SQLite with natural language search capabilities.
 
-**✨ Features: Smart Auto-Pagination • Fuzzy Deduplication • Global Coverage • 200 Events Built!**
-
-## 📊 Current Database Stats
-
-- **200 events** from all Asia Society locations worldwide
-- **428 unique speakers**
-- **502 speaker-event connections**
-- **100% extraction success rate** (0 failed events)
-- **15+ locations**: Texas, New York, Hong Kong, Switzerland, India, Japan, Australia, Philippines, France, Seattle, Northern California, Southern California, Asian Women Empowered, and more
-
-### Notable Speakers
-
-Hillary Clinton, Nadia Murad (Nobel Prize), Elaine Chao, Lucy Liu, Shashi Tharoor, Padma Lakshmi, Ustad Amjad Ali Khan, Raj Subramaniam (FedEx CEO), Andy Summers (The Police), and 419 more...
+**✨ Features: Smart Auto-Pagination • Fuzzy Deduplication • Global Coverage • Natural Language Search**
 
 ## What This Does
 
-1. **Scrapes Events**: Uses Selenium to open a real Chrome browser and download event pages
-2. **Stores Content**: Saves all event data in a SQLite database
-3. **Extracts Speakers**: Uses Claude AI to intelligently extract speaker names, titles, affiliations, and roles
-4. **Builds Database**: Creates a searchable database of speakers and their event history
+1. **Scrapes Events**: Uses Selenium to open a real Chrome browser and download event pages from all Asia Society locations worldwide
+2. **Extracts Speakers**: Uses Claude AI to intelligently extract speaker names, titles, affiliations, roles, and bios
+3. **Enriches Data**: Optional AI-powered enrichment adds demographics, locations, expertise tags, and languages
+4. **Semantic Search**: Natural language search powered by OpenAI embeddings finds relevant speakers by topic, expertise, or criteria
 
-## Features
-
-### Core Capabilities
-- ✅ **Selenium-based scraping** - Bypasses anti-bot protection with real browser
-- ✅ **AI-powered extraction** - Claude AI understands context, not just pattern matching
-- ✅ **SQLite database** - Easy to query, no server needed
-- ✅ **Global coverage** - Scrapes from all Asia Society locations worldwide
-- ✅ **Export to CSV** - Timestamped exports for analysis
-- ✅ **Resume capability** - Won't re-process already scraped events
-
-### Advanced Features (Added Today!)
-- 🆕 **Smart Auto-Pagination** - Automatically fetches more pages when current page has all scraped events
-- 🆕 **Fuzzy Deduplication** - Recognizes speakers with similar names/affiliations (e.g., "NYU" = "New York University")
-- 🆕 **Dynamic Token Allocation** - Scales API tokens (2k→4k→8k) based on event size for large multi-panel events
-- 🆕 **Automatic Duplicate Cleanup** - Runs merge after extraction to catch any edge cases
-- 🆕 **Speaker Tagging** - Optional AI-generated expertise tags with confidence scores
-- 🆕 **Location Extraction** - Automatically extracts event location from URL
-
-## 🔍 Natural Language Speaker Search
-
-**NEW!** The database now supports natural language search powered by semantic embeddings and AI enrichment.
-
-### Quick Start
+## Quick Start
 
 ```bash
-# 1. Set up Gemini API key for embeddings (FREE! Get from aistudio.google.com)
-# Add to .env file: GEMINI_API_KEY=your_key_here
+# 1. Install dependencies
+pip3 install -r requirements.txt
 
-# 2. Generate embeddings for all speakers (one-time, FREE with Gemini!)
+# 2. Set up API keys
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY and OPENAI_API_KEY
+
+# 3. Scrape events and extract speakers
+python3 main_selenium.py -e 10 --stats --export
+
+# 4. Generate embeddings for search (one-time setup)
 python3 generate_embeddings.py
 
-# 3. Search naturally!
-python3 search_speakers.py "3 speakers on chinese economy, ideally women based in Europe"
+# 5. Search naturally!
+python3 search_speakers.py "climate policy experts from Asia"
 ```
 
-**Note:** The system uses **Google Gemini embeddings** by default (FREE, 1500/day). You can also use OpenAI (`--provider openai`) or Voyage (`--provider voyage`) if preferred.
+## Core Features
 
-### Search Examples
+### Intelligent Scraping
+- ✅ **Selenium-based scraping** - Bypasses anti-bot protection with real browser automation
+- ✅ **Smart auto-pagination** - Automatically fetches additional pages to find new events
+- ✅ **Global coverage** - Scrapes from all Asia Society locations worldwide
+- ✅ **Resume capability** - Won't re-process already scraped events
+- ✅ **Location extraction** - Automatically extracts event location from URL
+
+### AI-Powered Extraction
+- ✅ **Claude AI extraction** - Understands context, not just pattern matching
+- ✅ **Fuzzy deduplication** - Recognizes speakers with similar names/affiliations (e.g., "NYU" = "New York University")
+- ✅ **Dynamic token allocation** - Scales API tokens (2k→4k→8k) based on event size for large multi-panel events
+- ✅ **Automatic duplicate cleanup** - Runs merge after extraction to catch edge cases
+- ✅ **Speaker tagging** - Optional AI-generated expertise tags with confidence scores
+
+### Natural Language Search
+
+Search your speaker database using plain English:
 
 ```bash
 # Find experts by topic
@@ -77,24 +66,18 @@ python3 search_speakers.py "mandarin-speaking economists"
 
 # With explanations
 python3 search_speakers.py "technology policy specialists" --explain
-
-# Show detailed speaker info
-python3 search_speakers.py --speaker "Condoleezza Rice"
 ```
 
-### How It Works
+**How It Works:**
 
-The search system combines three powerful technologies:
-
-1. **Query Parsing (Claude AI)**: Understands natural language queries and extracts structured criteria
+1. **Query Parsing (Claude AI)**: Understands natural language and extracts structured criteria
    - Distinguishes hard requirements ("need", "must") vs soft preferences ("ideally", "prefer")
    - Extracts: count, expertise topics, demographics, location, languages
 
-2. **Semantic Search (Gemini Embeddings)**: Finds semantically similar speakers
-   - Converts speaker profiles → 768-dim vectors
+2. **Semantic Search (OpenAI Embeddings)**: Finds semantically similar speakers
+   - Converts speaker profiles → 1536-dim vectors
    - Uses cosine similarity to find relevant candidates
    - Understands "chinese economy" matches "China trade policy expert"
-   - FREE with Google Gemini (or use OpenAI/Voyage)
 
 3. **Intelligent Ranking**: Scores candidates with bonuses for:
    - High-confidence expertise tags (+20%)
@@ -108,7 +91,6 @@ Enhance search with demographics, location, and language data:
 
 ```bash
 # Enrich speakers with demographics/location/languages
-# Uses web search + Claude AI extraction
 python3 enrich_speakers.py --limit 10  # Start with 10 speakers
 
 # Show enrichment statistics
@@ -116,13 +98,12 @@ python3 enrich_speakers.py --stats
 
 # Search with enriched data
 python3 search_speakers.py "european experts on technology policy"
-python3 search_speakers.py "mandarin-speaking economists"
 ```
 
 **Enrichment Features:**
-- Extracts: gender, nationality, location (city/country/region), languages
+- Extracts: gender, nationality, birth year, location (city/country/region), languages
 - Confidence scores for all extracted data
-- ~$0.01-0.02 per speaker
+- ~$0.01-0.02 per speaker (uses Claude Haiku for cost efficiency)
 - Fully optional - search works without enrichment
 
 ### Data Freshness Management
@@ -140,52 +121,23 @@ python3 freshness_manager.py --report
 python3 freshness_manager.py --refresh-stale --limit 10
 ```
 
-**Freshness Logic:**
-- Staleness calculated based on: days since enrichment, speaker prominence
-- High-profile speakers (10+ events) age 50% faster
-- Automatic priority scoring for refresh scheduling
-- Recommended: refresh top 5-10 speakers monthly (~$0.50/month)
+## Web Interface
 
-### Search System Costs
+A password-protected Flask web app provides:
+- 🔍 **Natural language search** - Search interface with real-time results
+- 📊 **Statistics dashboard** - Database stats, API costs, enrichment progress
+- 👤 **Speaker profiles** - Detailed pages with bios, tags, events, demographics
+- 📅 **Event listings** - Browse events by location
+- 🏆 **Leaderboard** - Most active speakers by event count
+- 📈 **Search analytics** - Query patterns, popular searches, performance metrics
 
-**One-Time Setup:**
-- Generate embeddings: **FREE** with Gemini (or $0.02 with OpenAI, $0.05 with Voyage)
-- Initial enrichment: ~$5 (443 speakers × ~$0.01/speaker) - **OPTIONAL**
-
-**Ongoing Costs:**
-- Query parsing: ~$0.005 per search (Claude AI)
-- Embedding new speakers: **FREE** with Gemini
-- Data refresh: ~$0.01 per speaker (optional)
-
-**Monthly estimate: $0.50-1** (100 searches + occasional refreshes)
-
-**Provider Options:**
-- **Gemini** (default): FREE up to 1500/day ✅
-- **OpenAI**: $0.02 per 1M tokens
-- **Voyage**: $0.06 per 1M tokens
-
-### Advanced Search Options
-
-```bash
-# Search with options
-python3 search_speakers.py "climate experts" \
-  --limit 10 \         # Max results
-  --explain \          # Show why each matched
-  --stats              # Database statistics
-
-# List all speakers
-python3 search_speakers.py --list
-
-# View detailed speaker profile
-python3 search_speakers.py --speaker "Hillary Clinton"
-python3 search_speakers.py --id 42
-```
+**Deploy to Railway in 10 minutes** - See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for complete guide.
 
 ## Setup Instructions
 
 ### 1. Install Chrome Browser
 
-Make sure you have Google Chrome installed on your computer. Selenium will control Chrome to scrape the website.
+Make sure you have Google Chrome installed. Selenium will control Chrome to scrape the website.
 
 ### 2. Install Python Dependencies
 
@@ -196,18 +148,22 @@ pip3 install -r requirements.txt
 This will install:
 - `selenium` - Browser automation
 - `anthropic` - Claude AI SDK
+- `openai` - OpenAI embeddings
 - `beautifulsoup4` - HTML parsing
-- `requests` - HTTP library
+- `flask` - Web interface
+- And more (see requirements.txt)
 
-### 3. Set Up API Key
+### 3. Set Up API Keys
 
-Copy the template and add your Anthropic API key:
+Copy the template and add your API keys:
 
 ```bash
-cp .env.template .env
+cp .env.example .env
 ```
 
-Then edit `.env` and replace `your_api_key_here` with your actual API key from https://console.anthropic.com/settings/keys
+Edit `.env` and add:
+- `ANTHROPIC_API_KEY` - Get from https://console.anthropic.com/settings/keys
+- `OPENAI_API_KEY` - Get from https://platform.openai.com/api-keys
 
 ### 4. Run the Tool
 
@@ -217,11 +173,14 @@ python3 main_selenium.py -e 10 --stats --export
 
 # Or extract speakers from already-scraped events
 python3 extract_only.py
+
+# Or run the web interface
+python3 web_app/app.py
 ```
 
 ## Usage
 
-### Quick Command Reference
+### Command Reference
 
 ```bash
 # Scrape events with all features
@@ -232,8 +191,7 @@ python3 main_selenium.py -e 10 --stats --export --tag
 #   --stats       Show detailed timing and API cost statistics
 #   --export      Export speakers to timestamped CSV file
 #   --tag         Tag speakers with expertise tags after extraction
-#   --tag-limit N Limit number of speakers to tag (for testing)
-#   -p N/auto     Max pages to scrape (default: auto - fetches as many as needed)
+#   -p N/auto     Max pages to scrape (default: auto)
 #   --url URL     Custom base URL (default: global events page)
 
 # Extract speakers only (no scraping)
@@ -248,151 +206,111 @@ python3 reset_events.py
 
 # Test API connectivity
 python3 test_api.py
+
+# Refresh stale speaker data
+python3 refresh_stale_speakers.py --limit 20 --months 6
 ```
 
-### What Happens When You Run It
+### Search System Commands
 
-1. **Smart Scraping**
-   - Opens Chrome browser (headless by default)
-   - Checks database for already-scraped events
-   - Automatically moves to next pages if needed
-   - Downloads and saves new events only
-   - Shows progress for each event
+```bash
+# Generate embeddings (one-time setup)
+python3 generate_embeddings.py
 
-2. **AI Extraction**
-   - Uses Claude AI to analyze event text
-   - Extracts speaker names, titles, affiliations, roles, bios
-   - Fuzzy deduplication prevents duplicates
-   - Cost: ~$0.01-0.05 per event
+# Search with natural language
+python3 search_speakers.py "climate experts"
+python3 search_speakers.py "3 speakers on chinese economy, ideally women based in Europe"
 
-3. **Automatic Cleanup**
-   - Runs duplicate merge after extraction
-   - Shows statistics (events, speakers, connections)
-   - Exports to CSV if --export flag used
+# Search with options
+python3 search_speakers.py "climate experts" \
+  --limit 10 \         # Max results
+  --explain \          # Show why each matched
+  --stats              # Database statistics
 
-## Files Overview
+# List all speakers
+python3 search_speakers.py --list
 
-### Core Scraping Scripts
-- `main_selenium.py` - **Main script** - Orchestrates scraping + extraction pipeline
-- `selenium_scraper.py` - Selenium-based web scraper with smart pagination
-- `speaker_extractor.py` - AI speaker extraction with dynamic token allocation
-- `database.py` - Database manager with fuzzy deduplication and search support
-- `extract_only.py` - Extract speakers from already-scraped events
-- `merge_duplicates.py` - Standalone utility to merge duplicate speakers
+# View detailed speaker profile
+python3 search_speakers.py --speaker "Hillary Clinton"
+python3 search_speakers.py --id 42
+```
 
-### Natural Language Search System (NEW!)
-- `search_speakers.py` - **Search CLI** - Natural language speaker search interface
-- `query_parser.py` - Parse natural language queries into structured criteria
-- `embedding_engine.py` - Generate and search semantic embeddings (Voyage AI)
-- `speaker_search.py` - Search engine with semantic matching and ranking
-- `generate_embeddings.py` - Generate embeddings for all speakers (one-time setup)
+## Project Structure
 
-### Speaker Enrichment (Optional)
-- `enrich_speakers.py` - Enrich speakers with demographics/location/languages
-- `speaker_enricher.py` - Web search + AI extraction for enrichment data
-- `freshness_manager.py` - Track data staleness and manage refreshes
-- `migrate_search_tables.py` - Database migration for search tables
+```
+speaker_database/
+├── main_selenium.py              # Main scraping + extraction pipeline
+├── selenium_scraper.py           # Selenium-based web scraper
+├── speaker_extractor.py          # AI speaker extraction
+├── database.py                   # SQLite database manager
+├── speaker_search.py             # Search engine with semantic matching
+├── query_parser.py               # Natural language query parser
+├── embedding_engine.py           # OpenAI embeddings
+├── generate_embeddings.py        # Generate embeddings for speakers
+├── enrich_speakers.py            # Speaker enrichment CLI
+├── speaker_enricher.py           # AI-powered enrichment
+├── refresh_stale_speakers.py     # Automated data refresh
+├── web_app/                      # Flask web interface
+│   ├── app.py                   # Flask routes and API
+│   ├── templates/               # HTML templates
+│   └── static/                  # CSS, JS, images
+├── docs/                         # Documentation
+│   ├── DEPLOYMENT.md            # Railway deployment guide
+│   ├── PIPELINE.md              # Pipeline architecture
+│   └── SEARCH_SYSTEM.md         # Search system docs
+├── requirements.txt              # Python dependencies
+├── .env                          # API keys (create from .env.example)
+└── speakers.db                   # SQLite database (auto-created)
+```
 
-### Generated Files
-- `speakers.db` - SQLite database (created after first run, gitignored)
-- `speakers_export_*.csv` - Timestamped CSV exports (gitignored)
+## Database Schema
 
-### Configuration
-- `.env` - Your API key (create from template, gitignored)
-- `CLAUDE.md` - Instructions for Claude Code when working on this project
-- `requirements.txt` - Python dependencies
+### Core Tables
+- **events** - Event metadata, URLs, body text, processing status
+- **speakers** - Speaker profiles with fuzzy deduplication
+- **event_speakers** - Junction table with role information
+- **speaker_tags** - Expertise tags with confidence scores
 
-**Legacy files (non-functional):**
-- `main.py` - Original HTTP-based version (broken - 403 errors)
-- `scraper.py` - Original HTTP scraper (broken - 403 errors)
+### Search & Enrichment Tables
+- **speaker_embeddings** - Semantic vectors for search (1536-dim)
+- **speaker_demographics** - Gender, nationality, birth year
+- **speaker_locations** - City, country, region with confidence scores
+- **speaker_languages** - Languages spoken with proficiency levels
+- **speaker_corrections** - User-submitted corrections with AI verification
+
+## Cost Estimation
+
+### One-Time Setup
+- **Event scraping & extraction**: ~$0.20-0.50 per event (Claude Sonnet 4)
+- **Generate embeddings**: ~$0.02 for 1000 speakers (OpenAI)
+- **Initial enrichment**: ~$0.01 per speaker (Claude Haiku) - **OPTIONAL**
+
+### Ongoing Costs
+- **Query parsing**: ~$0.005 per search (Claude Haiku)
+- **Data refresh**: ~$0.01 per speaker (Claude Haiku)
+- **Embedding new speakers**: ~$0.00002 per speaker (OpenAI)
+
+### Production Deployment (Railway)
+- **Hosting**: $5/month (Railway)
+- **Automated pipeline**: Scrapes 10 events twice daily + enriches 20 speakers
+- **Total**: ~$7-9/month (includes API calls)
 
 ## Why Selenium?
 
 The Asia Society website blocks simple scrapers (403 Forbidden error). Selenium solves this by:
-
 - Opening a real Chrome browser
 - Navigating like a human would
 - Executing JavaScript on the page
 - Looking completely legitimate to the website
 
-It's a bit slower than simple HTTP requests, but it actually works!
-
-## Database Structure
-
-### Core Tables
-
-**Events Table**
-- Event ID, URL, title, date, location
-- Full body text and raw HTML
-- Processing status
-
-**Speakers Table**
-- Speaker ID, name, title, affiliation
-- Biographical info
-- First seen / last updated dates
-
-**Event-Speakers Table**
-- Links speakers to events
-- Stores role in event (keynote, panelist, moderator, etc.)
-
-**Speaker Tags Table**
-- Expertise tags with confidence scores
-- Source tracking (web_search, manual, etc.)
-
-### Search System Tables (NEW!)
-
-**Speaker Embeddings**
-- Semantic embeddings for each speaker (1024-dim vectors)
-- Embedding text and model version
-- Used for semantic similarity search
-
-**Speaker Demographics**
-- Gender, nationality, birth year
-- Confidence scores for each field
-- Enrichment timestamp
-
-**Speaker Locations**
-- City, country, region
-- Location type (residence, workplace)
-- Primary location flag and confidence scores
-
-**Speaker Languages**
-- Languages spoken with proficiency levels
-- Confidence scores and source tracking
-
-**Speaker Freshness**
-- Staleness scores and refresh priorities
-- Last enrichment date and next refresh date
-- Automatic refresh scheduling
-
-## Cost Estimation
-
-Using Claude Sonnet 4.5:
-- Input: ~$3 per million tokens
-- Output: ~$15 per million tokens
-
-### Real-World Costs (from 200-event build)
-
-**Typical event processing:**
-- Small event (~20k chars): ~$0.20 per event
-- Medium event (~50k chars): ~$0.30-0.40 per event
-- Large multi-panel event (~100k chars): ~$0.50 per event
-
-**Total for 200 events:** ~$60-70
-- Includes scraping, extraction, and duplicate cleanup
-- Cost scales with event complexity
-- Auto-pagination is free (just scraping, no API calls)
-
-**Speaker tagging (optional):**
-- ~$0.02-0.05 per speaker
-- For 428 speakers: ~$10-20 additional
+It's slower than simple HTTP requests, but it actually works!
 
 ## Tips
 
 1. **Start small**: Test with 3-5 events first
-2. **Watch it work**: Say 'y' when asked if you want to watch the browser on first run
+2. **Watch it work**: Chrome will run headless by default, but you can watch on first run
 3. **Review results**: Check if speaker extraction is working well
-4. **Adjust as needed**: The AI extraction can be tuned if needed
+4. **Adjust as needed**: The AI extraction is robust but can be tuned if needed
 5. **Resume anytime**: Script tracks what's been processed
 6. **View database**: Use [DB Browser for SQLite](https://sqlitebrowser.org/) to explore your data
 
@@ -417,43 +335,19 @@ Using Claude Sonnet 4.5:
 **Browser opens but nothing happens**
 - Increase wait times in `selenium_scraper.py` (change `time.sleep(2)` to `time.sleep(5)`)
 
-## Recent Achievements (January 21, 2026)
+## Documentation
 
-Successfully built comprehensive speaker database with major improvements:
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Complete Railway deployment guide
+- **[PIPELINE.md](docs/PIPELINE.md)** - Speaker identification & enrichment pipeline
+- **[SEARCH_SYSTEM.md](docs/SEARCH_SYSTEM.md)** - Search system architecture
+- **[CLAUDE.md](CLAUDE.md)** - Instructions for AI assistants working on this project
 
-### Database Built
-- ✅ 200 events from 15+ global locations
-- ✅ 428 unique speakers extracted
-- ✅ 502 speaker-event connections
-- ✅ 100% extraction success rate (0 failed events)
+## License
 
-### Technical Improvements
-- 🚀 Smart auto-pagination (automatically finds new events across pages)
-- 🚀 Fuzzy deduplication (intelligent speaker matching)
-- 🚀 Dynamic token allocation (handles large multi-panel events)
-- 🚀 Automatic duplicate cleanup after extraction
-- 🚀 Global event coverage (not region-specific)
-- 🚀 Location extraction from URLs
-
-### High-Profile Speakers Included
-Hillary Clinton, Nadia Murad, Elaine Chao, Lucy Liu, Shashi Tharoor, Padma Lakshmi, Ustad Amjad Ali Khan, Raj Subramaniam, Andy Summers, and 419 more...
-
-## Quick Command Reference
-
-```bash
-# Install everything
-pip3 install -r requirements.txt
-
-# Set up API key
-cp .env.template .env
-# (then edit .env with your key)
-
-# Run with recommended options
-python3 main_selenium.py -e 10 --stats --export
-```
+See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Last Updated:** January 21, 2026
-**Database Version:** v1.0 (200 events)
 **Built with:** Claude Code + Sonnet 4.5
+**Deployment:** Railway (automated)
+**Technologies:** Python, Selenium, Claude AI, OpenAI, SQLite, Flask
