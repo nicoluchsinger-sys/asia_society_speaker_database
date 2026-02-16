@@ -913,7 +913,7 @@ def suggest_correction(speaker_id):
         suggestion_context = data.get('context', '')
 
         # Validate field_name
-        allowed_fields = ['affiliation', 'title', 'bio', 'primary_affiliation']
+        allowed_fields = ['affiliation', 'title', 'bio', 'primary_affiliation', 'city', 'country', 'location']
         if field_name not in allowed_fields:
             return jsonify({
                 'success': False,
@@ -943,6 +943,23 @@ def suggest_correction(speaker_id):
                 current_value = bio
             elif field_name == 'primary_affiliation':
                 current_value = primary_affiliation
+            elif field_name in ['city', 'country', 'location']:
+                # Get primary location from speaker_locations table
+                locations = database.get_speaker_locations(speaker_id)
+                if locations:
+                    # locations are ordered by is_primary DESC, so first one is primary
+                    loc = locations[0]
+                    location_id, location_type, city, country, region, is_primary, confidence, source, created_at = loc
+                    if field_name == 'city':
+                        current_value = city or ''
+                    elif field_name == 'country':
+                        current_value = country or ''
+                    elif field_name == 'location':
+                        # Combine city and country for location field
+                        parts = [p for p in [city, country] if p]
+                        current_value = ', '.join(parts) if parts else ''
+                else:
+                    current_value = ''
 
             # Don't process if suggestion is same as current value
             if current_value == suggested_value:
@@ -985,7 +1002,12 @@ def suggest_correction(speaker_id):
 
             # If high confidence, apply the correction immediately
             if verified:
-                database.apply_correction(speaker_id, field_name, suggested_value)
+                if field_name in ['city', 'country', 'location']:
+                    # Handle location fields separately
+                    database.apply_location_correction(speaker_id, field_name, suggested_value)
+                else:
+                    # Handle regular fields
+                    database.apply_correction(speaker_id, field_name, suggested_value)
 
         # Return result
         return jsonify({

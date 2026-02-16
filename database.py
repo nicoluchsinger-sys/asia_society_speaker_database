@@ -1665,6 +1665,72 @@ class SpeakerDatabase:
 
         self.conn.commit()
 
+    def apply_location_correction(self, speaker_id: int, field_name: str, new_value: str) -> None:
+        """
+        Apply a verified location correction to a speaker record.
+
+        Args:
+            speaker_id: Speaker ID
+            field_name: Location field to update ('city', 'country', or 'location')
+            new_value: New value for the field
+        """
+        cursor = self.conn.cursor()
+
+        # Get existing primary location
+        locations = self.get_speaker_locations(speaker_id)
+
+        if locations:
+            # Update existing primary location
+            loc = locations[0]  # First location is primary
+            location_id, location_type, city, country, region, is_primary, confidence, source, created_at = loc
+
+            # Update based on field_name
+            if field_name == 'city':
+                city = new_value
+            elif field_name == 'country':
+                country = new_value
+            elif field_name == 'location':
+                # Parse "City, Country" format
+                parts = [p.strip() for p in new_value.split(',')]
+                if len(parts) >= 2:
+                    city = parts[0]
+                    country = parts[1]
+                elif len(parts) == 1:
+                    # If only one part, assume it's country
+                    country = parts[0]
+
+            cursor.execute('''
+                UPDATE speaker_locations
+                SET city = ?, country = ?, created_at = ?
+                WHERE location_id = ?
+            ''', (city, country, datetime.now(timezone.utc).isoformat(), location_id))
+        else:
+            # Create new primary location
+            city = None
+            country = None
+
+            if field_name == 'city':
+                city = new_value
+            elif field_name == 'country':
+                country = new_value
+            elif field_name == 'location':
+                # Parse "City, Country" format
+                parts = [p.strip() for p in new_value.split(',')]
+                if len(parts) >= 2:
+                    city = parts[0]
+                    country = parts[1]
+                elif len(parts) == 1:
+                    country = parts[0]
+
+            cursor.execute('''
+                INSERT INTO speaker_locations
+                (speaker_id, location_type, city, country, is_primary, confidence, source, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (speaker_id, 'current', city, country, 1, 0.9, 'user_correction',
+                  datetime.now(timezone.utc).isoformat()))
+
+        self.conn.commit()
+
     def get_recent_corrections(self, limit: int = 10, verified_only: bool = False) -> List[Tuple]:
         """
         Get recent corrections across all speakers.
