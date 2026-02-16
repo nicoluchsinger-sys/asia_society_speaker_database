@@ -68,6 +68,8 @@ Each update:
 
 This means newly announced Asia Society events typically appear within 12 hours.
 
+Additionally, existing speaker profile are reviewed and updated every six months.
+
 ## What information is stored for each speaker?
 
 Each speaker profile may include:
@@ -89,14 +91,11 @@ Each speaker profile may include:
 
 ## How accurate is the data?
 
-The system prioritizes **accuracy over completeness**:
+The system prioritizes **accuracy over completeness** and takes a conservative approach in profile enrichment. Only if the system has a high degree of confidence that information is accurate is it added to a profile. This means that some profiles are missing information that couldn't be verified with confidence. But this is a fully automated system that runs without human review, so it's always possible that the data contains errors or outdated information.
 
-- **Speaker Extraction**: Uses advanced AI (Claude Haiku 3) to carefully extract information from event pages, with ~95% accuracy
-- **Speaker Enrichment**: Uses Claude 3 Haiku to efficiently extract expertise tags, demographics, and location data with high accuracy while minimizing costs
-- **Deduplication**: Automatically merges duplicate entries when the same person appears at multiple events (fuzzy matching on name + affiliation)
-- **Conservative Approach**: Only adds demographic or location data when confidence is high (we won't guess)
-- **Source Tracking**: All enriched data includes confidence scores and timestamps
-- **Quality Validation**: A/B tested multiple AI models to ensure quality remains high while optimizing for cost
+## Can I update a speaker record?
+
+Yes you can suggest edits for any speaker on their profile page. The system will try to verify the information using a web search, and update the profile if it is confident the information is accurate. If verification is not possible, your suggested edit will be attached to the speaker profile as a comment.
 
 ## What technology powers this?
 
