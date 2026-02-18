@@ -1703,6 +1703,13 @@ def admin_data_quality():
         cursor.execute('SELECT COUNT(*) FROM events WHERE location IS NOT NULL AND location != ""')
         events_with_locations = cursor.fetchone()[0]
 
+        # Events processed and failed
+        cursor.execute("SELECT COUNT(*) FROM events WHERE processing_status = 'completed'")
+        events_processed = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM events WHERE processing_status = 'failed'")
+        events_failed = cursor.fetchone()[0]
+
         conn.close()
 
         # Build response matching frontend expectations
@@ -1719,7 +1726,9 @@ def admin_data_quality():
                 'with_dates': events_with_dates,
                 'with_speakers': events_with_speakers,
                 'with_descriptions': events_with_descriptions,
-                'with_locations': events_with_locations
+                'with_locations': events_with_locations,
+                'processed': events_processed,
+                'failed': events_failed
             }
         })
 
