@@ -111,7 +111,10 @@ Guidelines:
 - Location preferences without strong language = soft preference (weight 0.5-0.6)
 - Gender/demographic mentions without "must" = soft preference
 - Extract ALL relevant keywords for expertise topics
-- Return ONLY valid JSON, no other text
+
+CRITICAL: Return ONLY the JSON object. Do not include any explanatory text,
+preamble, or commentary before or after the JSON. Your response should start
+with {{ and end with }}. Nothing else.
 """
 
         # Retry logic for API overload errors
@@ -144,8 +147,18 @@ Guidelines:
                     if response_text.endswith('```'):
                         response_text = response_text[:-3]
 
+                # Extract JSON from response (Claude sometimes adds explanatory text)
+                # Find the first '{' and last '}' to extract just the JSON object
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}')
+
+                if json_start == -1 or json_end == -1:
+                    raise ValueError(f"No JSON object found in response")
+
+                json_text = response_text[json_start:json_end+1]
+
                 # Parse JSON
-                parsed = json.loads(response_text)
+                parsed = json.loads(json_text)
 
                 # Validate and normalize the structure
                 result = {
