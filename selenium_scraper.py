@@ -369,24 +369,72 @@ class SeleniumEventScraper:
 
         return event_data
 
-    def scrape_events(self, db: SpeakerDatabase, limit=None, max_pages=1):
+    def _calculate_historical_start_page(self, db: SpeakerDatabase) -> int:
         """
-        Main scraping workflow using Selenium
+        Calculate where to start historical backfill based on database size.
+
+        Formula: (events_in_db / 20) + 10
+        - Assumes ~20 events per page
+        - Adds 10-page buffer to ensure overlap with known events
+        - Automatically adjusts as database grows
+
+        Args:
+            db: SpeakerDatabase instance
+
+        Returns:
+            Starting page number for historical scraping
+        """
+        stats = db.get_statistics()
+        events_in_db = stats['total_events']
+        calculated_page = (events_in_db // 20) + 10
+
+        # Minimum page 30 to avoid re-scraping early pages
+        return max(30, calculated_page)
+
+    def scrape_events(self, db: SpeakerDatabase, limit=None, mode='new', start_page=None, max_pages='auto'):
+        """
+        Main scraping workflow with two modes:
+
+        MODE 1: 'new' - Capture newly published events
+        - Starts at page 0
+        - Stops when hitting consecutive already-scraped events
+        - Efficient for catching new publications
+
+        MODE 2: 'historical' - Backfill historical events
+        - Auto-calculates start_page based on DB size
+        - Scrapes forward from that page
+        - Gradually works through entire event history
 
         Args:
             db: SpeakerDatabase instance
             limit: Maximum number of events to scrape
-            max_pages: Maximum number of listing pages to fetch (None for all)
+            mode: 'new' or 'historical' (default: 'new')
+            start_page: Override auto-calculated start page (historical mode only)
+            max_pages: Maximum pages to check ('auto' or number)
         """
-        print("="*70)
-        print("Starting Selenium-based scrape of Asia Society events")
-        print(f"Source: {self.base_url}")
-        print("="*70)
+        # Determine starting page based on mode
+        if mode == 'new':
+            page = 0
+            print("="*70)
+            print("NEW EVENTS SCRAPER - Capturing recent publications")
+            print(f"Source: {self.base_url}")
+            print("="*70)
+        elif mode == 'historical':
+            if start_page is None:
+                page = self._calculate_historical_start_page(db)
+            else:
+                page = start_page
+            print("="*70)
+            print("HISTORICAL BACKFILL SCRAPER - Finding older events")
+            print(f"Source: {self.base_url}")
+            print(f"Starting from page {page} (auto-calculated from DB size)")
+            print("="*70)
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Must be 'new' or 'historical'")
 
         try:
             # Fetch events from listing pages (with pagination)
             all_event_links = []
-            page = 0
 
             print(f"\n1. Fetching events listing pages...")
 
@@ -397,11 +445,13 @@ class SeleniumEventScraper:
             print(f"   Database contains {len(already_scraped)} already-scraped events")
 
             consecutive_empty_pages = 0
-            max_consecutive_empty = 3  # Stop after 3 consecutive empty pages
+            consecutive_scraped_pages = 0  # Track pages with all already-scraped events (new mode)
+            max_consecutive_empty = 3
+            max_consecutive_scraped = 5  # Stop after 5 pages of all already-scraped (new mode)
 
             while True:
                 page_url = f"{self.base_url}?page={page}"
-                print(f"   Page {page + 1}: {page_url}")
+                print(f"   Page {page}: {page_url}")
                 html = self.fetch_page(page_url)
 
                 if not html:
@@ -431,19 +481,31 @@ class SeleniumEventScraper:
                 all_event_links.extend(new_links)
 
                 # Count how many are actually new (not in DB)
+                new_on_page = [l for l in page_links if l not in already_scraped]
                 new_unscraped = [l for l in all_event_links if l not in already_scraped]
-                print(f"   Found {len(new_links)} events on page (total: {len(all_event_links)}, new: {len(new_unscraped)})")
+                print(f"   Found {len(new_links)} events on page ({len(new_on_page)} new, total collected: {len(new_unscraped)})")
+
+                # MODE-SPECIFIC STOP LOGIC
+                if mode == 'new':
+                    # Stop if this page has all already-scraped events
+                    if len(new_on_page) == 0:
+                        consecutive_scraped_pages += 1
+                        if consecutive_scraped_pages >= max_consecutive_scraped:
+                            print(f"   ✓ Stopping: {consecutive_scraped_pages} consecutive pages with all already-scraped events")
+                            break
+                    else:
+                        consecutive_scraped_pages = 0
 
                 page += 1
 
-                # Stop conditions:
-                # For backfilling historical data, we need to scrape MANY pages since events
-                # aren't in strict chronological order. Don't stop just because we found enough
-                # new events - keep going to find older historical events on later pages.
-
-                # Only stop if we hit the max_pages limit (if set)
+                # Stop conditions
                 if max_pages and max_pages != 'auto' and page >= max_pages:
                     print(f"   Reached max pages limit ({max_pages})")
+                    break
+
+                # For historical mode, stop when we have enough new events
+                if mode == 'historical' and limit and len(new_unscraped) >= limit:
+                    print(f"   ✓ Found {len(new_unscraped)} new events, meeting limit")
                     break
 
                 # For auto mode, keep going until we hit consecutive empty pages

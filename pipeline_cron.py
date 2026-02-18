@@ -2,11 +2,16 @@
 Consolidated pipeline for scheduled execution on Railway
 
 Runs twice daily (6 AM/PM UTC) to:
-1. Scrape 20 new events
+1. Scrape 20 events using TWO-PHASE strategy:
+   - Phase 1: NEW events (pages 0-5, captures recent publications)
+   - Phase 2: HISTORICAL backfill (auto-calculated start page, works through history)
 2. Extract speakers from new events
 3. Generate embeddings for new speakers
 4. Enrich NEW speakers first (priority)
 5. Enrich 20 existing speakers (backfill)
+
+Two-phase scraping handles dynamic pagination where new events push older
+ones to higher page numbers. Historical scraper auto-adjusts based on DB size.
 
 Designed to complete within 25 minutes to fit Railway's execution limits.
 Tracks API costs and logs progress.
@@ -101,31 +106,57 @@ def log(message):
     print(f"[{timestamp}] {message}")
 
 
-def scrape_events(db, event_limit=10):
+def scrape_events(db, event_limit=20):
     """
-    Scrape new events from Asia Society
+    Two-phase scraping strategy:
+    1. NEW EVENTS: Capture recently published events (pages 0-N)
+    2. HISTORICAL BACKFILL: Systematically fill in historical events
 
     Returns:
-        int: Number of events scraped
+        int: Total number of events scraped
     """
-    log(f"Starting scraping of {event_limit} events...")
+    log(f"Starting two-phase scraping (target: {event_limit} events total)...")
 
-    scraper = SeleniumEventScraper()
+    total_scraped = 0
+
+    # PHASE 1: Scrape new events (recent publications)
+    log("Phase 1: Scraping new events...")
+    scraper_new = SeleniumEventScraper()
     try:
-        scraped_count = scraper.scrape_events(
+        new_count = scraper_new.scrape_events(
             db=db,
-            limit=event_limit,
-            max_pages='auto'
+            limit=None,  # No limit - get all new events
+            mode='new',
+            max_pages=5  # Check first 5 pages max
         )
-
-        log(f"Scraping complete: {scraped_count} new events")
-        return scraped_count
-
+        total_scraped += new_count
+        log(f"  → Found {new_count} new events")
     except Exception as e:
-        log(f"ERROR during scraping: {e}")
-        return 0
+        log(f"  ERROR in new events scraper: {e}")
     finally:
-        scraper.close()
+        scraper_new.close()
+
+    # PHASE 2: Historical backfill (if we haven't met limit yet)
+    remaining = event_limit - total_scraped
+    if remaining > 0:
+        log(f"Phase 2: Historical backfill ({remaining} events needed)...")
+        scraper_historical = SeleniumEventScraper()
+        try:
+            historical_count = scraper_historical.scrape_events(
+                db=db,
+                limit=remaining,
+                mode='historical',
+                max_pages='auto'
+            )
+            total_scraped += historical_count
+            log(f"  → Found {historical_count} historical events")
+        except Exception as e:
+            log(f"  ERROR in historical scraper: {e}")
+        finally:
+            scraper_historical.close()
+
+    log(f"Scraping complete: {total_scraped} total events ({new_count} new + {total_scraped - new_count} historical)")
+    return total_scraped
 
 
 def extract_speakers(db):
