@@ -1472,7 +1472,7 @@ def admin_user_activity():
 
         # Get most viewed speakers (speakers with most events)
         cursor.execute('''
-            SELECT s.name, s.current_affiliation, COUNT(es.event_id) as event_count
+            SELECT s.name, s.affiliation, COUNT(es.event_id) as event_count
             FROM speakers s
             JOIN event_speakers es ON s.speaker_id = es.speaker_id
             GROUP BY s.speaker_id
@@ -1688,12 +1688,12 @@ def admin_data_quality():
         cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_tags')
         speakers_with_tags = cursor.fetchone()[0]
 
-        # Speakers with demographics (gender)
-        cursor.execute('SELECT COUNT(*) FROM speakers WHERE gender IS NOT NULL AND gender != ""')
+        # Speakers with demographics (from speaker_demographics table)
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_demographics')
         speakers_with_demographics = cursor.fetchone()[0]
 
-        # Speakers with locations (current_location)
-        cursor.execute('SELECT COUNT(*) FROM speakers WHERE current_location IS NOT NULL AND current_location != ""')
+        # Speakers with locations (from speaker_locations table)
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_locations')
         speakers_with_locations = cursor.fetchone()[0]
 
         # Event completeness metrics
