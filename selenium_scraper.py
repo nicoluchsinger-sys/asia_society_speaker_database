@@ -436,16 +436,18 @@ class SeleniumEventScraper:
 
                 page += 1
 
-                # Stop conditions (in priority order):
-                # 1. Have enough new events to meet the limit (if set) - stop early
-                # 2. Reached max pages limit (if set) - hard stop
-                if limit and len(new_unscraped) >= limit:
-                    print(f"   Found {len(new_unscraped)} new events, meeting limit of {limit}")
-                    break
+                # Stop conditions:
+                # For backfilling historical data, we need to scrape MANY pages since events
+                # aren't in strict chronological order. Don't stop just because we found enough
+                # new events - keep going to find older historical events on later pages.
 
+                # Only stop if we hit the max_pages limit (if set)
                 if max_pages and max_pages != 'auto' and page >= max_pages:
                     print(f"   Reached max pages limit ({max_pages})")
                     break
+
+                # For auto mode, keep going until we hit consecutive empty pages
+                # (handled by consecutive_empty_pages logic above)
 
                 time.sleep(1)  # Brief pause between listing pages
 
