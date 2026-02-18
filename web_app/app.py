@@ -383,7 +383,7 @@ def api_search():
         database = get_db()
         database.log_search(
             query=query,
-            ip_address=request.remote_addr,
+            ip_address=get_real_ip(),  # Get real client IP, not proxy IP
             results_count=len(formatted_results),
             execution_time_ms=execution_time
         )
@@ -1408,6 +1408,22 @@ def admin_recent_searches():
     except Exception as e:
         logger.error(f"Recent searches error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+def get_real_ip() -> str:
+    """Get real client IP address, handling proxies like Railway"""
+    # Check X-Forwarded-For header (set by Railway and other proxies)
+    if request.headers.get('X-Forwarded-For'):
+        # X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+        # The first one is the real client IP
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+
+    # Check X-Real-IP header (alternative header some proxies use)
+    if request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP').strip()
+
+    # Fallback to remote_addr (will be proxy IP if behind a proxy)
+    return request.remote_addr
 
 
 def get_ip_location(ip: str) -> str:
