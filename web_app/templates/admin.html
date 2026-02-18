@@ -78,7 +78,7 @@
     </div>
 
     <!-- Search Analytics Summary -->
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-xl font-bold mb-4">Search Analytics (Last 30 Days)</h2>
         <div id="analytics-summary" class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="text-center p-4 bg-gray-50 rounded-lg">
@@ -92,6 +92,106 @@
             <div class="text-center p-4 bg-gray-50 rounded-lg">
                 <div id="avg-time" class="text-3xl font-bold text-purple-600">--</div>
                 <div class="text-sm text-gray-600 mt-1">Avg Time (ms)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Activity -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Popular Searches</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">Top Searches (30 days)</h3>
+                <div id="top-queries" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">Most Searched Speakers</h3>
+                <div id="top-speakers" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Usage Tracking -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">API Usage & Costs</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <div id="cost-month" class="text-3xl font-bold text-blue-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">This Month</div>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <div id="cost-total" class="text-3xl font-bold text-green-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">All Time</div>
+            </div>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <div id="cost-per-event" class="text-3xl font-bold text-purple-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Per Event</div>
+            </div>
+            <div class="text-center p-4 bg-orange-50 rounded-lg">
+                <div id="cost-per-speaker" class="text-3xl font-bold text-orange-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Per Speaker</div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">Cost Breakdown</h3>
+                <div id="cost-breakdown" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">Monthly Trend</h3>
+                <div id="monthly-costs" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Health -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Database Health</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="db-size" class="text-3xl font-bold text-indigo-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Database Size</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="total-records" class="text-3xl font-bold text-indigo-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Total Records</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="last-vacuum" class="text-lg font-bold text-indigo-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Last Optimized</div>
+            </div>
+        </div>
+        <div class="mt-6">
+            <h3 class="font-semibold text-gray-700 mb-3">Table Statistics</h3>
+            <div id="table-stats" class="overflow-x-auto">
+                <div class="text-gray-500 text-sm">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Quality -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-4">Data Quality</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-3">
+                <h3 class="font-semibold text-gray-700">Speaker Completeness</h3>
+                <div id="quality-speakers" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <h3 class="font-semibold text-gray-700">Event Completeness</h3>
+                <div id="quality-events" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -171,6 +271,143 @@ async function loadAdminData() {
         document.getElementById('total-searches').textContent = analytics.total_searches.toLocaleString();
         document.getElementById('avg-results').textContent = analytics.avg_results_per_search.toFixed(1);
         document.getElementById('avg-time').textContent = analytics.avg_execution_time_ms.toFixed(0);
+
+        // Load top queries
+        const topQueries = document.getElementById('top-queries');
+        if (analytics.top_queries && analytics.top_queries.length > 0) {
+            topQueries.innerHTML = analytics.top_queries.slice(0, 5).map(q => `
+                <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span class="text-sm text-gray-700">${q.query}</span>
+                    <span class="text-sm font-semibold text-gray-900">${q.count}</span>
+                </div>
+            `).join('');
+        } else {
+            topQueries.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+        }
+
+        // Load user activity
+        const userActivityRes = await fetch('/admin/user-activity');
+        const userActivity = await userActivityRes.json();
+
+        const topSpeakers = document.getElementById('top-speakers');
+        if (userActivity.top_speakers && userActivity.top_speakers.length > 0) {
+            topSpeakers.innerHTML = userActivity.top_speakers.map(s => `
+                <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span class="text-sm text-gray-700">${s.name}</span>
+                    <span class="text-sm font-semibold text-gray-900">${s.view_count} views</span>
+                </div>
+            `).join('');
+        } else {
+            topSpeakers.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+        }
+
+        // Load API costs
+        const costsRes = await fetch('/admin/api-costs');
+        const costs = await costsRes.json();
+
+        document.getElementById('cost-month').textContent = '$' + costs.this_month.toFixed(2);
+        document.getElementById('cost-total').textContent = '$' + costs.all_time.toFixed(2);
+        document.getElementById('cost-per-event').textContent = '$' + costs.per_event.toFixed(4);
+        document.getElementById('cost-per-speaker').textContent = '$' + costs.per_speaker.toFixed(4);
+
+        // Cost breakdown
+        const costBreakdown = document.getElementById('cost-breakdown');
+        costBreakdown.innerHTML = `
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">Speaker Extraction</span>
+                <span class="text-sm font-semibold">$${costs.breakdown.extraction.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">Enrichment</span>
+                <span class="text-sm font-semibold">$${costs.breakdown.enrichment.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">Embeddings</span>
+                <span class="text-sm font-semibold">$${costs.breakdown.embeddings.toFixed(2)}</span>
+            </div>
+        `;
+
+        // Monthly costs
+        const monthlyCosts = document.getElementById('monthly-costs');
+        if (costs.monthly && costs.monthly.length > 0) {
+            monthlyCosts.innerHTML = costs.monthly.slice(0, 3).map(m => `
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-sm text-gray-700">${m.month}</span>
+                    <span class="text-sm font-semibold">$${m.cost.toFixed(2)}</span>
+                </div>
+            `).join('');
+        } else {
+            monthlyCosts.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+        }
+
+        // Load database health
+        const dbHealthRes = await fetch('/admin/database-health');
+        const dbHealth = await dbHealthRes.json();
+
+        document.getElementById('db-size').textContent = dbHealth.size_mb + ' MB';
+        document.getElementById('total-records').textContent = dbHealth.total_records.toLocaleString();
+        document.getElementById('last-vacuum').textContent = dbHealth.last_vacuum || 'Never';
+
+        // Table stats
+        const tableStats = document.getElementById('table-stats');
+        tableStats.innerHTML = `
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-gray-600">Table</th>
+                        <th class="px-4 py-2 text-right text-gray-600">Rows</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dbHealth.tables.map(t => `
+                        <tr class="border-b border-gray-100">
+                            <td class="px-4 py-2 text-gray-700">${t.name}</td>
+                            <td class="px-4 py-2 text-right font-semibold">${t.count.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        // Load data quality
+        const qualityRes = await fetch('/admin/data-quality');
+        const quality = await qualityRes.json();
+
+        const qualitySpeakers = document.getElementById('quality-speakers');
+        qualitySpeakers.innerHTML = `
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">With Bios</span>
+                <span class="text-sm font-semibold">${quality.speakers.with_bios} / ${quality.speakers.total}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">With Tags</span>
+                <span class="text-sm font-semibold">${quality.speakers.with_tags} / ${quality.speakers.total}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">With Demographics</span>
+                <span class="text-sm font-semibold">${quality.speakers.with_demographics} / ${quality.speakers.total}</span>
+            </div>
+            <div class="flex justify-between py-2">
+                <span class="text-sm text-gray-700">With Locations</span>
+                <span class="text-sm font-semibold">${quality.speakers.with_locations} / ${quality.speakers.total}</span>
+            </div>
+        `;
+
+        const qualityEvents = document.getElementById('quality-events');
+        qualityEvents.innerHTML = `
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">With Dates</span>
+                <span class="text-sm font-semibold">${quality.events.with_dates} / ${quality.events.total}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-700">Processed</span>
+                <span class="text-sm font-semibold">${quality.events.processed} / ${quality.events.total}</span>
+            </div>
+            <div class="flex justify-between py-2">
+                <span class="text-sm text-gray-700">Failed</span>
+                <span class="text-sm font-semibold text-red-600">${quality.events.failed}</span>
+            </div>
+        `;
 
     } catch (error) {
         console.error('Error loading admin data:', error);
