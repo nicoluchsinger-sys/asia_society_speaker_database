@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
+        <p class="text-gray-600">System monitoring and management</p>
+    </div>
+
+    <!-- Pipeline Status -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Pipeline Status</h2>
+        <div id="pipeline-status" class="space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-gray-700">Status:</span>
+                <span id="status-badge" class="px-3 py-1 rounded-full text-sm font-medium">Loading...</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-gray-700">Last Run:</span>
+                <span id="last-run" class="text-gray-900">--</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-gray-700">Next Scheduled:</span>
+                <span class="text-gray-900">6:00 AM & 6:00 PM UTC (twice daily)</span>
+            </div>
+        </div>
+        <button id="trigger-pipeline"
+                class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+            Manually Trigger Pipeline Run
+        </button>
+        <div id="trigger-result" class="mt-3 hidden"></div>
+    </div>
+
+    <!-- Recent Pipeline Runs -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Recent Pipeline Runs (Last 10)</h2>
+        <div id="recent-runs" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Events</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Speakers</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="runs-table-body" class="bg-white divide-y divide-gray-200">
+                    <tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Searches -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Recent Searches (Last 10)</h2>
+        <div id="recent-searches" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Query</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Results</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                    </tr>
+                </thead>
+                <tbody id="searches-table-body" class="bg-white divide-y divide-gray-200">
+                    <tr><td colspan="5" class="px-4 py-3 text-center text-gray-500">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Search Analytics Summary -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-4">Search Analytics (Last 30 Days)</h2>
+        <div id="analytics-summary" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="total-searches" class="text-3xl font-bold text-blue-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Total Searches</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="avg-results" class="text-3xl font-bold text-green-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Avg Results/Search</div>
+            </div>
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div id="avg-time" class="text-3xl font-bold text-purple-600">--</div>
+                <div class="text-sm text-gray-600 mt-1">Avg Time (ms)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load admin data
+async function loadAdminData() {
+    try {
+        // Load pipeline status
+        const statusRes = await fetch('/admin/pipeline-status');
+        const status = await statusRes.json();
+
+        const statusBadge = document.getElementById('status-badge');
+        const lastRun = document.getElementById('last-run');
+
+        if (status.is_running) {
+            statusBadge.textContent = 'Running';
+            statusBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800';
+        } else if (status.has_errors) {
+            statusBadge.textContent = 'Error';
+            statusBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800';
+        } else {
+            statusBadge.textContent = 'Idle';
+            statusBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800';
+        }
+
+        lastRun.textContent = status.last_run || 'Never';
+
+        // Load recent runs
+        const runsRes = await fetch('/admin/recent-runs');
+        const runs = await runsRes.json();
+
+        const runsBody = document.getElementById('runs-table-body');
+        if (runs.length === 0) {
+            runsBody.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">No pipeline runs yet</td></tr>';
+        } else {
+            runsBody.innerHTML = runs.map(run => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-900">${run.timestamp}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${run.events_scraped}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${run.speakers_extracted}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${run.duration}s</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">$${run.total_cost.toFixed(4)}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${run.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${run.success ? 'Success' : 'Failed'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Load recent searches
+        const searchesRes = await fetch('/admin/recent-searches');
+        const searches = await searchesRes.json();
+
+        const searchesBody = document.getElementById('searches-table-body');
+        if (searches.length === 0) {
+            searchesBody.innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-center text-gray-500">No searches yet</td></tr>';
+        } else {
+            searchesBody.innerHTML = searches.map(search => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-900">${search.timestamp}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900 font-medium">${search.query}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${search.result_count}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 font-mono">${search.ip_address}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${search.location || 'Unknown'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Load analytics summary
+        const analyticsRes = await fetch('/api/search-analytics?days=30');
+        const analytics = await analyticsRes.json();
+
+        document.getElementById('total-searches').textContent = analytics.total_searches.toLocaleString();
+        document.getElementById('avg-results').textContent = analytics.avg_results_per_search.toFixed(1);
+        document.getElementById('avg-time').textContent = analytics.avg_execution_time_ms.toFixed(0);
+
+    } catch (error) {
+        console.error('Error loading admin data:', error);
+    }
+}
+
+// Manual pipeline trigger
+document.getElementById('trigger-pipeline').addEventListener('click', async function() {
+    const button = this;
+    const result = document.getElementById('trigger-result');
+
+    button.disabled = true;
+    button.textContent = 'Starting pipeline...';
+
+    try {
+        const res = await fetch('/admin/run-pipeline', { method: 'POST' });
+        const data = await res.json();
+
+        result.className = 'mt-3 p-3 rounded-lg ' + (data.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        result.textContent = data.message;
+        result.classList.remove('hidden');
+
+        // Reload data after a delay
+        setTimeout(loadAdminData, 2000);
+    } catch (error) {
+        result.className = 'mt-3 p-3 rounded-lg bg-red-100 text-red-800';
+        result.textContent = 'Error triggering pipeline: ' + error.message;
+        result.classList.remove('hidden');
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Manually Trigger Pipeline Run';
+    }
+});
+
+// Load data on page load
+loadAdminData();
+
+// Auto-refresh every 30 seconds
+setInterval(loadAdminData, 30000);
+</script>
+{% endblock %}

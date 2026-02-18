@@ -1258,6 +1258,181 @@ def api_search_analytics():
         }), 500
 
 
+@app.route('/admin')
+@login_required
+def admin_panel():
+    """Consolidated admin panel - not linked from menu, direct URL only"""
+    return render_template('admin.html')
+
+
+@app.route('/admin/pipeline-status')
+@login_required
+def admin_pipeline_status():
+    """Get current pipeline status"""
+    import sqlite3
+    from datetime import datetime, timezone
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Check if pipeline is running
+        cursor.execute('SELECT is_locked, locked_at FROM pipeline_lock WHERE lock_id = 1')
+        lock_row = cursor.fetchone()
+        is_running = bool(lock_row[0]) if lock_row else False
+
+        # Get last pipeline run
+        cursor.execute('''
+            SELECT timestamp, success FROM pipeline_runs
+            ORDER BY run_id DESC LIMIT 1
+        ''')
+        last_run_row = cursor.fetchone()
+
+        # Check for errors in recent runs
+        cursor.execute('''
+            SELECT COUNT(*) FROM pipeline_runs
+            WHERE success = 0 AND timestamp > datetime('now', '-24 hours')
+        ''')
+        error_count = cursor.fetchone()[0]
+
+        conn.close()
+
+        # Format last run time
+        last_run = None
+        if last_run_row:
+            try:
+                dt = datetime.fromisoformat(last_run_row[0])
+                last_run = dt.strftime('%Y-%m-%d %H:%M UTC')
+            except:
+                last_run = last_run_row[0]
+
+        return jsonify({
+            'is_running': is_running,
+            'has_errors': error_count > 0,
+            'error_count_24h': error_count,
+            'last_run': last_run
+        })
+
+    except Exception as e:
+        logger.error(f"Pipeline status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/recent-runs')
+@login_required
+def admin_recent_runs():
+    """Get last 10 pipeline runs"""
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT timestamp, events_scraped, speakers_extracted,
+                   duration_seconds, total_cost, success
+            FROM pipeline_runs
+            ORDER BY run_id DESC
+            LIMIT 10
+        ''')
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        runs = []
+        for row in rows:
+            try:
+                dt = datetime.fromisoformat(row[0])
+                timestamp_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+            except:
+                timestamp_str = row[0]
+
+            runs.append({
+                'timestamp': timestamp_str,
+                'events_scraped': row[1] or 0,
+                'speakers_extracted': row[2] or 0,
+                'duration': round(row[3] or 0, 1),
+                'total_cost': row[4] or 0,
+                'success': bool(row[5])
+            })
+
+        return jsonify(runs)
+
+    except Exception as e:
+        logger.error(f"Recent runs error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/recent-searches')
+@login_required
+def admin_recent_searches():
+    """Get last 10 searches with IP addresses"""
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get recent searches (search_queries table has IP tracking)
+        cursor.execute('''
+            SELECT query_text, result_count, execution_time_ms,
+                   ip_address, created_at
+            FROM search_queries
+            ORDER BY query_id DESC
+            LIMIT 10
+        ''')
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        searches = []
+        for row in rows:
+            try:
+                dt = datetime.fromisoformat(row[4])
+                timestamp_str = dt.strftime('%Y-%m-%d %H:%M UTC')
+            except:
+                timestamp_str = row[4] if row[4] else 'Unknown'
+
+            # Simple location from IP (just show IP for now, can add geoIP later)
+            ip = row[3] if row[3] else 'Unknown'
+            location = get_ip_location(ip) if ip != 'Unknown' else 'Unknown'
+
+            searches.append({
+                'timestamp': timestamp_str,
+                'query': row[0] or '',
+                'result_count': row[1] or 0,
+                'ip_address': ip,
+                'location': location
+            })
+
+        return jsonify(searches)
+
+    except Exception as e:
+        logger.error(f"Recent searches error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def get_ip_location(ip: str) -> str:
+    """Get approximate location from IP address"""
+    try:
+        # Simple check for local/private IPs
+        if ip.startswith('127.') or ip.startswith('192.168.') or ip.startswith('10.'):
+            return 'Local'
+        if ip.startswith('100.64.'):  # Railway internal
+            return 'Railway (Internal)'
+
+        # For production, you could use ipapi.co or similar free service
+        # For now, just return 'Unknown'
+        return 'Unknown'
+    except:
+        return 'Unknown'
+
+
 @app.route('/admin/reset-costs', methods=['POST'])
 @login_required
 def reset_api_costs():
