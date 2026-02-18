@@ -1371,12 +1371,12 @@ def admin_recent_searches():
         conn = sqlite3.connect(db_path, timeout=5.0)
         cursor = conn.cursor()
 
-        # Get recent searches (search_queries table has IP tracking)
+        # Get recent searches from search_logs table
         cursor.execute('''
-            SELECT query_text, result_count, execution_time_ms,
-                   ip_address, created_at
-            FROM search_queries
-            ORDER BY query_id DESC
+            SELECT query, results_count, execution_time_ms,
+                   ip_address, timestamp
+            FROM search_logs
+            ORDER BY log_id DESC
             LIMIT 10
         ''')
 
@@ -1439,10 +1439,10 @@ def admin_user_activity():
 
         # Get top 10 searches by frequency
         cursor.execute('''
-            SELECT query_text, COUNT(*) as search_count
-            FROM search_queries
-            WHERE query_text IS NOT NULL AND query_text != ''
-            GROUP BY query_text
+            SELECT query, COUNT(*) as search_count
+            FROM search_logs
+            WHERE query IS NOT NULL AND query != ''
+            GROUP BY query
             ORDER BY search_count DESC
             LIMIT 10
         ''')
@@ -1597,7 +1597,7 @@ def admin_database_health():
         cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
         embedding_count = cursor.fetchone()[0]
 
-        cursor.execute('SELECT COUNT(*) FROM search_queries')
+        cursor.execute('SELECT COUNT(*) FROM search_logs')
         search_count = cursor.fetchone()[0]
 
         # Check for events pending extraction
@@ -1631,7 +1631,7 @@ def admin_database_health():
             {'name': 'Speakers', 'count': speaker_count},
             {'name': 'Event Speakers', 'count': event_speaker_count},
             {'name': 'Embeddings', 'count': embedding_count},
-            {'name': 'Search Queries', 'count': search_count}
+            {'name': 'Search Logs', 'count': search_count}
         ]
 
         return jsonify({
