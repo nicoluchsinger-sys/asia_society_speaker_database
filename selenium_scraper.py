@@ -13,9 +13,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from bs4 import BeautifulSoup
 import time
+import logging
 from datetime import datetime
 import re
 from database import SpeakerDatabase
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class SeleniumEventScraper:
@@ -56,13 +60,13 @@ class SeleniumEventScraper:
         try:
             # Selenium 4.6+ can auto-download the driver
             self.driver = webdriver.Chrome(options=chrome_options)
-            print("✓ Chrome WebDriver initialized successfully")
+            logger.info("✓ Chrome WebDriver initialized successfully")
         except Exception as e:
-            print(f"❌ Error initializing Chrome WebDriver: {e}")
-            print("\nTroubleshooting:")
-            print("1. Make sure Chrome browser is installed")
-            print("2. Try: pip3 install --upgrade selenium")
-            print("3. If issues persist, you may need to download ChromeDriver manually")
+            logger.error(f"❌ Error initializing Chrome WebDriver: {e}")
+            logger.info("\nTroubleshooting:")
+            logger.info("1. Make sure Chrome browser is installed")
+            logger.info("2. Try: pip3 install --upgrade selenium")
+            logger.info("3. If issues persist, you may need to download ChromeDriver manually")
             raise
 
     def fetch_page(self, url, wait_time=5):
@@ -74,7 +78,7 @@ class SeleniumEventScraper:
             wait_time: Seconds to wait for page to load
         """
         try:
-            print(f"   Loading: {url}")
+            logger.info(f"   Loading: {url}")
             self.driver.get(url)
 
             # Wait for page to load (wait for body tag)
@@ -88,10 +92,10 @@ class SeleniumEventScraper:
             return self.driver.page_source
 
         except TimeoutException:
-            print(f"   ⚠ Timeout loading page")
+            logger.warning(f"   ⚠ Timeout loading page")
             return None
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            logger.error(f"   ❌ Error: {e}")
             return None
 
     def extract_event_links(self, html):
@@ -415,20 +419,20 @@ class SeleniumEventScraper:
         # Determine starting page based on mode
         if mode == 'new':
             page = 0
-            print("="*70)
-            print("NEW EVENTS SCRAPER - Capturing recent publications")
-            print(f"Source: {self.base_url}")
-            print("="*70)
+            logger.info("="*70)
+            logger.info("NEW EVENTS SCRAPER - Capturing recent publications")
+            logger.info(f"Source: {self.base_url}")
+            logger.info("="*70)
         elif mode == 'historical':
             if start_page is None:
                 page = self._calculate_historical_start_page(db)
             else:
                 page = start_page
-            print("="*70)
-            print("HISTORICAL BACKFILL SCRAPER - Finding older events")
-            print(f"Source: {self.base_url}")
-            print(f"Starting from page {page} (auto-calculated from DB size)")
-            print("="*70)
+            logger.info("="*70)
+            logger.info("HISTORICAL BACKFILL SCRAPER - Finding older events")
+            logger.info(f"Source: {self.base_url}")
+            logger.info(f"Starting from page {page} (auto-calculated from DB size)")
+            logger.info("="*70)
         else:
             raise ValueError(f"Invalid mode: {mode}. Must be 'new' or 'historical'")
 
@@ -436,13 +440,13 @@ class SeleniumEventScraper:
             # Fetch events from listing pages (with pagination)
             all_event_links = []
 
-            print(f"\n1. Fetching events listing pages...")
+            logger.info(f"\n1. Fetching events listing pages...")
 
             # Get already-scraped URLs from database
             cursor = db.conn.cursor()
             cursor.execute('SELECT url FROM events')
             already_scraped = set(row[0] for row in cursor.fetchall())
-            print(f"   Database contains {len(already_scraped)} already-scraped events")
+            logger.info(f"   Database contains {len(already_scraped)} already-scraped events")
 
             consecutive_empty_pages = 0
             consecutive_scraped_pages = 0  # Track pages with all already-scraped events (new mode)
@@ -451,14 +455,14 @@ class SeleniumEventScraper:
 
             while True:
                 page_url = f"{self.base_url}?page={page}"
-                print(f"   Page {page}: {page_url}")
+                logger.info(f"   Page {page}: {page_url}")
                 html = self.fetch_page(page_url)
 
                 if not html:
-                    print("   ❌ Failed to fetch page")
+                    logger.error("   ❌ Failed to fetch page")
                     consecutive_empty_pages += 1
                     if consecutive_empty_pages >= max_consecutive_empty:
-                        print(f"   Stopping after {consecutive_empty_pages} consecutive failures")
+                        logger.info(f"   Stopping after {consecutive_empty_pages} consecutive failures")
                         break
                     page += 1
                     continue
@@ -466,10 +470,10 @@ class SeleniumEventScraper:
                 # Extract event links from this page
                 page_links = self.extract_event_links(html)
                 if not page_links:
-                    print("   No events found on this page")
+                    logger.info("   No events found on this page")
                     consecutive_empty_pages += 1
                     if consecutive_empty_pages >= max_consecutive_empty:
-                        print(f"   Stopping after {consecutive_empty_pages} consecutive empty pages")
+                        logger.info(f"   Stopping after {consecutive_empty_pages} consecutive empty pages")
                         break
                     page += 1
                     continue
@@ -483,7 +487,7 @@ class SeleniumEventScraper:
                 # Count how many are actually new (not in DB)
                 new_on_page = [l for l in page_links if l not in already_scraped]
                 new_unscraped = [l for l in all_event_links if l not in already_scraped]
-                print(f"   Found {len(new_links)} events on page ({len(new_on_page)} new, total collected: {len(new_unscraped)})")
+                logger.info(f"   Found {len(new_links)} events on page ({len(new_on_page)} new, total collected: {len(new_unscraped)})")
 
                 # MODE-SPECIFIC STOP LOGIC
                 if mode == 'new':
@@ -491,7 +495,7 @@ class SeleniumEventScraper:
                     if len(new_on_page) == 0:
                         consecutive_scraped_pages += 1
                         if consecutive_scraped_pages >= max_consecutive_scraped:
-                            print(f"   ✓ Stopping: {consecutive_scraped_pages} consecutive pages with all already-scraped events")
+                            logger.info(f"   ✓ Stopping: {consecutive_scraped_pages} consecutive pages with all already-scraped events")
                             break
                     else:
                         consecutive_scraped_pages = 0
@@ -500,12 +504,12 @@ class SeleniumEventScraper:
 
                 # Stop conditions
                 if max_pages and max_pages != 'auto' and page >= max_pages:
-                    print(f"   Reached max pages limit ({max_pages})")
+                    logger.info(f"   Reached max pages limit ({max_pages})")
                     break
 
                 # For historical mode, stop when we have enough new events
                 if mode == 'historical' and limit and len(new_unscraped) >= limit:
-                    print(f"   ✓ Found {len(new_unscraped)} new events, meeting limit")
+                    logger.info(f"   ✓ Found {len(new_unscraped)} new events, meeting limit")
                     break
 
                 # For auto mode, keep going until we hit consecutive empty pages
@@ -515,34 +519,34 @@ class SeleniumEventScraper:
 
             # Filter to only new events
             new_event_links = [l for l in all_event_links if l not in already_scraped]
-            print(f"\n2. Total unique events found: {len(all_event_links)} ({len(new_event_links)} new)")
+            logger.info(f"\n2. Total unique events found: {len(all_event_links)} ({len(new_event_links)} new)")
 
             event_links = new_event_links
             if limit and len(event_links) > limit:
                 event_links = event_links[:limit]
-                print(f"   Limiting to {limit} new events for this run")
+                logger.info(f"   Limiting to {limit} new events for this run")
             elif len(event_links) == 0:
-                print(f"   No new events to scrape!")
+                logger.info(f"   No new events to scrape!")
             else:
-                print(f"   Will scrape {len(event_links)} new events")
+                logger.info(f"   Will scrape {len(event_links)} new events")
 
             # Scrape each event
-            print(f"\n3. Scraping individual event pages...")
+            logger.info(f"\n3. Scraping individual event pages...")
             scraped_count = 0
 
             for i, event_url in enumerate(event_links, 1):
-                print(f"\n   [{i}/{len(event_links)}]")
+                logger.info(f"\n   [{i}/{len(event_links)}]")
 
                 event_html = self.fetch_page(event_url)
                 if not event_html:
-                    print("      ⚠ Failed to fetch")
+                    logger.warning("      ⚠ Failed to fetch")
                     continue
 
                 # Parse event data
                 event_data = self.parse_event_page(event_html, event_url)
 
                 if not event_data['body_text'] or len(event_data['body_text']) < 100:
-                    print("      ⚠ Insufficient content found")
+                    logger.warning("      ⚠ Insufficient content found")
                     continue
 
                 # Save to database
@@ -555,23 +559,23 @@ class SeleniumEventScraper:
                         event_date=event_data['event_date'],
                         location=event_data['location']
                     )
-                    print(f"      ✓ Saved (Event ID: {event_id})")
-                    print(f"        Title: {event_data['title'][:60]}...")
-                    print(f"        Location: {event_data['location']}")
+                    logger.info(f"      ✓ Saved (Event ID: {event_id})")
+                    logger.info(f"        Title: {event_data['title'][:60]}...")
+                    logger.info(f"        Location: {event_data['location']}")
                     if event_data['event_date']:
-                        print(f"        Date: {event_data['event_date']}")
-                    print(f"        Content length: {len(event_data['body_text'])} chars")
+                        logger.info(f"        Date: {event_data['event_date']}")
+                    logger.info(f"        Content length: {len(event_data['body_text'])} chars")
                     scraped_count += 1
 
                 except Exception as e:
-                    print(f"      ❌ Database error: {e}")
+                    logger.error(f"      ❌ Database error: {e}")
 
                 # Be polite - wait between requests
                 time.sleep(2)
 
-            print("\n" + "="*70)
-            print(f"Scraping complete: {scraped_count} events saved to database")
-            print("="*70)
+            logger.info("\n" + "="*70)
+            logger.info(f"Scraping complete: {scraped_count} events saved to database")
+            logger.info("="*70)
 
             return scraped_count
 
@@ -583,7 +587,7 @@ class SeleniumEventScraper:
         """Close the browser"""
         if self.driver:
             self.driver.quit()
-            print("\n✓ Browser closed")
+            logger.info("\n✓ Browser closed")
 
     def __enter__(self):
         return self
@@ -594,8 +598,8 @@ class SeleniumEventScraper:
 
 if __name__ == "__main__":
     # Test the Selenium scraper
-    print("Testing Selenium Scraper")
-    print("If you want to watch the browser work, change headless=False")
+    logger.info("Testing Selenium Scraper")
+    logger.info("If you want to watch the browser work, change headless=False")
     print()
 
     with SpeakerDatabase() as db:
@@ -608,7 +612,7 @@ if __name__ == "__main__":
 
         # Show statistics
         stats = db.get_statistics()
-        print(f"\nDatabase Statistics:")
-        print(f"  Total events: {stats['total_events']}")
-        print(f"  Processed: {stats['processed_events']}")
-        print(f"  Pending: {stats['total_events'] - stats['processed_events']}")
+        logger.info(f"\nDatabase Statistics:")
+        logger.info(f"  Total events: {stats['total_events']}")
+        logger.info(f"  Processed: {stats['processed_events']}")
+        logger.info(f"  Pending: {stats['total_events'] - stats['processed_events']}")

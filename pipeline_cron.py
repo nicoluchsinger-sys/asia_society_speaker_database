@@ -20,12 +20,21 @@ Tracks API costs and logs progress.
 import os
 import sys
 import time
+import logging
 from datetime import datetime, timezone
 from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
 from speaker_tagger import SpeakerTagger
 from generate_embeddings import generate_embeddings
+
+# Configure logging for pipeline
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 class PipelineStats:
@@ -101,9 +110,8 @@ def get_db_path():
 
 
 def log(message):
-    """Print timestamped log message"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    """Log message using proper logging (captured by Railway)"""
+    logger.info(message)
 
 
 def scrape_events(db, event_limit=20):
