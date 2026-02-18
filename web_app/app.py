@@ -1199,13 +1199,6 @@ def force_unlock():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/admin/search-analytics')
-@login_required
-def search_analytics_page():
-    """Search analytics dashboard page"""
-    return render_template('search_analytics.html')
-
-
 @app.route('/api/search-analytics')
 @login_required
 def api_search_analytics():

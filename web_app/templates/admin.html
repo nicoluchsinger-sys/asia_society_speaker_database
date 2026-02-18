@@ -99,7 +99,7 @@
     <!-- User Activity -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-xl font-bold mb-4">Popular Searches</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <h3 class="font-semibold text-gray-700 mb-3">Top Searches (30 days)</h3>
                 <div id="top-queries" class="space-y-2">
@@ -109,6 +109,13 @@
             <div>
                 <h3 class="font-semibold text-gray-700 mb-3">Most Searched Speakers</h3>
                 <div id="top-speakers" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">No Results Queries</h3>
+                <p class="text-xs text-gray-500 mb-2">Queries that found no speakers</p>
+                <div id="no-results-queries" class="space-y-2">
                     <div class="text-gray-500 text-sm">Loading...</div>
                 </div>
             </div>
@@ -264,25 +271,52 @@ async function loadAdminData() {
             `).join('');
         }
 
-        // Load analytics summary
-        const analyticsRes = await fetch('/api/search-analytics?days=30');
-        const analytics = await analyticsRes.json();
+        // Load analytics summary with error handling
+        try {
+            const analyticsRes = await fetch('/api/search-analytics?days=30');
+            const analytics = await analyticsRes.json();
 
-        document.getElementById('total-searches').textContent = analytics.total_searches.toLocaleString();
-        document.getElementById('avg-results').textContent = analytics.avg_results_per_search.toFixed(1);
-        document.getElementById('avg-time').textContent = analytics.avg_execution_time_ms.toFixed(0);
+            if (analytics.success !== false) {
+                document.getElementById('total-searches').textContent = (analytics.total_searches || 0).toLocaleString();
+                document.getElementById('avg-results').textContent = (analytics.avg_results_per_search || 0).toFixed(1);
+                document.getElementById('avg-time').textContent = (analytics.avg_execution_time_ms || 0).toFixed(0);
 
-        // Load top queries
-        const topQueries = document.getElementById('top-queries');
-        if (analytics.top_queries && analytics.top_queries.length > 0) {
-            topQueries.innerHTML = analytics.top_queries.slice(0, 5).map(q => `
-                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span class="text-sm text-gray-700">${q.query}</span>
-                    <span class="text-sm font-semibold text-gray-900">${q.count}</span>
-                </div>
-            `).join('');
-        } else {
-            topQueries.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+                // Load top queries
+                const topQueries = document.getElementById('top-queries');
+                if (analytics.top_queries && analytics.top_queries.length > 0) {
+                    topQueries.innerHTML = analytics.top_queries.slice(0, 5).map(q => `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-700">${q.query}</span>
+                            <span class="text-sm font-semibold text-gray-900">${q.count}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    topQueries.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+                }
+
+                // Load no-results queries
+                const noResultsQueries = document.getElementById('no-results-queries');
+                if (analytics.no_result_queries && analytics.no_result_queries.length > 0) {
+                    noResultsQueries.innerHTML = analytics.no_result_queries.slice(0, 5).map(q => `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-700">${q.query}</span>
+                            <span class="text-xs text-gray-500">${q.count}x</span>
+                        </div>
+                    `).join('');
+                } else {
+                    noResultsQueries.innerHTML = '<div class="text-gray-500 text-sm">No data yet</div>';
+                }
+            } else {
+                throw new Error(analytics.error || 'Analytics failed');
+            }
+        } catch (error) {
+            console.error('Error loading search analytics:', error);
+            // Set fallback values
+            document.getElementById('total-searches').textContent = '0';
+            document.getElementById('avg-results').textContent = '0.0';
+            document.getElementById('avg-time').textContent = '0';
+            document.getElementById('top-queries').innerHTML = '<div class="text-red-500 text-sm">Error loading data</div>';
+            document.getElementById('no-results-queries').innerHTML = '<div class="text-red-500 text-sm">Error loading data</div>';
         }
 
         // Load user activity
