@@ -1712,8 +1712,8 @@ def admin_data_quality():
         ''')
         events_with_speakers = cursor.fetchone()[0]
 
-        # Events with descriptions
-        cursor.execute('SELECT COUNT(*) FROM events WHERE description IS NOT NULL AND description != ""')
+        # Events with body text (content)
+        cursor.execute('SELECT COUNT(*) FROM events WHERE body_text IS NOT NULL AND body_text != ""')
         events_with_descriptions = cursor.fetchone()[0]
 
         # Events with locations
