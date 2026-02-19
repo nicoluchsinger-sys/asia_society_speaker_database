@@ -194,7 +194,8 @@ def extract_speakers(db):
 
     for event in pending_events:
         event_id = event[0]
-        event_title = event[1]
+        event_url = event[1]      # URL (was incorrectly labeled as event_title)
+        event_title = event[2]    # Actual title
         body_text = event[3]
 
         try:
@@ -220,10 +221,11 @@ def extract_speakers(db):
 
                 # Mark event as completed
                 db.mark_event_processed(event_id, 'completed')
-                log(f"  Extracted {len(result['speakers'])} speakers from: {event_title[:50]}")
+                log(f"  ✓ Extracted {len(result['speakers'])} speakers from: {event_title}")
             else:
                 db.mark_event_processed(event_id, 'failed')
-                log(f"  FAILED: {event_title[:50]}")
+                log(f"  ✗ FAILED: {event_title}")
+                log(f"    URL: {event_url}")
 
         except Exception as e:
             log(f"  ERROR processing event {event_id}: {e}")
