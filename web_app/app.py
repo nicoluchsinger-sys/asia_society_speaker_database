@@ -1200,6 +1200,65 @@ def force_unlock():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/reset-failed-events', methods=['POST'])
+@login_required
+def reset_failed_events_endpoint():
+    """Reset failed events back to pending for reprocessing"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get count and examples of failed events
+        cursor.execute("SELECT COUNT(*) FROM events WHERE processing_status = 'failed'")
+        failed_count = cursor.fetchone()[0]
+
+        if failed_count == 0:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No failed events to reset',
+                'count': 0
+            })
+
+        # Get some examples
+        cursor.execute("""
+            SELECT event_id, title, url
+            FROM events
+            WHERE processing_status = 'failed'
+            ORDER BY event_id DESC
+            LIMIT 3
+        """)
+        examples = cursor.fetchall()
+
+        # Reset the events
+        cursor.execute("""
+            UPDATE events
+            SET processing_status = 'pending'
+            WHERE processing_status = 'failed'
+        """)
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Reset {failed_count} failed events to pending status")
+
+        # Format examples for display
+        example_titles = [f"{row[1][:50]}..." for row in examples[:3]]
+
+        return jsonify({
+            'success': True,
+            'message': f'Reset {failed_count} failed events to pending',
+            'count': failed_count,
+            'examples': example_titles
+        })
+
+    except Exception as e:
+        logger.error(f"Error resetting failed events: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/search-analytics')
 @login_required
 def api_search_analytics():

@@ -35,8 +35,13 @@
                 class="mt-2 w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-6 rounded-lg transition">
             🔓 Force Unlock (if stuck)
         </button>
+        <button id="reset-failed"
+                class="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+            🔄 Reset Failed Events
+        </button>
         <div id="trigger-result" class="mt-3 hidden"></div>
         <div id="unlock-result" class="mt-3 hidden"></div>
+        <div id="reset-result" class="mt-3 hidden"></div>
     </div>
 
     <!-- Recent Pipeline Runs -->
@@ -510,6 +515,48 @@ document.getElementById('force-unlock').addEventListener('click', async function
     } finally {
         button.disabled = false;
         button.textContent = '🔓 Force Unlock (if stuck)';
+    }
+});
+
+// Reset failed events button handler
+document.getElementById('reset-failed').addEventListener('click', async function() {
+    const button = this;
+    const result = document.getElementById('reset-result');
+
+    if (!confirm('Reset all failed events to pending? They will be reprocessed in the next pipeline run.')) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Resetting...';
+
+    try {
+        const res = await fetch('/admin/reset-failed-events', { method: 'POST' });
+        const data = await res.json();
+
+        result.className = 'mt-3 p-3 rounded-lg ' + (data.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+
+        if (data.success) {
+            let message = data.message;
+            if (data.examples && data.examples.length > 0) {
+                message += '\n\nExamples:\n' + data.examples.join('\n');
+            }
+            result.textContent = message;
+        } else {
+            result.textContent = data.error || 'Unknown error';
+        }
+
+        result.classList.remove('hidden');
+
+        // Reload data after a delay
+        setTimeout(loadAdminData, 2000);
+    } catch (error) {
+        result.className = 'mt-3 p-3 rounded-lg bg-red-100 text-red-800';
+        result.textContent = 'Error resetting events: ' + error.message;
+        result.classList.remove('hidden');
+    } finally {
+        button.disabled = false;
+        button.textContent = '🔄 Reset Failed Events';
     }
 });
 
