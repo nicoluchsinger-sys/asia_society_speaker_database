@@ -198,6 +198,9 @@ def extract_speakers(db):
         event_title = event[2]    # Actual title
         body_text = event[3]
 
+        # Increment attempt counter before processing (prevents infinite retries)
+        db.increment_extraction_attempts(event_id)
+
         try:
             result = extractor.extract_speakers(event_title, body_text)
 

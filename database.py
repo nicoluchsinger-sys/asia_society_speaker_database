@@ -145,6 +145,12 @@ class SpeakerDatabase:
             cursor.execute('ALTER TABLE speakers ADD COLUMN primary_affiliation TEXT')
             # Copy affiliation to primary_affiliation for existing records
             cursor.execute('UPDATE speakers SET primary_affiliation = affiliation WHERE primary_affiliation IS NULL')
+
+        # Migration: add extraction_attempts column to prevent infinite retries
+        cursor.execute("PRAGMA table_info(events)")
+        event_columns = [col[1] for col in cursor.fetchall()]
+        if 'extraction_attempts' not in event_columns:
+            cursor.execute('ALTER TABLE events ADD COLUMN extraction_attempts INTEGER DEFAULT 0')
         
         # Event-Speaker relationship table
         cursor.execute('''
@@ -355,23 +361,27 @@ class SpeakerDatabase:
             cursor.execute('SELECT event_id FROM events WHERE url = ?', (url,))
             return cursor.fetchone()[0]
     
-    def get_unprocessed_events(self) -> List[Tuple]:
+    def get_unprocessed_events(self, max_attempts=3) -> List[Tuple]:
         """
         Get all events that haven't been processed for speaker extraction yet.
+
+        Args:
+            max_attempts: Maximum extraction attempts before skipping (default: 3)
 
         Returns:
             List of tuples: (event_id, url, title, body_text) for each pending event
 
         Note:
-            Only returns events with processing_status = 'pending'.
-            Events marked 'completed' or 'failed' are excluded.
+            Only returns events with processing_status = 'pending' and
+            extraction_attempts < max_attempts to prevent infinite retries.
         """
         cursor = self.conn.cursor()
         cursor.execute('''
             SELECT event_id, url, title, body_text
             FROM events
             WHERE processing_status = 'pending'
-        ''')
+            AND (extraction_attempts IS NULL OR extraction_attempts < ?)
+        ''', (max_attempts,))
         return cursor.fetchall()
 
     def _normalize_text(self, text: Optional[str]) -> set:
@@ -685,6 +695,24 @@ class SpeakerDatabase:
             SET processing_status = ?, processed_at = ?
             WHERE event_id = ?
         ''', (status, datetime.now().isoformat(), event_id))
+        self.conn.commit()
+
+    def increment_extraction_attempts(self, event_id: int) -> None:
+        """
+        Increment extraction attempt counter for an event.
+
+        Call this before attempting extraction to track how many times
+        we've tried processing this event (prevents infinite retries).
+
+        Args:
+            event_id: Event ID to update
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE events
+            SET extraction_attempts = COALESCE(extraction_attempts, 0) + 1
+            WHERE event_id = ?
+        ''', (event_id,))
         self.conn.commit()
 
     def get_all_speakers(self) -> List[Tuple]:
