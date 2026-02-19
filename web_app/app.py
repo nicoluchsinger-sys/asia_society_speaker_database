@@ -26,7 +26,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Simple password protection - single password for all users
-SITE_PASSWORD = os.environ.get('SITE_PASSWORD', 'asiasociety123')
+# Set SITE_PASSWORD environment variable in Railway
+SITE_PASSWORD = os.environ.get('SITE_PASSWORD', 'CHANGE_ME_IN_ENV_VARS')
 
 # Initialize search engine (reuse connection)
 search = None
