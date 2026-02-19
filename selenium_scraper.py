@@ -377,9 +377,9 @@ class SeleniumEventScraper:
         """
         Calculate where to start historical backfill based on database size.
 
-        Formula: (events_in_db / 20) + 10
-        - Assumes ~20 events per page
-        - Adds 10-page buffer to ensure overlap with known events
+        Formula: (events_in_db / 15) + 5
+        - Assumes ~12-15 events per page (observed reality, not 20)
+        - Adds 5-page buffer to ensure overlap with known events
         - Automatically adjusts as database grows
 
         Args:
@@ -390,7 +390,7 @@ class SeleniumEventScraper:
         """
         stats = db.get_statistics()
         events_in_db = stats['total_events']
-        calculated_page = (events_in_db // 20) + 10
+        calculated_page = (events_in_db // 15) + 5
 
         # Minimum page 30 to avoid re-scraping early pages
         return max(30, calculated_page)
