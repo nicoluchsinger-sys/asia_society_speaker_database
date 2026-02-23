@@ -18,8 +18,13 @@ from datetime import datetime
 import re
 from database import SpeakerDatabase
 
-# Configure logging
+# Configure logging - writes to pipeline_debug.log file
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.FileHandler('pipeline_debug.log', mode='a')
+    handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 class SeleniumEventScraper:

@@ -1259,6 +1259,26 @@ def reset_failed_events_endpoint():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/download-logs')
+@login_required
+def download_pipeline_logs():
+    """Download the pipeline debug log file"""
+    import os
+    from flask import send_file
+
+    log_file = 'pipeline_debug.log'
+
+    if not os.path.exists(log_file):
+        return jsonify({'error': 'No log file found. Run the pipeline first.'}), 404
+
+    return send_file(
+        log_file,
+        as_attachment=True,
+        download_name='pipeline_debug.log',
+        mimetype='text/plain'
+    )
+
+
 @app.route('/api/search-analytics')
 @login_required
 def api_search_analytics():

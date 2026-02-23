@@ -28,11 +28,16 @@ from speaker_extractor import SpeakerExtractor
 from speaker_tagger import SpeakerTagger
 from generate_embeddings import generate_embeddings
 
-# Configure logging for pipeline
+# Configure logging for pipeline - log to both console and file
+log_file = 'pipeline_debug.log'
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),  # Console output
+        logging.FileHandler(log_file, mode='a')  # File output (append mode)
+    ]
 )
 logger = logging.getLogger(__name__)
 
