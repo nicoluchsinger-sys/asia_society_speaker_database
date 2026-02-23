@@ -490,12 +490,13 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
         try:
             # Step 1: Scrape events
             scraped = scrape_events(db, event_limit=event_limit)
+            stats.add_extraction(scraped)  # Add scraped events to stats
 
             # Step 2: Extract speakers from newly scraped events AND pending/failed events
             extracted_speakers, events_processed = extract_speakers(db, pending_limit=pending_limit)
             stats.speakers_extracted = extracted_speakers
 
-            # Track total events processed (scraped + pending)
+            # Track total events processed (scraped + pending extracted)
             stats.add_extraction(events_processed)
 
             # Step 3: Enrich NEW speakers first (adds tags before embedding)
