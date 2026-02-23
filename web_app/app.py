@@ -1342,12 +1342,11 @@ def fix_malformed_dates():
         conn = sqlite3.connect(db_path, timeout=5.0)
         cursor = conn.cursor()
 
-        # Find all dates not in "DD MMM YYYY" format (and not ISO format)
+        # Find all dates not in "DD MMM YYYY" format (including ISO format)
         cursor.execute('''
             SELECT event_id, event_date, url
             FROM events
             WHERE event_date IS NOT NULL
-              AND event_date NOT LIKE '%-%T%:%'
               AND LENGTH(event_date) != 11
         ''')
         malformed_dates = cursor.fetchall()
@@ -1367,12 +1366,28 @@ def fix_malformed_dates():
                 # Try to parse common formats
                 corrected_date = None
 
+                # Try ISO format with timezone (e.g., "2025-11-03T14:02:08-0500")
+                if 'T' in date_str and ':' in date_str:
+                    try:
+                        # Parse ISO format - handles both with and without timezone
+                        if date_str.endswith('Z'):
+                            parsed = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
+                        elif '+' in date_str[-6:] or '-' in date_str[-6:]:
+                            # Remove timezone offset for parsing
+                            parsed = datetime.strptime(date_str[:-5], '%Y-%m-%dT%H:%M:%S')
+                        else:
+                            parsed = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S')
+                        corrected_date = parsed.strftime('%d %b %Y')
+                    except ValueError:
+                        pass
+
                 # Try "Month DD, YYYY" format (e.g., "February 20, 2026")
-                try:
-                    parsed = datetime.strptime(date_str, '%B %d, %Y')
-                    corrected_date = parsed.strftime('%d %b %Y')  # Convert to "DD MMM YYYY"
-                except ValueError:
-                    pass
+                if not corrected_date:
+                    try:
+                        parsed = datetime.strptime(date_str, '%B %d, %Y')
+                        corrected_date = parsed.strftime('%d %b %Y')  # Convert to "DD MMM YYYY"
+                    except ValueError:
+                        pass
 
                 # Try "Month DD YYYY" format (without comma)
                 if not corrected_date:
