@@ -1336,11 +1336,24 @@ def fix_malformed_dates():
     """Fix malformed date entries in the database"""
     import sqlite3
     from datetime import datetime
+    import time
 
     try:
         db_path = get_db_path()
-        conn = sqlite3.connect(db_path, timeout=5.0)
-        cursor = conn.cursor()
+
+        # Try to connect with retries (in case DB is temporarily locked)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                conn = sqlite3.connect(db_path, timeout=10.0)
+                cursor = conn.cursor()
+                break
+            except sqlite3.OperationalError as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Wait 2 seconds before retry
+                    continue
+                else:
+                    raise Exception(f"Database is locked after {max_retries} attempts. Pipeline may be running.")
 
         # Find all dates not in "DD MMM YYYY" format (including ISO format)
         cursor.execute('''
