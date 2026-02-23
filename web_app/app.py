@@ -1275,8 +1275,8 @@ def diagnose_dates():
             SELECT DISTINCT event_date, LENGTH(event_date) as len
             FROM events
             WHERE event_date IS NOT NULL
-            ORDER BY len, event_date
-            LIMIT 50
+            ORDER BY len DESC, event_date
+            LIMIT 100
         ''')
         dates = cursor.fetchall()
 
