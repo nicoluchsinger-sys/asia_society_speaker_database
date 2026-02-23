@@ -1442,6 +1442,64 @@ def fix_malformed_dates():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/diagnose-counts')
+@login_required
+def diagnose_counts():
+    """Diagnostic endpoint to check speaker count discrepancies"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Check total speakers
+        cursor.execute('SELECT COUNT(*) FROM speakers')
+        total_speakers = cursor.fetchone()[0]
+
+        # Check enriched (tagging_status = completed)
+        cursor.execute('SELECT COUNT(*) FROM speakers WHERE tagging_status = "completed"')
+        enriched_speakers = cursor.fetchone()[0]
+
+        # Check tagged (distinct speakers with tags)
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_tags')
+        tagged_speakers = cursor.fetchone()[0]
+
+        # Check embeddings - TOTAL COUNT
+        cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
+        total_embeddings = cursor.fetchone()[0]
+
+        # Check embeddings - UNIQUE SPEAKERS
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_embeddings')
+        unique_speakers_with_embeddings = cursor.fetchone()[0]
+
+        # Find duplicate embeddings
+        cursor.execute('''
+            SELECT speaker_id, COUNT(*) as count
+            FROM speaker_embeddings
+            GROUP BY speaker_id
+            HAVING COUNT(*) > 1
+            ORDER BY count DESC
+            LIMIT 20
+        ''')
+        duplicates = cursor.fetchall()
+
+        conn.close()
+
+        return jsonify({
+            'total_speakers': total_speakers,
+            'enriched_speakers': enriched_speakers,
+            'tagged_speakers': tagged_speakers,
+            'total_embeddings': total_embeddings,
+            'unique_speakers_with_embeddings': unique_speakers_with_embeddings,
+            'duplicate_count': total_embeddings - unique_speakers_with_embeddings,
+            'sample_duplicates': [{'speaker_id': d[0], 'embedding_count': d[1]} for d in duplicates]
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/download-logs')
 @login_required
 def download_pipeline_logs():

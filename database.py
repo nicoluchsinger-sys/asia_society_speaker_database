@@ -1046,8 +1046,8 @@ class SpeakerDatabase:
             1
         )
 
-        # Embeddings
-        cursor.execute('SELECT COUNT(*) FROM speaker_embeddings')
+        # Embeddings - count unique speakers, not total embedding records
+        cursor.execute('SELECT COUNT(DISTINCT speaker_id) FROM speaker_embeddings')
         stats['speakers_with_embeddings'] = cursor.fetchone()[0]
 
         # Tags
