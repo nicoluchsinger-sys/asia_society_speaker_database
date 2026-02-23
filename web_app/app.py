@@ -1507,7 +1507,7 @@ def get_real_ip() -> str:
 
 
 def get_ip_location(ip: str) -> str:
-    """Get approximate location from IP address"""
+    """Get approximate location from IP address using ipapi.co"""
     try:
         # Simple check for local/private IPs
         if ip.startswith('127.') or ip.startswith('192.168.') or ip.startswith('10.'):
@@ -1515,10 +1515,32 @@ def get_ip_location(ip: str) -> str:
         if ip.startswith('100.64.'):  # Railway internal
             return 'Railway (Internal)'
 
-        # For production, you could use ipapi.co or similar free service
-        # For now, just return 'Unknown'
+        # Use ipapi.co for geolocation (free tier: 1,000 requests/day, no API key needed)
+        import requests
+        response = requests.get(f'https://ipapi.co/{ip}/json/', timeout=2)
+
+        if response.status_code == 200:
+            data = response.json()
+            # Build location string from available data
+            city = data.get('city', '')
+            region = data.get('region', '')
+            country = data.get('country_name', '')
+
+            # Format location nicely
+            parts = []
+            if city:
+                parts.append(city)
+            if region and region != city:
+                parts.append(region)
+            if country:
+                parts.append(country)
+
+            if parts:
+                return ', '.join(parts)
+
         return 'Unknown'
-    except:
+    except Exception as e:
+        logger.debug(f"IP geolocation failed for {ip}: {e}")
         return 'Unknown'
 
 
