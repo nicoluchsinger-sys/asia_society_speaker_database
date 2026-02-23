@@ -1484,6 +1484,11 @@ def diagnose_counts():
         ''')
         duplicates = cursor.fetchall()
 
+        # Check table schema to see if PRIMARY KEY constraint exists
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='speaker_embeddings'")
+        schema_row = cursor.fetchone()
+        table_schema = schema_row[0] if schema_row else 'Table not found'
+
         conn.close()
 
         return jsonify({
@@ -1493,7 +1498,66 @@ def diagnose_counts():
             'total_embeddings': total_embeddings,
             'unique_speakers_with_embeddings': unique_speakers_with_embeddings,
             'duplicate_count': total_embeddings - unique_speakers_with_embeddings,
-            'sample_duplicates': [{'speaker_id': d[0], 'embedding_count': d[1]} for d in duplicates]
+            'sample_duplicates': [{'speaker_id': d[0], 'embedding_count': d[1]} for d in duplicates],
+            'table_schema': table_schema
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/cleanup-duplicate-embeddings', methods=['POST'])
+@login_required
+def cleanup_duplicate_embeddings():
+    """Remove duplicate embeddings, keeping only the most recent for each speaker"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=10.0)
+        cursor = conn.cursor()
+
+        # First, check if duplicates exist
+        cursor.execute('''
+            SELECT speaker_id, COUNT(*) as count
+            FROM speaker_embeddings
+            GROUP BY speaker_id
+            HAVING COUNT(*) > 1
+        ''')
+        duplicates = cursor.fetchall()
+
+        if not duplicates:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No duplicate embeddings found',
+                'cleaned': 0
+            })
+
+        # For each speaker with duplicates, keep only the most recent (by created_at)
+        cleaned_count = 0
+        for speaker_id, count in duplicates:
+            # Delete all but the most recent embedding
+            cursor.execute('''
+                DELETE FROM speaker_embeddings
+                WHERE speaker_id = ?
+                AND created_at NOT IN (
+                    SELECT created_at FROM speaker_embeddings
+                    WHERE speaker_id = ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                )
+            ''', (speaker_id, speaker_id))
+            cleaned_count += cursor.rowcount
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Cleaned up {cleaned_count} duplicate embeddings for {len(duplicates)} speakers',
+            'speakers_affected': len(duplicates),
+            'embeddings_removed': cleaned_count
         })
 
     except Exception as e:
