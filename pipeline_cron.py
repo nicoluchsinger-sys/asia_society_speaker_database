@@ -212,8 +212,14 @@ def extract_speakers(db):
             if result['success'] and result['speakers']:
                 # Add each speaker to database
                 for speaker_data in result['speakers']:
+                    # Skip speakers with no name (Claude extraction issue)
+                    speaker_name = speaker_data.get('name')
+                    if not speaker_name or not speaker_name.strip():
+                        log(f"  ⚠ Skipping speaker with no name: {speaker_data}")
+                        continue
+
                     speaker_id = db.add_speaker(
-                        name=speaker_data.get('name'),
+                        name=speaker_name.strip(),
                         title=speaker_data.get('title'),
                         affiliation=speaker_data.get('affiliation'),
                         bio=speaker_data.get('bio')
@@ -320,8 +326,16 @@ def enrich_new_speakers(db, stats):
             # Rate limit
             time.sleep(tagger.search_delay)
 
+        except TimeoutError as e:
+            log(f"  TIMEOUT enriching {name}: {e}")
+            db.mark_speaker_tagged(speaker_id, 'failed')
         except Exception as e:
             log(f"  ERROR enriching {name}: {e}")
+            # Try to mark as failed, but don't crash if this fails
+            try:
+                db.mark_speaker_tagged(speaker_id, 'failed')
+            except:
+                pass
 
     log(f"New speaker enrichment complete: {enriched_count} enriched")
     return enriched_count
@@ -372,8 +386,16 @@ def enrich_existing_speakers(db, limit=10):
             # Rate limit
             time.sleep(tagger.search_delay)
 
+        except TimeoutError as e:
+            log(f"  TIMEOUT enriching {speaker_name}: {e}")
+            db.mark_speaker_tagged(speaker_id, 'failed')
         except Exception as e:
             log(f"  ERROR enriching {speaker_name}: {e}")
+            # Try to mark as failed, but don't crash if this fails
+            try:
+                db.mark_speaker_tagged(speaker_id, 'failed')
+            except:
+                pass
 
     log(f"Existing speaker enrichment complete: {enriched_count}/{limit} enriched")
     return enriched_count

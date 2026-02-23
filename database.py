@@ -33,7 +33,7 @@ def normalize_name(name: str) -> str:
         "Maria Garcia"
     """
     if not name:
-        return name
+        return ""  # Return empty string instead of None to prevent .lower() errors
 
     # Common titles and honorifics to remove (case-insensitive)
     # Pattern matches the title followed by optional period and space

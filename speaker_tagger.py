@@ -17,26 +17,55 @@ class SpeakerTagger:
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not found. Please set it in .env file or pass it directly.")
 
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        # Initialize client with 60s timeout to prevent hangs
+        self.client = anthropic.Anthropic(api_key=self.api_key, timeout=60.0)
         self.model = "claude-sonnet-4-20250514"
         self.search_delay = 1.5  # Rate limit for DuckDuckGo searches
 
-    def web_search(self, query: str, max_results: int = 5) -> Dict:
+    def web_search(self, query: str, max_results: int = 5, timeout: int = 30) -> Dict:
         """
-        Perform a web search using DuckDuckGo
+        Perform a web search using DuckDuckGo with timeout protection
+
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+            timeout: Timeout in seconds (default: 30s)
 
         Returns a dictionary with search results
         """
-        try:
-            with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results))
+        import signal
 
-            return {
-                'success': True,
-                'results': results,
-                'query': query
-            }
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Web search timed out")
+
+        try:
+            # Set alarm for timeout (Unix-only, but Railway is Linux)
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout)
+
+            try:
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(query, max_results=max_results))
+
+                signal.alarm(0)  # Cancel alarm
+
+                return {
+                    'success': True,
+                    'results': results,
+                    'query': query
+                }
+            except TimeoutError as e:
+                return {
+                    'success': False,
+                    'error': f'Search timed out after {timeout}s',
+                    'results': [],
+                    'query': query
+                }
+            finally:
+                signal.alarm(0)  # Ensure alarm is cancelled
+
         except Exception as e:
+            signal.alarm(0)  # Cancel alarm on any error
             return {
                 'success': False,
                 'error': str(e),
