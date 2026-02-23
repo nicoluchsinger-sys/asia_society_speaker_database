@@ -361,12 +361,13 @@ class SpeakerDatabase:
             cursor.execute('SELECT event_id FROM events WHERE url = ?', (url,))
             return cursor.fetchone()[0]
     
-    def get_unprocessed_events(self, max_attempts=3) -> List[Tuple]:
+    def get_unprocessed_events(self, max_attempts=3, limit=None) -> List[Tuple]:
         """
-        Get all events that haven't been processed for speaker extraction yet.
+        Get events that haven't been processed for speaker extraction yet.
 
         Args:
             max_attempts: Maximum extraction attempts before skipping (default: 3)
+            limit: Maximum number of events to return (default: None for all)
 
         Returns:
             List of tuples: (event_id, url, title, body_text) for each pending event
@@ -374,14 +375,22 @@ class SpeakerDatabase:
         Note:
             Only returns events with processing_status = 'pending' and
             extraction_attempts < max_attempts to prevent infinite retries.
+            Orders by extraction_attempts ASC (retry failed events first, then new ones).
         """
         cursor = self.conn.cursor()
-        cursor.execute('''
+
+        query = '''
             SELECT event_id, url, title, body_text
             FROM events
             WHERE processing_status = 'pending'
             AND (extraction_attempts IS NULL OR extraction_attempts < ?)
-        ''', (max_attempts,))
+            ORDER BY extraction_attempts ASC, event_id ASC
+        '''
+
+        if limit:
+            query += f' LIMIT {limit}'
+
+        cursor.execute(query, (max_attempts,))
         return cursor.fetchall()
 
     def _normalize_text(self, text: Optional[str]) -> set:

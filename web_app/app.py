@@ -128,8 +128,8 @@ def run_scheduled_pipeline():
             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             from pipeline_cron import run_pipeline
 
-            # Run pipeline: 20 events, 20 existing speakers
-            success = run_pipeline(event_limit=20, existing_limit=20)
+            # Run pipeline: 20 new events, 5 pending retries, 20 existing speakers
+            success = run_pipeline(event_limit=20, existing_limit=20, pending_limit=5)
 
             if success:
                 logger.info("✓ Scheduled pipeline completed successfully")

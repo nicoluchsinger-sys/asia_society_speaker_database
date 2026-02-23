@@ -172,9 +172,12 @@ def scrape_events(db, event_limit=20):
     return total_scraped
 
 
-def extract_speakers(db):
+def extract_speakers(db, pending_limit=None):
     """
     Extract speakers from pending events
+
+    Args:
+        pending_limit: Maximum number of pending events to process (default: None for all)
 
     Returns:
         int: Number of speakers extracted
@@ -188,12 +191,12 @@ def extract_speakers(db):
 
     extractor = SpeakerExtractor(api_key=api_key)
 
-    pending_events = db.get_unprocessed_events()
+    pending_events = db.get_unprocessed_events(limit=pending_limit)
     if not pending_events:
         log("No pending events to process")
         return 0
 
-    log(f"Processing {len(pending_events)} pending events...")
+    log(f"Processing {len(pending_events)} pending events (limit: {pending_limit or 'none'})...")
 
     initial_speaker_count = db.get_statistics()['total_speakers']
 
@@ -460,13 +463,14 @@ def save_pipeline_run(db, stats):
     log("Pipeline run saved to database")
 
 
-def run_pipeline(event_limit=10, existing_limit=10):
+def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
     """
     Run the complete pipeline
 
     Args:
         event_limit: Number of new events to scrape
         existing_limit: Number of existing speakers to enrich
+        pending_limit: Number of pending/failed events to retry (default: 5)
     """
     stats = PipelineStats()
 
@@ -474,6 +478,7 @@ def run_pipeline(event_limit=10, existing_limit=10):
     print("CONSOLIDATED PIPELINE - STARTING")
     print("="*70)
     print(f"Event limit: {event_limit}")
+    print(f"Pending event limit: {pending_limit}")
     print(f"Existing speaker limit: {existing_limit}")
     print("="*70)
 
@@ -487,19 +492,18 @@ def run_pipeline(event_limit=10, existing_limit=10):
             if scraped > 0:
                 stats.add_extraction(scraped)
 
-            # Step 2: Extract speakers
-            if scraped > 0:
-                extracted = extract_speakers(db)
-                stats.speakers_extracted = extracted
+            # Step 2: Extract speakers from newly scraped events AND pending/failed events
+            extracted = extract_speakers(db, pending_limit=pending_limit)
+            stats.speakers_extracted = extracted
 
-                # Step 3: Enrich NEW speakers first (adds tags before embedding)
-                if extracted > 0:
-                    enriched_new = enrich_new_speakers(db, stats)
-                    stats.add_enrichment(enriched_new, is_existing=False)
+            # Step 3: Enrich NEW speakers first (adds tags before embedding)
+            if extracted > 0:
+                enriched_new = enrich_new_speakers(db, stats)
+                stats.add_enrichment(enriched_new, is_existing=False)
 
-                    # Step 4: Generate embeddings for new speakers (includes tags now!)
-                    embeddings = generate_speaker_embeddings(db)
-                    stats.add_embeddings(embeddings)
+                # Step 4: Generate embeddings for new speakers (includes tags now!)
+                embeddings = generate_speaker_embeddings(db)
+                stats.add_embeddings(embeddings)
 
             # Step 5: Enrich existing untagged speakers (backfill)
             enriched_existing = enrich_existing_speakers(db, limit=existing_limit)
@@ -528,17 +532,19 @@ if __name__ == "__main__":
     )
     parser.add_argument('-e', '--events', type=int, default=10,
                         help='Number of events to scrape (default: 10)')
+    parser.add_argument('-p', '--pending', type=int, default=5,
+                        help='Number of pending/failed events to retry (default: 5)')
     parser.add_argument('-x', '--existing', type=int, default=10,
                         help='Number of existing speakers to enrich (default: 10)')
     parser.add_argument('--test', action='store_true',
-                        help='Test mode: scrape 2 events, enrich 2 existing speakers')
+                        help='Test mode: scrape 2 events, retry 2 pending, enrich 2 existing speakers')
 
     args = parser.parse_args()
 
     if args.test:
-        log("Running in TEST mode (2 events, 2 existing speakers)")
-        success = run_pipeline(event_limit=2, existing_limit=2)
+        log("Running in TEST mode (2 events, 2 pending, 2 existing speakers)")
+        success = run_pipeline(event_limit=2, existing_limit=2, pending_limit=2)
     else:
-        success = run_pipeline(event_limit=args.events, existing_limit=args.existing)
+        success = run_pipeline(event_limit=args.events, existing_limit=args.existing, pending_limit=args.pending)
 
     sys.exit(0 if success else 1)
