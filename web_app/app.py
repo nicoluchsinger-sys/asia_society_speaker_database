@@ -608,6 +608,7 @@ def faq():
         FROM events
         WHERE event_date IS NOT NULL
           AND event_date NOT LIKE '%-%T%:%'
+          AND LENGTH(event_date) = 11
         ORDER BY
             substr(event_date, 8, 4) ||
             CASE substr(event_date, 4, 3)
@@ -636,6 +637,7 @@ def faq():
         FROM events
         WHERE event_date IS NOT NULL
           AND event_date NOT LIKE '%-%T%:%'
+          AND LENGTH(event_date) = 11
         ORDER BY
             substr(event_date, 8, 4) ||
             CASE substr(event_date, 4, 3)
@@ -700,6 +702,7 @@ def api_stats():
             FROM events
             WHERE event_date IS NOT NULL
               AND event_date NOT LIKE '%-%T%:%'
+              AND LENGTH(event_date) = 11
             ORDER BY
                 substr(event_date, 8, 4) ||
                 CASE substr(event_date, 4, 3)
@@ -728,6 +731,7 @@ def api_stats():
             FROM events
             WHERE event_date IS NOT NULL
               AND event_date NOT LIKE '%-%T%:%'
+              AND LENGTH(event_date) = 11
             ORDER BY
                 substr(event_date, 8, 4) ||
                 CASE substr(event_date, 4, 3)
@@ -1320,6 +1324,90 @@ def diagnose_dates():
             'oldest_from_query': oldest_query[0] if oldest_query else None,
             'newest_from_query': newest_query[0] if newest_query else None,
             'db_path': db_path
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/fix-dates', methods=['POST'])
+@login_required
+def fix_malformed_dates():
+    """Fix malformed date entries in the database"""
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Find all dates not in "DD MMM YYYY" format (and not ISO format)
+        cursor.execute('''
+            SELECT event_id, event_date, url
+            FROM events
+            WHERE event_date IS NOT NULL
+              AND event_date NOT LIKE '%-%T%:%'
+              AND LENGTH(event_date) != 11
+        ''')
+        malformed_dates = cursor.fetchall()
+
+        if not malformed_dates:
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No malformed dates found',
+                'fixed_count': 0
+            })
+
+        fixed_dates = []
+
+        for event_id, date_str, url in malformed_dates:
+            try:
+                # Try to parse common formats
+                corrected_date = None
+
+                # Try "Month DD, YYYY" format (e.g., "February 20, 2026")
+                try:
+                    parsed = datetime.strptime(date_str, '%B %d, %Y')
+                    corrected_date = parsed.strftime('%d %b %Y')  # Convert to "DD MMM YYYY"
+                except ValueError:
+                    pass
+
+                # Try "Month DD YYYY" format (without comma)
+                if not corrected_date:
+                    try:
+                        parsed = datetime.strptime(date_str, '%B %d %Y')
+                        corrected_date = parsed.strftime('%d %b %Y')
+                    except ValueError:
+                        pass
+
+                if corrected_date:
+                    cursor.execute(
+                        'UPDATE events SET event_date = ? WHERE event_id = ?',
+                        (corrected_date, event_id)
+                    )
+                    fixed_dates.append({
+                        'event_id': event_id,
+                        'url': url,
+                        'old_date': date_str,
+                        'new_date': corrected_date
+                    })
+                else:
+                    logger.warning(f"Could not parse date format: {date_str}")
+
+            except Exception as e:
+                logger.error(f"Error fixing date for event {event_id}: {e}")
+                continue
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Fixed {len(fixed_dates)} malformed date(s)',
+            'fixed_count': len(fixed_dates),
+            'fixed_dates': fixed_dates
         })
 
     except Exception as e:
