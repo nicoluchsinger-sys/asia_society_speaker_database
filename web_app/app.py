@@ -1259,6 +1259,73 @@ def reset_failed_events_endpoint():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/diagnose-dates')
+@login_required
+def diagnose_dates():
+    """Diagnostic endpoint to check date formats in production database"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get a sample of all unique date formats
+        cursor.execute('''
+            SELECT DISTINCT event_date, LENGTH(event_date) as len
+            FROM events
+            WHERE event_date IS NOT NULL
+            ORDER BY len, event_date
+            LIMIT 50
+        ''')
+        dates = cursor.fetchall()
+
+        # Get the specific dates being returned by the stats query
+        cursor.execute('''
+            SELECT event_date FROM events
+            WHERE event_date IS NOT NULL AND event_date NOT LIKE '%-%T%:%'
+            ORDER BY
+                substr(event_date, 8, 4) ||
+                CASE substr(event_date, 4, 3)
+                    WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
+                    WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
+                    WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
+                    WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
+                END ||
+                substr(event_date, 1, 2)
+            ASC LIMIT 1
+        ''')
+        oldest_query = cursor.fetchone()
+
+        cursor.execute('''
+            SELECT event_date FROM events
+            WHERE event_date IS NOT NULL AND event_date NOT LIKE '%-%T%:%'
+            ORDER BY
+                substr(event_date, 8, 4) ||
+                CASE substr(event_date, 4, 3)
+                    WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
+                    WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
+                    WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
+                    WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
+                END ||
+                substr(event_date, 1, 2)
+            DESC LIMIT 1
+        ''')
+        newest_query = cursor.fetchone()
+
+        conn.close()
+
+        return jsonify({
+            'sample_dates': dates,
+            'oldest_from_query': oldest_query[0] if oldest_query else None,
+            'newest_from_query': newest_query[0] if newest_query else None,
+            'db_path': db_path
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/download-logs')
 @login_required
 def download_pipeline_logs():
