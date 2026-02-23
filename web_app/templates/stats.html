@@ -237,14 +237,10 @@ async function loadStats() {
         document.getElementById('totalEvents').textContent = stats.total_events.toLocaleString();
         document.getElementById('totalCost').textContent = '$' + stats.total_api_cost.toFixed(2);
 
-        // Update event date range
+        // Update event date range (display as-is from backend, already formatted)
         if (stats.oldest_event_date && stats.newest_event_date) {
-            const formatDate = (dateStr) => {
-                const date = new Date(dateStr);
-                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-            };
-            document.getElementById('oldestEvent').textContent = formatDate(stats.oldest_event_date);
-            document.getElementById('newestEvent').textContent = formatDate(stats.newest_event_date);
+            document.getElementById('oldestEvent').textContent = stats.oldest_event_date;
+            document.getElementById('newestEvent').textContent = stats.newest_event_date;
         } else {
             document.getElementById('oldestEvent').textContent = 'N/A';
             document.getElementById('newestEvent').textContent = 'N/A';
