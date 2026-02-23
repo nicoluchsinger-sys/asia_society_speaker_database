@@ -180,23 +180,24 @@ def extract_speakers(db, pending_limit=None):
         pending_limit: Maximum number of pending events to process (default: None for all)
 
     Returns:
-        int: Number of speakers extracted
+        tuple: (num_speakers_extracted, num_events_processed)
     """
     log("Starting speaker extraction...")
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
         log("ERROR: ANTHROPIC_API_KEY not found")
-        return 0
+        return 0, 0
 
     extractor = SpeakerExtractor(api_key=api_key)
 
     pending_events = db.get_unprocessed_events(limit=pending_limit)
     if not pending_events:
         log("No pending events to process")
-        return 0
+        return 0, 0
 
-    log(f"Processing {len(pending_events)} pending events (limit: {pending_limit or 'none'})...")
+    events_processed = len(pending_events)
+    log(f"Processing {events_processed} pending events (limit: {pending_limit or 'none'})...")
 
     initial_speaker_count = db.get_statistics()['total_speakers']
 
@@ -251,8 +252,8 @@ def extract_speakers(db, pending_limit=None):
     final_speaker_count = db.get_statistics()['total_speakers']
     new_speakers = final_speaker_count - initial_speaker_count
 
-    log(f"Extraction complete: {new_speakers} new speakers added")
-    return new_speakers
+    log(f"Extraction complete: {new_speakers} new speakers added from {events_processed} events")
+    return new_speakers, events_processed
 
 
 def generate_speaker_embeddings(db):
@@ -489,15 +490,16 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
         try:
             # Step 1: Scrape events
             scraped = scrape_events(db, event_limit=event_limit)
-            if scraped > 0:
-                stats.add_extraction(scraped)
 
             # Step 2: Extract speakers from newly scraped events AND pending/failed events
-            extracted = extract_speakers(db, pending_limit=pending_limit)
-            stats.speakers_extracted = extracted
+            extracted_speakers, events_processed = extract_speakers(db, pending_limit=pending_limit)
+            stats.speakers_extracted = extracted_speakers
+
+            # Track total events processed (scraped + pending)
+            stats.add_extraction(events_processed)
 
             # Step 3: Enrich NEW speakers first (adds tags before embedding)
-            if extracted > 0:
+            if extracted_speakers > 0:
                 enriched_new = enrich_new_speakers(db, stats)
                 stats.add_enrichment(enriched_new, is_existing=False)
 
