@@ -16,7 +16,9 @@ import anthropic
 import json
 import os
 import time
+import logging
 from typing import List, Dict, Optional
+from logging_config import extraction_logger, log_retry, log_api_call
 
 
 class SpeakerExtractor:
@@ -166,7 +168,8 @@ Important guidelines:
             except anthropic.RateLimitError as e:
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
-                    print(f"⚠ Rate limit hit, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    log_retry(extraction_logger, "Claude API call", attempt + 2, max_retries,
+                            error="Rate limit hit", wait_time_s=wait_time)
                     time.sleep(wait_time)
                     continue
                 # Final attempt failed, return error
@@ -181,7 +184,8 @@ Important guidelines:
                 # Network/connection errors are transient - retry
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
-                    print(f"⚠ Connection error, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    log_retry(extraction_logger, "Claude API call", attempt + 2, max_retries,
+                            error="Connection error", wait_time_s=wait_time)
                     time.sleep(wait_time)
                     continue
                 # Final attempt failed
@@ -196,7 +200,8 @@ Important guidelines:
                 # Timeout errors are transient - retry
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt
-                    print(f"⚠ Timeout, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    log_retry(extraction_logger, "Claude API call", attempt + 2, max_retries,
+                            error="Timeout", wait_time_s=wait_time)
                     time.sleep(wait_time)
                     continue
                 return {
@@ -211,7 +216,8 @@ Important guidelines:
                 # Retry only on 5xx server errors (transient), not 4xx client errors (permanent)
                 if isinstance(status_code, int) and status_code >= 500 and attempt < max_retries - 1:
                     wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
-                    print(f"⚠ API error {status_code}, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    log_retry(extraction_logger, "Claude API call", attempt + 2, max_retries,
+                            error=f"API error {status_code}", wait_time_s=wait_time)
                     time.sleep(wait_time)
                     continue
                 # 4xx error or final attempt failed, return error

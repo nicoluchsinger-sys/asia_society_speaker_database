@@ -28,19 +28,24 @@ from selenium_scraper import SeleniumEventScraper
 from speaker_extractor import SpeakerExtractor
 from speaker_tagger import SpeakerTagger
 from generate_embeddings import generate_embeddings
-
-# Configure logging for pipeline - log to both console and file
-log_file = 'pipeline_debug.log'
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.StreamHandler(),  # Console output
-        logging.FileHandler(log_file, mode='a')  # File output (append mode)
-    ]
+from logging_config import (
+    pipeline_logger,
+    extraction_logger,
+    enrichment_logger,
+    embedding_logger,
+    scraping_logger,
+    log_phase_start,
+    log_phase_complete,
+    log_phase_failed,
+    log_item_processed,
+    log_item_skipped,
+    log_item_failed,
+    log_stats,
+    log_with_context
 )
-logger = logging.getLogger(__name__)
+
+# Use structured logging
+logger = pipeline_logger
 
 
 class PipelineStats:
@@ -197,11 +202,13 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
     Returns:
         tuple: (num_speakers_extracted, num_events_processed)
     """
-    log("Starting speaker extraction...")
+    log_phase_start(extraction_logger, "speaker extraction",
+                    newly_scraped=len(newly_scraped_ids) if newly_scraped_ids else 0,
+                    pending_limit=pending_limit or 0)
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
-        log("ERROR: ANTHROPIC_API_KEY not found")
+        log_with_context(extraction_logger, logging.ERROR, "ANTHROPIC_API_KEY not found")
         return 0, 0
 
     extractor = SpeakerExtractor(api_key=api_key)
@@ -221,7 +228,9 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
         ''', newly_scraped_ids)
         new_events = cursor.fetchall()
         events_to_process.extend(new_events)
-        log(f"Processing {len(new_events)} newly scraped events...")
+        log_with_context(extraction_logger, logging.INFO,
+                        f"Processing {len(new_events)} newly scraped events",
+                        count=len(new_events))
 
     # 2. Add older pending events (retries), excluding the ones we just scraped
     if pending_limit and pending_limit > 0:
@@ -253,14 +262,18 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
         retry_events = cursor.fetchall()
         events_to_process.extend(retry_events)
         if retry_events:
-            log(f"Processing {len(retry_events)} older pending events (retries)...")
+            log_with_context(extraction_logger, logging.INFO,
+                            f"Processing {len(retry_events)} older pending events (retries)",
+                            count=len(retry_events))
 
     if not events_to_process:
-        log("No pending events to process")
+        log_with_context(extraction_logger, logging.INFO, "No pending events to process")
         return 0, 0
 
     events_processed = len(events_to_process)
-    log(f"Total events to process: {events_processed}")
+    log_with_context(extraction_logger, logging.INFO,
+                    f"Total events to process: {events_processed}",
+                    total_events=events_processed)
 
     def validate_speaker_field(value, field_name, max_length=500):
         """Validate and sanitize speaker field"""
@@ -268,7 +281,9 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
             return None
         value = str(value).strip()
         if len(value) > max_length:
-            log(f"  ⚠ Truncating {field_name} (length {len(value)} > {max_length})")
+            log_with_context(extraction_logger, logging.WARNING,
+                            f"Truncating {field_name}",
+                            field=field_name, length=len(value), max_length=max_length)
             return value[:max_length]
         return value if value else None
 
@@ -299,7 +314,8 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
                             # Skip speakers with no name (Claude extraction issue)
                             speaker_name = speaker_data.get('name')
                             if not speaker_name or not speaker_name.strip():
-                                log(f"  ⚠ Skipping speaker with no name: {speaker_data}")
+                                log_item_skipped(extraction_logger, "speaker", "unknown",
+                                               "no name provided", speaker_data=str(speaker_data))
                                 continue
 
                             # Validate and sanitize fields
@@ -324,18 +340,21 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
 
                         # Mark event as completed
                         db.mark_event_processed(event_id, 'completed')
-                        log(f"  ✓ Extracted {speakers_added} speakers from: {event_title}")
+                        log_item_processed(extraction_logger, "event", event_title,
+                                         speakers_extracted=speakers_added, event_id=event_id)
 
                     except Exception as e:
                         # Rollback transaction on any error during speaker insertion
                         db.conn.rollback()
                         db.mark_event_processed(event_id, 'failed')
-                        log(f"  ✗ Database error for event {event_id}: {e}")
+                        log_item_failed(extraction_logger, "event", event_title,
+                                      f"Database error: {e}", event_id=event_id)
 
                 else:
                     # Extraction succeeded but no speakers found (valid for some events)
                     db.mark_event_processed(event_id, 'completed')
-                    log(f"  ⚠ No speakers found in: {event_title}")
+                    log_item_skipped(extraction_logger, "event", event_title,
+                                   "no speakers found", event_id=event_id)
             else:
                 # Extraction failed
                 error_msg = result.get('error', 'Unknown error')
@@ -345,28 +364,35 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
                 # Transient errors (network, timeout) should leave as pending for retry
                 if not is_transient:
                     db.mark_event_processed(event_id, 'failed')
-                    log(f"  ✗ FAILED: {event_title}")
-                    log(f"    Error: {error_msg}")
-                    log(f"    URL: {event_url}")
+                    log_item_failed(extraction_logger, "event", event_title,
+                                  error_msg, event_id=event_id, url=event_url)
                 else:
-                    log(f"  ⚠ Transient error (will retry): {event_title}")
-                    log(f"    Error: {error_msg}")
+                    log_with_context(extraction_logger, logging.WARNING,
+                                   f"Transient error (will retry): {event_title}",
+                                   error=error_msg, event_id=event_id, is_transient=True)
 
         except anthropic.APIConnectionError as e:
             # Network error - transient, don't mark as failed
-            log(f"  ⚠ Network error for event {event_id}, will retry: {e}")
+            log_with_context(extraction_logger, logging.WARNING,
+                           "Network error (will retry)",
+                           event_id=event_id, error=str(e), is_transient=True)
         except anthropic.APITimeoutError as e:
             # Timeout - transient, don't mark as failed
-            log(f"  ⚠ Timeout for event {event_id}, will retry: {e}")
+            log_with_context(extraction_logger, logging.WARNING,
+                           "Timeout (will retry)",
+                           event_id=event_id, error=str(e), is_transient=True)
         except Exception as e:
             # Permanent error (database, validation, etc.)
-            log(f"  ERROR processing event {event_id}: {e}")
+            log_with_context(extraction_logger, logging.ERROR,
+                           "Permanent error processing event",
+                           event_id=event_id, error=str(e))
             db.mark_event_processed(event_id, 'failed')
 
     final_speaker_count = db.get_statistics()['total_speakers']
     new_speakers = final_speaker_count - initial_speaker_count
 
-    log(f"Extraction complete: {new_speakers} new speakers added from {events_processed} events")
+    log_phase_complete(extraction_logger, "speaker extraction",
+                      new_speakers=new_speakers, events_processed=events_processed)
     return new_speakers, events_processed
 
 
@@ -377,7 +403,7 @@ def generate_speaker_embeddings(db):
     Returns:
         int: Number of embeddings generated
     """
-    log("Generating embeddings for new speakers...")
+    log_phase_start(embedding_logger, "embedding generation")
 
     # Commit transaction so embeddings can see newly added speakers
     db.conn.commit()
@@ -388,13 +414,14 @@ def generate_speaker_embeddings(db):
         # Pass database path to ensure correct database is used
         generate_embeddings(batch_size=50, provider='openai', verbose=False, db_path=db.db_path)
     except Exception as e:
-        log(f"ERROR generating embeddings: {e}")
+        log_phase_failed(embedding_logger, "embedding generation", str(e))
         return 0
 
     final_count = db.count_embeddings()
     new_embeddings = final_count - initial_count
 
-    log(f"Embedding generation complete: {new_embeddings} new embeddings")
+    log_phase_complete(embedding_logger, "embedding generation",
+                      embeddings_generated=new_embeddings)
     return new_embeddings
 
 
@@ -405,14 +432,14 @@ def enrich_new_speakers(db, stats):
     Returns:
         int: Number of speakers enriched
     """
-    log("Enriching newly extracted speakers...")
+    log_phase_start(enrichment_logger, "new speaker enrichment")
 
     # Commit transaction so enrichment can see newly added speakers
     db.conn.commit()
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
-        log("ERROR: ANTHROPIC_API_KEY not found")
+        log_with_context(enrichment_logger, logging.ERROR, "ANTHROPIC_API_KEY not found")
         return 0
 
     tagger = SpeakerTagger(api_key=api_key)
@@ -428,7 +455,7 @@ def enrich_new_speakers(db, stats):
     new_speakers = cursor.fetchall()
 
     if not new_speakers:
-        log("No new speakers to enrich")
+        log_with_context(enrichment_logger, logging.INFO, "No new speakers to enrich")
         return 0
 
     enriched_count = 0
@@ -437,25 +464,32 @@ def enrich_new_speakers(db, stats):
             result = tagger.tag_speaker(speaker_id, db)
             if result['success']:
                 enriched_count += 1
-                log(f"  Enriched: {name}")
+                log_item_processed(enrichment_logger, "speaker", name,
+                                 speaker_id=speaker_id)
             else:
-                log(f"  FAILED: {name} - {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error')
+                log_item_failed(enrichment_logger, "speaker", name,
+                              error_msg, speaker_id=speaker_id)
 
             # Rate limit
             time.sleep(tagger.search_delay)
 
         except TimeoutError as e:
-            log(f"  TIMEOUT enriching {name}: {e}")
+            log_with_context(enrichment_logger, logging.WARNING,
+                           f"Timeout enriching {name}",
+                           speaker_id=speaker_id, error=str(e))
             db.mark_speaker_tagged(speaker_id, 'failed')
         except Exception as e:
-            log(f"  ERROR enriching {name}: {e}")
+            log_item_failed(enrichment_logger, "speaker", name,
+                          str(e), speaker_id=speaker_id)
             # Try to mark as failed, but don't crash if this fails
             try:
                 db.mark_speaker_tagged(speaker_id, 'failed')
             except:
                 pass
 
-    log(f"New speaker enrichment complete: {enriched_count} enriched")
+    log_phase_complete(enrichment_logger, "new speaker enrichment",
+                      enriched=enriched_count, total=len(new_speakers))
     return enriched_count
 
 
@@ -469,11 +503,11 @@ def enrich_existing_speakers(db, limit=10):
     Returns:
         int: Number of speakers enriched
     """
-    log(f"Enriching up to {limit} existing untagged speakers...")
+    log_phase_start(enrichment_logger, "existing speaker enrichment", limit=limit)
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
-        log("ERROR: ANTHROPIC_API_KEY not found")
+        log_with_context(enrichment_logger, logging.ERROR, "ANTHROPIC_API_KEY not found")
         return 0
 
     tagger = SpeakerTagger(api_key=api_key)
@@ -482,7 +516,7 @@ def enrich_existing_speakers(db, limit=10):
     untagged = db.get_untagged_speakers()
 
     if not untagged:
-        log("No untagged speakers remaining")
+        log_with_context(enrichment_logger, logging.INFO, "No untagged speakers remaining")
         return 0
 
     # Limit to specified number
@@ -497,25 +531,32 @@ def enrich_existing_speakers(db, limit=10):
             result = tagger.tag_speaker(speaker_id, db)
             if result['success']:
                 enriched_count += 1
-                log(f"  Enriched: {speaker_name}")
+                log_item_processed(enrichment_logger, "speaker", speaker_name,
+                                 speaker_id=speaker_id)
             else:
-                log(f"  FAILED: {speaker_name} - {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error')
+                log_item_failed(enrichment_logger, "speaker", speaker_name,
+                              error_msg, speaker_id=speaker_id)
 
             # Rate limit
             time.sleep(tagger.search_delay)
 
         except TimeoutError as e:
-            log(f"  TIMEOUT enriching {speaker_name}: {e}")
+            log_with_context(enrichment_logger, logging.WARNING,
+                           f"Timeout enriching {speaker_name}",
+                           speaker_id=speaker_id, error=str(e))
             db.mark_speaker_tagged(speaker_id, 'failed')
         except Exception as e:
-            log(f"  ERROR enriching {speaker_name}: {e}")
+            log_item_failed(enrichment_logger, "speaker", speaker_name,
+                          str(e), speaker_id=speaker_id)
             # Try to mark as failed, but don't crash if this fails
             try:
                 db.mark_speaker_tagged(speaker_id, 'failed')
             except:
                 pass
 
-    log(f"Existing speaker enrichment complete: {enriched_count}/{limit} enriched")
+    log_phase_complete(enrichment_logger, "existing speaker enrichment",
+                      enriched=enriched_count, limit=limit)
     return enriched_count
 
 
@@ -614,16 +655,18 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
         try:
             # Step 1: Scrape events (CRITICAL - abort if fails)
             try:
+                log_phase_start(logger, "scraping", event_limit=event_limit)
                 scraped_count, newly_scraped_ids = scrape_events(db, event_limit=event_limit)
                 stats.events_scraped = scraped_count
-                log(f"✓ Scraping phase complete: {scraped_count} events")
+                log_phase_complete(logger, "scraping", events_scraped=scraped_count)
             except Exception as e:
-                log(f"CRITICAL ERROR in scraping phase: {e}")
+                log_phase_failed(logger, "scraping", str(e))
                 critical_failure = True
                 raise
 
             # Step 2: Extract speakers (CRITICAL - abort if fails)
             try:
+                log_phase_start(logger, "extraction", pending_limit=pending_limit)
                 extracted_speakers, events_processed = extract_speakers(
                     db,
                     newly_scraped_ids=newly_scraped_ids,
@@ -635,39 +678,48 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
                 extraction_cost = events_processed * stats.extraction_cost_per_event
                 stats.extraction_cost += extraction_cost
                 stats.total_cost += extraction_cost
-                log(f"✓ Extraction phase complete: {extracted_speakers} speakers from {events_processed} events")
+                log_phase_complete(logger, "extraction",
+                                   speakers_extracted=extracted_speakers,
+                                   events_processed=events_processed,
+                                   cost=f"${extraction_cost:.4f}")
             except Exception as e:
-                log(f"CRITICAL ERROR in extraction phase: {e}")
+                log_phase_failed(logger, "extraction", str(e))
                 critical_failure = True
                 raise
 
             # Step 3: Enrich NEW speakers (NON-CRITICAL - log warning if fails)
             if extracted_speakers > 0:
                 try:
+                    log_phase_start(logger, "new_speaker_enrichment")
                     enriched_new = enrich_new_speakers(db, stats)
                     stats.add_enrichment(enriched_new, is_existing=False)
-                    log(f"✓ New speaker enrichment complete: {enriched_new} speakers")
+                    log_phase_complete(logger, "new_speaker_enrichment", speakers_enriched=enriched_new)
                 except Exception as e:
-                    log(f"WARNING: Enrichment failed for new speakers: {e}")
-                    log("Continuing pipeline despite enrichment failure...")
+                    log_with_context(logger, logging.WARNING,
+                                     "⚠ Enrichment failed for new speakers, continuing pipeline",
+                                     error=str(e), phase="new_speaker_enrichment")
 
                 # Step 4: Generate embeddings (NON-CRITICAL - log warning if fails)
                 try:
+                    log_phase_start(logger, "embedding_generation")
                     embeddings = generate_speaker_embeddings(db)
                     stats.add_embeddings(embeddings)
-                    log(f"✓ Embedding generation complete: {embeddings} embeddings")
+                    log_phase_complete(logger, "embedding_generation", embeddings_generated=embeddings)
                 except Exception as e:
-                    log(f"WARNING: Embedding generation failed: {e}")
-                    log("Continuing pipeline despite embedding failure...")
+                    log_with_context(logger, logging.WARNING,
+                                     "⚠ Embedding generation failed, continuing pipeline",
+                                     error=str(e), phase="embedding_generation")
 
             # Step 5: Enrich existing speakers (NON-CRITICAL - log warning if fails)
             try:
+                log_phase_start(logger, "existing_speaker_enrichment", limit=existing_limit)
                 enriched_existing = enrich_existing_speakers(db, limit=existing_limit)
                 stats.add_enrichment(enriched_existing, is_existing=True)
-                log(f"✓ Existing speaker enrichment complete: {enriched_existing} speakers")
+                log_phase_complete(logger, "existing_speaker_enrichment", speakers_enriched=enriched_existing)
             except Exception as e:
-                log(f"WARNING: Existing speaker enrichment failed: {e}")
-                log("Continuing pipeline despite enrichment failure...")
+                log_with_context(logger, logging.WARNING,
+                                 "⚠ Existing speaker enrichment failed, continuing pipeline",
+                                 error=str(e), phase="existing_speaker_enrichment")
 
             # If we got here, pipeline succeeded (critical phases completed)
             pipeline_success = True

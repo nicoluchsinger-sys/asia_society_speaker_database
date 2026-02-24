@@ -8,9 +8,11 @@ import anthropic
 import json
 import os
 import time
+import logging
 from typing import Dict, List, Optional
 from ddgs import DDGS
 from dotenv import load_dotenv
+from logging_config import enrichment_logger, log_with_context
 
 # Load environment variables
 load_dotenv()
@@ -303,8 +305,10 @@ Important: Return ONLY the JSON, no other text."""
 
         # Log warning if web search failed but continuing
         if not search_result['success']:
-            print(f"  ⚠ Web search failed for {speaker['name']}: {search_result.get('error', 'Unknown error')}")
-            print(f"    Continuing with bio-only enrichment...")
+            log_with_context(enrichment_logger, logging.WARNING,
+                           f"Web search failed for {speaker['name']}, continuing with bio-only enrichment",
+                           speaker_name=speaker['name'],
+                           error=search_result.get('error', 'Unknown error'))
 
         # Determine source based on search success
         source = 'web_search' if search_result['success'] and search_result['results'] else 'bio_only'
