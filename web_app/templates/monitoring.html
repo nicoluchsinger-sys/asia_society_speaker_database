@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .last-updated {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .metric {
+            margin: 12px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .metric-value.large {
+            font-size: 32px;
+        }
+
+        .metric-value.success {
+            color: #28a745;
+        }
+
+        .metric-value.warning {
+            color: #ffc107;
+        }
+
+        .metric-value.danger {
+            color: #dc3545;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-row-label {
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .metric-row-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .alert {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .alert-critical {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.warning {
+            background: #ffc107;
+        }
+
+        .progress-fill.danger {
+            background: #dc3545;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table th {
+            text-align: left;
+            padding: 8px;
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        table td {
+            padding: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error-text {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .chart-container {
+            margin-top: 15px;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 120px;
+            gap: 4px;
+            padding: 10px 0;
+        }
+
+        .bar {
+            flex: 1;
+            background: #007bff;
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            min-height: 2px;
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 11px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pipeline Monitoring Dashboard</h1>
+            <div class="last-updated">
+                Last updated: <span id="last-update">Loading...</span>
+                <button class="refresh-btn" onclick="loadMetrics()">Refresh</button>
+            </div>
+        </header>
+
+        <div id="dashboard" class="dashboard">
+            <div class="loading">Loading metrics...</div>
+        </div>
+    </div>
+
+    <script>
+        function formatTimestamp(isoString) {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return 'N/A';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}m ${secs}s`;
+        }
+
+        function renderHealthCard(health) {
+            const statusClass = health.status === 'healthy' ? 'status-healthy' :
+                              health.status === 'warning' ? 'status-warning' : 'status-critical';
+
+            let alertsHtml = '';
+            if (health.warnings.length > 0) {
+                alertsHtml += health.warnings.map(w => `<div class="alert alert-warning">⚠️ ${w}</div>`).join('');
+            }
+            if (health.critical.length > 0) {
+                alertsHtml += health.critical.map(c => `<div class="alert alert-critical">❌ ${c}</div>`).join('');
+            }
+
+            return `
+                <div class="card">
+                    <h2>🏥 System Health</h2>
+                    <div class="metric">
+                        <div class="metric-label">Overall Status</div>
+                        <span class="status-badge ${statusClass}">${health.status}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Pipeline Locked</span>
+                        <span class="metric-row-value">${health.pipeline_locked ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Last Run</span>
+                        <span class="metric-row-value">${health.last_run.status || 'None'} ${health.last_run.hours_ago ? `(${health.last_run.hours_ago}h ago)` : ''}</span>
+                    </div>
+                    ${alertsHtml}
+                </div>
+            `;
+        }
+
+        function renderBacklogCard(backlog) {
+            const current = backlog.current_events;
+            const totalPending = current.total_pending;
+            const failed = current.failed;
+
+            return `
+                <div class="card">
+                    <h2>📊 Event Backlog</h2>
+                    <div class="metric">
+                        <div class="metric-label">Pending Events</div>
+                        <div class="metric-value ${totalPending > 100 ? 'warning' : ''}">${totalPending}</div>
+                        <div style="font-size: 12px; color: #6c757d; margin-top: 4px;">
+                            New: ${current.pending_new} | Retries: ${current.pending_retries}
+                        </div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Failed Events</span>
+                        <span class="metric-row-value ${failed > 50 ? 'danger' : ''}">${failed}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Events by Attempts</span>
+                        <span class="metric-row-value" style="font-size: 12px;">
+                            ${Object.entries(backlog.events_by_attempts).map(([k,v]) => `${k}:${v}`).join(' | ')}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSpeakerBacklogCard(backlog) {
+            const speakers = backlog.current_speakers;
+
+            return `
+                <div class="card">
+                    <h2>👥 Speaker Backlog</h2>
+                    <div class="metric">
+                        <div class="metric-label">Pending Enrichment</div>
+                        <div class="metric-value ${speakers.pending > 200 ? 'warning' : ''}">${speakers.pending}</div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Failed Speakers</span>
+                        <span class="metric-row-value ${speakers.failed > 50 ? 'danger' : ''}">${speakers.failed}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSuccessRatesCard(success) {
+            const extraction = success.extraction;
+            const enrichment = success.enrichment;
+            const embeddings = success.embeddings;
+
+            return `
+                <div class="card">
+                    <h2>✅ Success Rates (24h)</h2>
+                    <div class="metric">
+                        <div class="metric-label">Event Extraction</div>
+                        <div class="metric-value ${extraction.success_rate < 80 ? 'warning' : 'success'}">
+                            ${extraction.success_rate !== null ? extraction.success_rate + '%' : 'N/A'}
+                        </div>
+                        <div style="font-size: 12px; color: #6c757d;">
+                            ${extraction.completed}/${extraction.total} succeeded
+                        </div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Speaker Enrichment</span>
+                        <span class="metric-row-value">
+                            ${enrichment.success_rate !== null ? enrichment.success_rate + '%' : 'N/A'}
+                        </span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Embedding Coverage</span>
+                        <span class="metric-row-value">${embeddings.coverage_rate}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${embeddings.coverage_rate}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCostsCard(costs) {
+            return `
+                <div class="card">
+                    <h2>💰 Costs (7 days)</h2>
+                    <div class="metric">
+                        <div class="metric-label">Total Cost</div>
+                        <div class="metric-value">$${costs.total_cost.toFixed(4)}</div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Per Speaker</span>
+                        <span class="metric-row-value">
+                            ${costs.avg_cost_per_speaker ? '$' + costs.avg_cost_per_speaker.toFixed(4) : 'N/A'}
+                        </span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Per Event</span>
+                        <span class="metric-row-value">
+                            ${costs.avg_cost_per_event ? '$' + costs.avg_cost_per_event.toFixed(4) : 'N/A'}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPerformanceCard(performance) {
+            const avg = performance.averages;
+
+            return `
+                <div class="card">
+                    <h2>⚡ Performance (7 days)</h2>
+                    <div class="metric">
+                        <div class="metric-label">Avg Run Duration</div>
+                        <div class="metric-value">
+                            ${avg.duration_minutes ? avg.duration_minutes + 'min' : 'N/A'}
+                        </div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Avg Events/Run</span>
+                        <span class="metric-row-value">${avg.events_scraped || 'N/A'}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Avg Speakers/Run</span>
+                        <span class="metric-row-value">${avg.speakers_extracted || 'N/A'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderErrorsCard(errors) {
+            const recentErrors = errors.failed_events.slice(0, 5);
+            const commonErrors = errors.common_errors.slice(0, 5);
+
+            let errorsHtml = '';
+            if (recentErrors.length > 0) {
+                errorsHtml = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Attempts</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${recentErrors.map(e => `
+                                <tr>
+                                    <td>${e.title.substring(0, 40)}...</td>
+                                    <td>${e.attempts}</td>
+                                    <td class="error-text">${e.error ? e.error.substring(0, 50) + '...' : 'Unknown'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                errorsHtml = '<p style="color: #28a745; text-align: center; padding: 20px;">✓ No recent errors</p>';
+            }
+
+            return `
+                <div class="card full-width">
+                    <h2>❌ Recent Errors</h2>
+                    <div class="metric-row">
+                        <span class="metric-row-label">Stuck in Retry (3+ attempts)</span>
+                        <span class="metric-row-value ${errors.stuck_in_retry > 0 ? 'danger' : ''}">
+                            ${errors.stuck_in_retry}
+                        </span>
+                    </div>
+                    ${errorsHtml}
+                </div>
+            `;
+        }
+
+        function renderDashboard(metrics) {
+            const html = `
+                ${renderHealthCard(metrics.health)}
+                ${renderBacklogCard(metrics.backlog)}
+                ${renderSpeakerBacklogCard(metrics.backlog)}
+                ${renderSuccessRatesCard(metrics.success_rates)}
+                ${renderCostsCard(metrics.costs)}
+                ${renderPerformanceCard(metrics.performance)}
+                ${renderErrorsCard(metrics.errors)}
+            `;
+
+            document.getElementById('dashboard').innerHTML = html;
+            document.getElementById('last-update').textContent = formatTimestamp(metrics.health.timestamp);
+        }
+
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/monitoring/all');
+                const metrics = await response.json();
+                renderDashboard(metrics);
+            } catch (error) {
+                document.getElementById('dashboard').innerHTML = `
+                    <div class="card full-width">
+                        <div class="alert alert-critical">
+                            ❌ Error loading metrics: ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load metrics on page load
+        loadMetrics();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadMetrics, 30000);
+    </script>
+</body>
+</html>

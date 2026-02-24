@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from speaker_search import SpeakerSearch
 from database import SpeakerDatabase
+from monitoring import PipelineMonitor
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -2528,6 +2529,98 @@ def regenerate_embeddings():
             'note': 'Regenerating embeddings for all 848 speakers. Check logs for progress. Will take ~2-3 minutes.'
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# MONITORING DASHBOARD
+# ============================================================================
+
+@app.route('/monitoring')
+def monitoring_dashboard():
+    """Render monitoring dashboard"""
+    return render_template('monitoring.html')
+
+
+@app.route('/api/monitoring/health')
+def monitoring_health():
+    """Get pipeline health status"""
+    try:
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_health_status())
+    except Exception as e:
+        logger.error(f"Error getting health status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/backlog')
+def monitoring_backlog():
+    """Get backlog trends"""
+    try:
+        days = int(request.args.get('days', 7))
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_backlog_trends(days=days))
+    except Exception as e:
+        logger.error(f"Error getting backlog trends: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/success-rates')
+def monitoring_success_rates():
+    """Get success rates"""
+    try:
+        hours = int(request.args.get('hours', 24))
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_success_rates(hours=hours))
+    except Exception as e:
+        logger.error(f"Error getting success rates: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/costs')
+def monitoring_costs():
+    """Get cost metrics"""
+    try:
+        days = int(request.args.get('days', 7))
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_cost_metrics(days=days))
+    except Exception as e:
+        logger.error(f"Error getting cost metrics: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/errors')
+def monitoring_errors():
+    """Get error patterns"""
+    try:
+        limit = int(request.args.get('limit', 20))
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_error_patterns(limit=limit))
+    except Exception as e:
+        logger.error(f"Error getting error patterns: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/performance')
+def monitoring_performance():
+    """Get performance metrics"""
+    try:
+        days = int(request.args.get('days', 7))
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_performance_metrics(days=days))
+    except Exception as e:
+        logger.error(f"Error getting performance metrics: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitoring/all')
+def monitoring_all():
+    """Get all monitoring metrics in one call"""
+    try:
+        monitor = PipelineMonitor(db_path=get_db_path())
+        return jsonify(monitor.get_all_metrics())
+    except Exception as e:
+        logger.error(f"Error getting all metrics: {e}")
         return jsonify({'error': str(e)}), 500
 
 
