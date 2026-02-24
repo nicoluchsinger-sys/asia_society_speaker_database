@@ -2613,6 +2613,109 @@ def monitoring_performance():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/verify-stats')
+@login_required
+def admin_verify_stats():
+    """Verify pipeline statistics accuracy"""
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get last 3 pipeline runs
+        cursor.execute('''
+            SELECT run_id, timestamp, events_scraped, speakers_extracted,
+                   new_speakers_enriched, existing_speakers_enriched,
+                   embeddings_generated, total_cost
+            FROM pipeline_runs
+            ORDER BY run_id DESC
+            LIMIT 3
+        ''')
+        runs = [dict(zip(['run_id', 'timestamp', 'events_scraped', 'speakers_extracted',
+                          'new_enriched', 'existing_enriched', 'embeddings', 'total_cost'], row))
+                for row in cursor.fetchall()]
+
+        # Get actual database state
+        cursor.execute("SELECT COUNT(*) FROM events")
+        total_events = cursor.fetchone()[0]
+
+        cursor.execute('''
+            SELECT processing_status, COUNT(*)
+            FROM events
+            GROUP BY processing_status
+        ''')
+        events_by_status = dict(cursor.fetchall())
+
+        cursor.execute("SELECT COUNT(*) FROM speakers")
+        total_speakers = cursor.fetchone()[0]
+
+        cursor.execute('''
+            SELECT
+                CASE
+                    WHEN tagging_status IS NULL THEN 'untagged'
+                    ELSE tagging_status
+                END as status,
+                COUNT(*)
+            FROM speakers
+            GROUP BY status
+        ''')
+        speakers_by_status = dict(cursor.fetchall())
+
+        cursor.execute("SELECT COUNT(DISTINCT speaker_id) FROM speaker_embeddings")
+        speakers_with_embeddings = cursor.fetchone()[0]
+
+        # Check for duplicate runs
+        if runs:
+            last_run = runs[0]
+            cursor.execute('''
+                SELECT COUNT(*)
+                FROM pipeline_runs
+                WHERE events_scraped = ? AND speakers_extracted = ?
+            ''', (last_run['events_scraped'], last_run['speakers_extracted']))
+            duplicate_count = cursor.fetchone()[0]
+        else:
+            duplicate_count = 0
+
+        # Get recent events
+        if len(runs) >= 2:
+            cursor.execute('''
+                SELECT event_id, title, first_scraped
+                FROM events
+                WHERE datetime(first_scraped) >= datetime(?)
+                ORDER BY first_scraped DESC
+                LIMIT 10
+            ''', (runs[1]['timestamp'],))
+            recent_events = [dict(zip(['event_id', 'title', 'first_scraped'], row))
+                           for row in cursor.fetchall()]
+        else:
+            recent_events = []
+
+        conn.close()
+
+        return jsonify({
+            'last_runs': runs,
+            'database_state': {
+                'total_events': total_events,
+                'events_by_status': events_by_status,
+                'total_speakers': total_speakers,
+                'speakers_by_status': speakers_by_status,
+                'speakers_with_embeddings': speakers_with_embeddings,
+                'embedding_coverage_pct': round(speakers_with_embeddings / total_speakers * 100, 1) if total_speakers > 0 else 0
+            },
+            'duplicate_run_count': duplicate_count,
+            'recent_events': recent_events
+        })
+
+    except Exception as e:
+        logger.error(f"Verify stats error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/monitoring/test')
 def monitoring_test():
     """Test monitoring module and database connection"""
