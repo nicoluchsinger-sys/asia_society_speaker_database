@@ -303,28 +303,27 @@ class PipelineMonitor:
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-            # Event extraction success rate (events marked completed vs failed recently)
+            # Event extraction success rate (overall stats since time filtering isn't available)
+            # Note: Without last_processed_at column, we show overall success rate instead of time-windowed
             cursor.execute('''
                 SELECT
                     COUNT(CASE WHEN processing_status = 'completed' THEN 1 END) as completed,
                     COUNT(CASE WHEN processing_status = 'failed' THEN 1 END) as failed
                 FROM events
-                WHERE last_processed_at >= ?
-            ''', (since.isoformat(),))
+            ''')
             row = cursor.fetchone()
             extraction_completed = row[0]
             extraction_failed = row[1]
             extraction_total = extraction_completed + extraction_failed
             extraction_rate = (extraction_completed / extraction_total * 100) if extraction_total > 0 else None
 
-            # Speaker enrichment success rate
+            # Speaker enrichment success rate (overall stats)
             cursor.execute('''
                 SELECT
                     COUNT(CASE WHEN tagging_status = 'completed' THEN 1 END) as completed,
                     COUNT(CASE WHEN tagging_status = 'failed' THEN 1 END) as failed
                 FROM speakers
-                WHERE last_updated >= ?
-            ''', (since.isoformat(),))
+            ''')
             row = cursor.fetchone()
             enrichment_completed = row[0]
             enrichment_failed = row[1]
@@ -343,6 +342,7 @@ class PipelineMonitor:
             return {
                 'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'time_window_hours': hours,
+                'note': 'Showing overall stats (time filtering not available without last_processed_at column)',
                 'extraction': {
                     'success_rate': round(extraction_rate, 1) if extraction_rate is not None else None,
                     'completed': extraction_completed,
@@ -468,25 +468,45 @@ class PipelineMonitor:
         cursor = db.conn.cursor()
 
         try:
-            # Get recent failed events with error messages
-            cursor.execute('''
-                SELECT event_id, title, url, error_message, extraction_attempts, last_processed_at
-                FROM events
-                WHERE processing_status = 'failed'
-                ORDER BY last_processed_at DESC
-                LIMIT ?
-            ''', (limit,))
-
-            failed_events = []
-            for row in cursor.fetchall():
-                failed_events.append({
-                    'event_id': row[0],
-                    'title': row[1],
-                    'url': row[2],
-                    'error': row[3],
-                    'attempts': row[4],
-                    'last_attempt': row[5]
-                })
+            # Get recent failed events (without error_message column if it doesn't exist)
+            # Try with error_message first, fall back if column doesn't exist
+            try:
+                cursor.execute('''
+                    SELECT event_id, title, url, error_message, extraction_attempts, last_processed_at
+                    FROM events
+                    WHERE processing_status = 'failed'
+                    ORDER BY last_processed_at DESC
+                    LIMIT ?
+                ''', (limit,))
+                failed_events = []
+                for row in cursor.fetchall():
+                    failed_events.append({
+                        'event_id': row[0],
+                        'title': row[1],
+                        'url': row[2],
+                        'error': row[3],
+                        'attempts': row[4],
+                        'last_attempt': row[5]
+                    })
+            except sqlite3.OperationalError:
+                # Fall back to query without error_message and last_processed_at
+                cursor.execute('''
+                    SELECT event_id, title, url, extraction_attempts
+                    FROM events
+                    WHERE processing_status = 'failed'
+                    ORDER BY event_id DESC
+                    LIMIT ?
+                ''', (limit,))
+                failed_events = []
+                for row in cursor.fetchall():
+                    failed_events.append({
+                        'event_id': row[0],
+                        'title': row[1],
+                        'url': row[2],
+                        'error': 'N/A (error_message column not available)',
+                        'attempts': row[3],
+                        'last_attempt': None
+                    })
 
             # Get events stuck in retry loop (3 attempts, still pending)
             cursor.execute('''
@@ -514,21 +534,26 @@ class PipelineMonitor:
                 })
 
             # Analyze error message patterns (group similar errors)
-            cursor.execute('''
-                SELECT error_message, COUNT(*) as count
-                FROM events
-                WHERE processing_status = 'failed' AND error_message IS NOT NULL
-                GROUP BY error_message
-                ORDER BY count DESC
-                LIMIT 10
-            ''')
-
+            # Skip if error_message column doesn't exist
             error_messages = []
-            for row in cursor.fetchall():
-                error_messages.append({
-                    'message': row[0],
-                    'count': row[1]
-                })
+            try:
+                cursor.execute('''
+                    SELECT error_message, COUNT(*) as count
+                    FROM events
+                    WHERE processing_status = 'failed' AND error_message IS NOT NULL
+                    GROUP BY error_message
+                    ORDER BY count DESC
+                    LIMIT 10
+                ''')
+
+                for row in cursor.fetchall():
+                    error_messages.append({
+                        'message': row[0],
+                        'count': row[1]
+                    })
+            except sqlite3.OperationalError:
+                # error_message column doesn't exist, skip this metric
+                pass
 
             return {
                 'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
