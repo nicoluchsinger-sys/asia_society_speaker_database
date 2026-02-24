@@ -1744,6 +1744,118 @@ def admin_recent_runs():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/pipeline-runs-debug')
+@login_required
+def admin_pipeline_runs_debug():
+    """Detailed debug info for pipeline runs - shows what was saved vs what should have been"""
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Get last 5 pipeline runs with ALL columns
+        cursor.execute('''
+            SELECT run_id, timestamp, events_scraped, speakers_extracted,
+                   embeddings_generated, new_speakers_enriched, existing_speakers_enriched,
+                   extraction_cost, embedding_cost, enrichment_cost, total_cost,
+                   duration_seconds, success
+            FROM pipeline_runs
+            ORDER BY run_id DESC
+            LIMIT 5
+        ''')
+
+        runs = []
+        for row in cursor.fetchall():
+            run_id = row[0]
+
+            # For each run, count actual events created around that time
+            run_timestamp = row[1]
+            try:
+                dt = datetime.fromisoformat(run_timestamp)
+                # Count events scraped within ±5 minutes of this run
+                time_window_start = (dt.timestamp() - 300)
+                time_window_end = (dt.timestamp() + 300)
+
+                cursor.execute('''
+                    SELECT COUNT(*) FROM events
+                    WHERE datetime(scraped_at, 'unixepoch') BETWEEN datetime(?, 'unixepoch') AND datetime(?, 'unixepoch')
+                ''', (time_window_start, time_window_end))
+                actual_events_scraped = cursor.fetchone()[0]
+            except:
+                actual_events_scraped = None
+
+            runs.append({
+                'run_id': run_id,
+                'timestamp': run_timestamp,
+                'recorded_events_scraped': row[2] or 0,
+                'actual_events_scraped': actual_events_scraped,
+                'speakers_extracted': row[3] or 0,
+                'embeddings_generated': row[4] or 0,
+                'new_speakers_enriched': row[5] or 0,
+                'existing_speakers_enriched': row[6] or 0,
+                'extraction_cost': round(row[7] or 0, 4),
+                'embedding_cost': round(row[8] or 0, 6),
+                'enrichment_cost': round(row[9] or 0, 4),
+                'total_cost': round(row[10] or 0, 4),
+                'duration_seconds': round(row[11] or 0, 1),
+                'success': bool(row[12])
+            })
+
+        conn.close()
+        return jsonify(runs)
+
+    except Exception as e:
+        logger.error(f"Pipeline debug error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/check-duplicate-runs')
+@login_required
+def admin_check_duplicate_runs():
+    """Check if there are duplicate pipeline run entries (same stats, times, costs)"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Find runs with identical stats
+        cursor.execute('''
+            SELECT events_scraped, speakers_extracted, total_cost, duration_seconds,
+                   COUNT(*) as occurrence_count,
+                   GROUP_CONCAT(timestamp) as timestamps
+            FROM pipeline_runs
+            GROUP BY events_scraped, speakers_extracted, total_cost, duration_seconds
+            HAVING COUNT(*) > 1
+            ORDER BY occurrence_count DESC
+        ''')
+
+        duplicates = []
+        for row in cursor.fetchall():
+            duplicates.append({
+                'events_scraped': row[0],
+                'speakers_extracted': row[1],
+                'total_cost': row[2],
+                'duration_seconds': row[3],
+                'occurrence_count': row[4],
+                'timestamps': row[5].split(',')[:5]  # Show max 5 timestamps
+            })
+
+        conn.close()
+        return jsonify({
+            'duplicate_groups': duplicates,
+            'total_duplicate_groups': len(duplicates)
+        })
+
+    except Exception as e:
+        logger.error(f"Duplicate check error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/recent-searches')
 @login_required
 def admin_recent_searches():
