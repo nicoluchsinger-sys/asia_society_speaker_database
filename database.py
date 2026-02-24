@@ -36,24 +36,27 @@ def normalize_name(name: str) -> str:
         return ""  # Return empty string instead of None to prevent .lower() errors
 
     # Common titles and honorifics to remove (case-insensitive)
-    # Pattern matches the title followed by optional period and space
+    # IMPORTANT: Longer forms must come before shorter abbreviations to avoid
+    # partial matches (e.g., "Professor" before "Prof", "Mrs" before "Mr").
+    # Abbreviations use (?:\.\s*|\s+) to require a period or space after them,
+    # preventing false matches inside words like "Dragon" or "Francis".
     titles = [
-        r'\bDr\.?\s*',
-        r'\bProf\.?\s*',
         r'\bProfessor\s+',
-        r'\bMr\.?\s*',
-        r'\bMrs\.?\s*',
-        r'\bMs\.?\s*',
-        r'\bMiss\s+',
+        r'\bProf(?:\.\s*|\s+)',
         r'\bAmbassador\s+',
-        r'\bHon\.?\s*',
+        r'\bMrs(?:\.\s*|\s+)',
+        r'\bMiss\s+',
+        r'\bMr(?:\.\s*|\s+)',
+        r'\bMs(?:\.\s*|\s+)',
+        r'\bDr(?:\.\s*|\s+)',
+        r'\bHon(?:\.\s*|\s+)',
         r'\bSir\s+',
         r'\bLady\s+',
         r'\bLord\s+',
-        r'\bRev\.?\s*',
-        r'\bFr\.?\s*',
-        r'\bSr\.?\s*',
-        r'\bJr\.?\s*',
+        r'\bRev(?:\.\s*|\s+)',
+        r'\bFr(?:\.\s*|\s+)',
+        r'\bSr(?:\.\s*|\s+)',
+        r'\bJr(?:\.\s*|\s+)',
     ]
 
     normalized = name
