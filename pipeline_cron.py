@@ -126,11 +126,17 @@ def scrape_events(db, event_limit=20):
     2. HISTORICAL BACKFILL: Systematically fill in historical events
 
     Returns:
-        int: Total number of events scraped
+        tuple: (total_scraped_count, list_of_newly_scraped_event_ids)
     """
     log(f"Starting two-phase scraping (target: {event_limit} events total)...")
 
     total_scraped = 0
+    newly_scraped_ids = []
+
+    # Get event IDs before scraping to identify new ones
+    cursor = db.conn.cursor()
+    cursor.execute('SELECT event_id FROM events')
+    existing_ids_before = set(row[0] for row in cursor.fetchall())
 
     # PHASE 1: Scrape new events (recent publications)
     log("Phase 1: Scraping new events...")
@@ -168,16 +174,24 @@ def scrape_events(db, event_limit=20):
         finally:
             scraper_historical.close()
 
+    # Get newly scraped event IDs by finding the difference
+    cursor.execute('SELECT event_id FROM events')
+    existing_ids_after = set(row[0] for row in cursor.fetchall())
+    newly_scraped_ids = list(existing_ids_after - existing_ids_before)
+
     log(f"Scraping complete: {total_scraped} total events ({new_count} new + {total_scraped - new_count} historical)")
-    return total_scraped
+    log(f"  Event IDs to extract immediately: {newly_scraped_ids[:5]}..." if len(newly_scraped_ids) > 5 else f"  Event IDs to extract immediately: {newly_scraped_ids}")
+
+    return total_scraped, newly_scraped_ids
 
 
-def extract_speakers(db, pending_limit=None):
+def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
     """
     Extract speakers from pending events
 
     Args:
-        pending_limit: Maximum number of pending events to process (default: None for all)
+        newly_scraped_ids: List of event IDs that were just scraped (process these first)
+        pending_limit: Maximum number of ADDITIONAL pending events to process (retries)
 
     Returns:
         tuple: (num_speakers_extracted, num_events_processed)
@@ -191,17 +205,65 @@ def extract_speakers(db, pending_limit=None):
 
     extractor = SpeakerExtractor(api_key=api_key)
 
-    pending_events = db.get_unprocessed_events(limit=pending_limit)
-    if not pending_events:
+    # Build list of events to process
+    events_to_process = []
+
+    # 1. Add newly scraped events (process immediately)
+    if newly_scraped_ids:
+        cursor = db.conn.cursor()
+        placeholders = ','.join('?' * len(newly_scraped_ids))
+        cursor.execute(f'''
+            SELECT event_id, url, title, body_text
+            FROM events
+            WHERE event_id IN ({placeholders})
+            AND processing_status = 'pending'
+        ''', newly_scraped_ids)
+        new_events = cursor.fetchall()
+        events_to_process.extend(new_events)
+        log(f"Processing {len(new_events)} newly scraped events...")
+
+    # 2. Add older pending events (retries), excluding the ones we just scraped
+    if pending_limit and pending_limit > 0:
+        exclude_ids = set(newly_scraped_ids) if newly_scraped_ids else set()
+        cursor = db.conn.cursor()
+
+        # Get older pending events, excluding newly scraped ones
+        if exclude_ids:
+            placeholders = ','.join('?' * len(exclude_ids))
+            cursor.execute(f'''
+                SELECT event_id, url, title, body_text
+                FROM events
+                WHERE processing_status = 'pending'
+                AND event_id NOT IN ({placeholders})
+                AND (extraction_attempts IS NULL OR extraction_attempts < 3)
+                ORDER BY extraction_attempts ASC, event_id ASC
+                LIMIT ?
+            ''', (*exclude_ids, pending_limit))
+        else:
+            cursor.execute('''
+                SELECT event_id, url, title, body_text
+                FROM events
+                WHERE processing_status = 'pending'
+                AND (extraction_attempts IS NULL OR extraction_attempts < 3)
+                ORDER BY extraction_attempts ASC, event_id ASC
+                LIMIT ?
+            ''', (pending_limit,))
+
+        retry_events = cursor.fetchall()
+        events_to_process.extend(retry_events)
+        if retry_events:
+            log(f"Processing {len(retry_events)} older pending events (retries)...")
+
+    if not events_to_process:
         log("No pending events to process")
         return 0, 0
 
-    events_processed = len(pending_events)
-    log(f"Processing {events_processed} pending events (limit: {pending_limit or 'none'})...")
+    events_processed = len(events_to_process)
+    log(f"Total events to process: {events_processed}")
 
     initial_speaker_count = db.get_statistics()['total_speakers']
 
-    for event in pending_events:
+    for event in events_to_process:
         event_id = event[0]
         event_url = event[1]      # URL (was incorrectly labeled as event_title)
         event_title = event[2]    # Actual title
@@ -488,15 +550,20 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
 
     with SpeakerDatabase(db_path) as db:
         try:
-            # Step 1: Scrape events (adds to pending, not yet extracted)
-            scraped = scrape_events(db, event_limit=event_limit)
-            stats.events_scraped = scraped  # Track scraping only (no cost yet)
+            # Step 1: Scrape events (adds to pending, returns IDs of newly scraped)
+            scraped_count, newly_scraped_ids = scrape_events(db, event_limit=event_limit)
+            stats.events_scraped = scraped_count
 
-            # Step 2: Extract speakers from pending events (this is where API costs occur)
-            extracted_speakers, events_processed = extract_speakers(db, pending_limit=pending_limit)
+            # Step 2: Extract speakers from newly scraped events + older pending events
+            # This processes ALL newly scraped events immediately, PLUS pending_limit retries
+            extracted_speakers, events_processed = extract_speakers(
+                db,
+                newly_scraped_ids=newly_scraped_ids,
+                pending_limit=pending_limit
+            )
             stats.speakers_extracted = extracted_speakers
 
-            # Track extraction cost (only for events actually processed via Claude API)
+            # Track extraction cost (for all events actually processed via Claude API)
             extraction_cost = events_processed * stats.extraction_cost_per_event
             stats.extraction_cost += extraction_cost
             stats.total_cost += extraction_cost

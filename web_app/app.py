@@ -1812,6 +1812,57 @@ def admin_pipeline_runs_debug():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/pending-events-count')
+@login_required
+def admin_pending_events_count():
+    """Check how many events are pending extraction"""
+    import sqlite3
+
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        cursor = conn.cursor()
+
+        # Count pending events by extraction attempts
+        cursor.execute('''
+            SELECT
+                processing_status,
+                COALESCE(extraction_attempts, 0) as attempts,
+                COUNT(*) as count
+            FROM events
+            WHERE processing_status IN ('pending', 'failed')
+            GROUP BY processing_status, extraction_attempts
+            ORDER BY attempts ASC
+        ''')
+
+        by_attempts = [{'status': row[0], 'attempts': row[1], 'count': row[2]} for row in cursor.fetchall()]
+
+        # Total counts
+        cursor.execute('''
+            SELECT
+                COUNT(*) FILTER (WHERE processing_status = 'pending') as pending,
+                COUNT(*) FILTER (WHERE processing_status = 'completed') as completed,
+                COUNT(*) FILTER (WHERE processing_status = 'failed') as failed,
+                COUNT(*) as total
+            FROM events
+        ''')
+
+        totals = cursor.fetchone()
+
+        conn.close()
+        return jsonify({
+            'pending_total': totals[0],
+            'completed_total': totals[1],
+            'failed_total': totals[2],
+            'events_total': totals[3],
+            'pending_by_attempts': by_attempts
+        })
+
+    except Exception as e:
+        logger.error(f"Pending events count error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/check-duplicate-runs')
 @login_required
 def admin_check_duplicate_runs():
