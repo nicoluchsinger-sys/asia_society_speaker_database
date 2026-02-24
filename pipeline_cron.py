@@ -488,16 +488,18 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
 
     with SpeakerDatabase(db_path) as db:
         try:
-            # Step 1: Scrape events
+            # Step 1: Scrape events (adds to pending, not yet extracted)
             scraped = scrape_events(db, event_limit=event_limit)
-            stats.add_extraction(scraped)  # Add scraped events to stats
+            stats.events_scraped = scraped  # Track scraping only (no cost yet)
 
-            # Step 2: Extract speakers from newly scraped events AND pending/failed events
+            # Step 2: Extract speakers from pending events (this is where API costs occur)
             extracted_speakers, events_processed = extract_speakers(db, pending_limit=pending_limit)
             stats.speakers_extracted = extracted_speakers
 
-            # Track total events processed (scraped + pending extracted)
-            stats.add_extraction(events_processed)
+            # Track extraction cost (only for events actually processed via Claude API)
+            extraction_cost = events_processed * stats.extraction_cost_per_event
+            stats.extraction_cost += extraction_cost
+            stats.total_cost += extraction_cost
 
             # Step 3: Enrich NEW speakers first (adds tags before embedding)
             if extracted_speakers > 0:
