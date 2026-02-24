@@ -2679,19 +2679,29 @@ def admin_verify_stats():
         else:
             duplicate_count = 0
 
-        # Get recent events
+        # Get recent events (without first_scraped if it doesn't exist)
+        recent_events = []
         if len(runs) >= 2:
-            cursor.execute('''
-                SELECT event_id, title, first_scraped
-                FROM events
-                WHERE datetime(first_scraped) >= datetime(?)
-                ORDER BY first_scraped DESC
-                LIMIT 10
-            ''', (runs[1]['timestamp'],))
-            recent_events = [dict(zip(['event_id', 'title', 'first_scraped'], row))
-                           for row in cursor.fetchall()]
-        else:
-            recent_events = []
+            try:
+                cursor.execute('''
+                    SELECT event_id, title, first_scraped
+                    FROM events
+                    WHERE datetime(first_scraped) >= datetime(?)
+                    ORDER BY first_scraped DESC
+                    LIMIT 10
+                ''', (runs[1]['timestamp'],))
+                recent_events = [dict(zip(['event_id', 'title', 'first_scraped'], row))
+                               for row in cursor.fetchall()]
+            except sqlite3.OperationalError:
+                # first_scraped column doesn't exist, just get recent events by ID
+                cursor.execute('''
+                    SELECT event_id, title, NULL as first_scraped
+                    FROM events
+                    ORDER BY event_id DESC
+                    LIMIT 10
+                ''')
+                recent_events = [dict(zip(['event_id', 'title', 'first_scraped'], row))
+                               for row in cursor.fetchall()]
 
         conn.close()
 

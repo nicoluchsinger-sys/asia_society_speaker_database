@@ -158,27 +158,43 @@ def verify_pipeline_stats():
     print("RECENT EVENT DETAILS")
     print("=" * 70)
 
-    # Get events scraped in last 2 runs (by timestamp)
+    # Get events scraped in last 2 runs (by timestamp if column exists)
     if len(runs) >= 2:
         run1_time = runs[0][1]
         run2_time = runs[1][1]
 
-        cursor.execute('''
-            SELECT event_id, title, first_scraped
-            FROM events
-            WHERE datetime(first_scraped) >= datetime(?)
-            ORDER BY first_scraped DESC
-            LIMIT 10
-        ''', (run2_time,))
+        try:
+            cursor.execute('''
+                SELECT event_id, title, first_scraped
+                FROM events
+                WHERE datetime(first_scraped) >= datetime(?)
+                ORDER BY first_scraped DESC
+                LIMIT 10
+            ''', (run2_time,))
 
-        recent_events = cursor.fetchall()
+            recent_events = cursor.fetchall()
 
-        if recent_events:
-            print(f"\nLast 10 events scraped (since {run2_time}):")
-            for event_id, title, scraped_time in recent_events:
-                print(f"  {event_id}: {title[:50]}... (scraped: {scraped_time})")
-        else:
-            print(f"\n⚠️  No events found scraped since {run2_time}")
+            if recent_events:
+                print(f"\nLast 10 events scraped (since {run2_time}):")
+                for event_id, title, scraped_time in recent_events:
+                    print(f"  {event_id}: {title[:50]}... (scraped: {scraped_time})")
+            else:
+                print(f"\n⚠️  No events found scraped since {run2_time}")
+        except sqlite3.OperationalError:
+            # first_scraped column doesn't exist
+            print(f"\n⚠️  Cannot filter by date (first_scraped column not available)")
+            print(f"Showing most recent 10 events by ID instead:")
+
+            cursor.execute('''
+                SELECT event_id, title
+                FROM events
+                ORDER BY event_id DESC
+                LIMIT 10
+            ''')
+
+            recent_events = cursor.fetchall()
+            for event_id, title in recent_events:
+                print(f"  {event_id}: {title[:50]}...")
 
     conn.close()
     print("\n" + "=" * 70)
