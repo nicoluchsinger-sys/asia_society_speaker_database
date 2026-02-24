@@ -522,14 +522,35 @@
         async function loadMetrics() {
             try {
                 const response = await fetch('/api/monitoring/all');
-                const metrics = await response.json();
-                renderDashboard(metrics);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Check if response is an error object
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Validate response structure
+                if (!data.health || !data.health.status) {
+                    console.error('Invalid metrics structure:', data);
+                    throw new Error('Invalid metrics structure returned from API');
+                }
+
+                renderDashboard(data);
             } catch (error) {
+                console.error('Error loading metrics:', error);
                 document.getElementById('dashboard').innerHTML = `
                     <div class="card full-width">
                         <div class="alert alert-critical">
                             ❌ Error loading metrics: ${error.message}
                         </div>
+                        <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
+                            Check the browser console for more details.
+                        </p>
                     </div>
                 `;
             }

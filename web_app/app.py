@@ -2613,15 +2613,52 @@ def monitoring_performance():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/monitoring/test')
+def monitoring_test():
+    """Test monitoring module and database connection"""
+    try:
+        import sys
+        db_path = get_db_path()
+        result = {
+            'db_path': db_path,
+            'db_exists': os.path.exists(db_path),
+            'monitoring_module_loaded': 'monitoring' in sys.modules,
+            'python_path': sys.path[:3]
+        }
+
+        # Try to initialize monitor
+        monitor = PipelineMonitor(db_path=db_path)
+        result['monitor_initialized'] = True
+
+        # Try to get health status
+        health = monitor.get_health_status()
+        result['health_status'] = health.get('status', 'unknown')
+
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'type': type(e).__name__,
+            'traceback': traceback.format_exc()
+        }), 500
+
+
 @app.route('/api/monitoring/all')
 def monitoring_all():
     """Get all monitoring metrics in one call"""
     try:
-        monitor = PipelineMonitor(db_path=get_db_path())
-        return jsonify(monitor.get_all_metrics())
+        db_path = get_db_path()
+        logger.info(f"Monitoring: Using database path: {db_path}")
+        monitor = PipelineMonitor(db_path=db_path)
+        metrics = monitor.get_all_metrics()
+        logger.info(f"Monitoring: Successfully retrieved all metrics")
+        return jsonify(metrics)
     except Exception as e:
         logger.error(f"Error getting all metrics: {e}")
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'type': type(e).__name__}), 500
 
 
 if __name__ == '__main__':
