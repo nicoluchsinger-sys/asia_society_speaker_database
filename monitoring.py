@@ -6,7 +6,7 @@ Used by the web dashboard to display pipeline status, backlog trends, and error 
 """
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 from database import SpeakerDatabase
 import os
@@ -27,6 +27,32 @@ class PipelineMonitor:
         if db_path is None:
             db_path = '/data/speakers.db' if os.path.exists('/data') else 'speakers.db'
         self.db_path = db_path
+
+    @staticmethod
+    def _parse_datetime(dt_string: str) -> datetime:
+        """
+        Parse datetime string and ensure it's timezone-aware
+
+        Args:
+            dt_string: ISO format datetime string
+
+        Returns:
+            Timezone-aware datetime object
+        """
+        if not dt_string:
+            return None
+
+        # Remove 'Z' suffix if present and parse
+        if dt_string.endswith('Z'):
+            dt_string = dt_string[:-1] + '+00:00'
+
+        dt = datetime.fromisoformat(dt_string)
+
+        # If naive, assume UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        return dt
 
     def get_health_status(self) -> Dict:
         """
@@ -53,8 +79,8 @@ class PipelineMonitor:
 
                 # Check for stale lock (locked > 30 min)
                 if is_locked:
-                    locked_at = datetime.fromisoformat(lock_row[0])
-                    age_minutes = (datetime.utcnow() - locked_at).total_seconds() / 60
+                    locked_at = self._parse_datetime(lock_row[0])
+                    age_minutes = (datetime.now(timezone.utc) - locked_at).total_seconds() / 60
                     stale_lock = age_minutes > 30
             except sqlite3.OperationalError:
                 # pipeline_lock table doesn't exist (local dev)
@@ -89,8 +115,8 @@ class PipelineMonitor:
                 last_run_time = last_run[1] or last_run[0]  # completed_at or started_at
                 last_run_status = 'success' if last_run[2] else 'failed'
                 if last_run_time:
-                    last_run_dt = datetime.fromisoformat(last_run_time)
-                    time_since_last_run = (datetime.utcnow() - last_run_dt).total_seconds() / 3600
+                    last_run_dt = self._parse_datetime(last_run_time)
+                    time_since_last_run = (datetime.now(timezone.utc) - last_run_dt).total_seconds() / 3600
 
             # Get backlog counts
             cursor.execute('SELECT COUNT(*) FROM events WHERE processing_status = "pending"')
@@ -136,7 +162,7 @@ class PipelineMonitor:
 
             return {
                 'status': status,
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'pipeline_locked': is_locked,
                 'stale_lock': stale_lock,
                 'last_run': {
@@ -213,7 +239,7 @@ class PipelineMonitor:
             }
 
             # Get historical trends from pipeline_runs (handle both schemas)
-            since = datetime.utcnow() - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
             try:
                 # Try new schema (started_at)
                 cursor.execute('''
@@ -251,7 +277,7 @@ class PipelineMonitor:
                 })
 
             return {
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'current_events': current_events,
                 'events_by_attempts': events_by_attempts,
                 'current_speakers': current_speakers,
@@ -275,7 +301,7 @@ class PipelineMonitor:
         cursor = db.conn.cursor()
 
         try:
-            since = datetime.utcnow() - timedelta(hours=hours)
+            since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
             # Event extraction success rate (events marked completed vs failed recently)
             cursor.execute('''
@@ -315,7 +341,7 @@ class PipelineMonitor:
             embedding_rate = (speakers_with_embeddings / total_speakers * 100) if total_speakers > 0 else 0
 
             return {
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'time_window_hours': hours,
                 'extraction': {
                     'success_rate': round(extraction_rate, 1) if extraction_rate is not None else None,
@@ -353,7 +379,7 @@ class PipelineMonitor:
         cursor = db.conn.cursor()
 
         try:
-            since = datetime.utcnow() - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
 
             # Get cost trends from pipeline_runs (handle both schemas)
             try:
@@ -417,7 +443,7 @@ class PipelineMonitor:
             row = cursor.fetchone()
 
             return {
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'days': days,
                 'total_cost': round(total_cost, 4),
                 'avg_cost_per_speaker': round(row[0], 4) if row[0] else None,
@@ -505,7 +531,7 @@ class PipelineMonitor:
                 })
 
             return {
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'failed_events': failed_events,
                 'failed_speakers': failed_speakers,
                 'stuck_in_retry': stuck_in_retry,
@@ -529,7 +555,7 @@ class PipelineMonitor:
         cursor = db.conn.cursor()
 
         try:
-            since = datetime.utcnow() - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
 
             # Get pipeline run durations (handle both schemas)
             try:
@@ -588,7 +614,7 @@ class PipelineMonitor:
                 avg_duration = avg_events = avg_speakers = None
 
             return {
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
                 'days': days,
                 'total_runs': len(runs),
                 'averages': {
