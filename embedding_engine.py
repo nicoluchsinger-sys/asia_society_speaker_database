@@ -165,21 +165,27 @@ class EmbeddingEngine:
 
         return '\n'.join(parts)
 
-    def generate_embedding(self, text: str) -> np.ndarray:
+    def generate_embedding(self, text: str, timeout: int = 60) -> np.ndarray:
         """
         Generate embedding for a single text
 
         Args:
             text: Text to embed
+            timeout: Timeout in seconds (default: 60)
 
         Returns:
             Embedding vector as numpy array
+
+        Raises:
+            TimeoutError: If API call exceeds timeout
+            Exception: For other API errors
         """
         if self.provider == 'gemini':
             result = self.client.embed_content(
                 model=self.model,
                 content=text,
-                task_type="retrieval_document"
+                task_type="retrieval_document",
+                request_options={'timeout': timeout}
             )
             embedding = result['embedding']
             self._last_usage = {'total_tokens': len(text.split())}  # Approximate
@@ -187,27 +193,33 @@ class EmbeddingEngine:
         elif self.provider == 'openai':
             result = self.client.embeddings.create(
                 input=[text],
-                model=self.model
+                model=self.model,
+                timeout=timeout
             )
             embedding = result.data[0].embedding
             self._last_usage = {'total_tokens': result.usage.total_tokens}
 
         elif self.provider == 'voyage':
-            result = self.client.embed([text], model=self.model, input_type='document')
+            result = self.client.embed([text], model=self.model, input_type='document', timeout_seconds=timeout)
             embedding = result.embeddings[0]
             self._last_usage = {'total_tokens': result.total_tokens}
 
         return np.array(embedding)
 
-    def generate_embeddings_batch(self, texts: List[str]) -> List[np.ndarray]:
+    def generate_embeddings_batch(self, texts: List[str], timeout: int = 60) -> List[np.ndarray]:
         """
         Generate embeddings for multiple texts in a batch
 
         Args:
             texts: List of texts to embed
+            timeout: Timeout in seconds per request (default: 60)
 
         Returns:
             List of embedding vectors
+
+        Raises:
+            TimeoutError: If API call exceeds timeout
+            Exception: For other API errors
         """
         if not texts:
             return []
@@ -221,7 +233,8 @@ class EmbeddingEngine:
                 result = self.client.embed_content(
                     model=self.model,
                     content=text,
-                    task_type="retrieval_document"
+                    task_type="retrieval_document",
+                    request_options={'timeout': timeout}
                 )
                 embeddings.append(result['embedding'])
                 total_tokens += len(text.split())
@@ -231,33 +244,40 @@ class EmbeddingEngine:
         elif self.provider == 'openai':
             result = self.client.embeddings.create(
                 input=texts,
-                model=self.model
+                model=self.model,
+                timeout=timeout
             )
             embeddings = [item.embedding for item in result.data]
             self._last_usage = {'total_tokens': result.usage.total_tokens}
 
         elif self.provider == 'voyage':
-            result = self.client.embed(texts, model=self.model, input_type='document')
+            result = self.client.embed(texts, model=self.model, input_type='document', timeout_seconds=timeout)
             embeddings = result.embeddings
             self._last_usage = {'total_tokens': result.total_tokens}
 
         return [np.array(emb) for emb in embeddings]
 
-    def generate_query_embedding(self, query: str) -> np.ndarray:
+    def generate_query_embedding(self, query: str, timeout: int = 60) -> np.ndarray:
         """
         Generate embedding for a search query
 
         Args:
             query: Search query text
+            timeout: Timeout in seconds (default: 60)
 
         Returns:
             Query embedding vector
+
+        Raises:
+            TimeoutError: If API call exceeds timeout
+            Exception: For other API errors
         """
         if self.provider == 'gemini':
             result = self.client.embed_content(
                 model=self.model,
                 content=query,
-                task_type="retrieval_query"  # Different task type for queries
+                task_type="retrieval_query",  # Different task type for queries
+                request_options={'timeout': timeout}
             )
             embedding = result['embedding']
             self._last_usage = {'total_tokens': len(query.split())}
@@ -265,13 +285,14 @@ class EmbeddingEngine:
         elif self.provider == 'openai':
             result = self.client.embeddings.create(
                 input=[query],
-                model=self.model
+                model=self.model,
+                timeout=timeout
             )
             embedding = result.data[0].embedding
             self._last_usage = {'total_tokens': result.usage.total_tokens}
 
         elif self.provider == 'voyage':
-            result = self.client.embed([query], model=self.model, input_type='query')
+            result = self.client.embed([query], model=self.model, input_type='query', timeout_seconds=timeout)
             embedding = result.embeddings[0]
             self._last_usage = {'total_tokens': result.total_tokens}
 

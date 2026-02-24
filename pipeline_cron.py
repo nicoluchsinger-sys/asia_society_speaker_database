@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import logging
+import anthropic
 from datetime import datetime, timezone
 from database import SpeakerDatabase
 from selenium_scraper import SeleniumEventScraper
@@ -261,12 +262,22 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
     events_processed = len(events_to_process)
     log(f"Total events to process: {events_processed}")
 
+    def validate_speaker_field(value, field_name, max_length=500):
+        """Validate and sanitize speaker field"""
+        if value is None:
+            return None
+        value = str(value).strip()
+        if len(value) > max_length:
+            log(f"  ⚠ Truncating {field_name} (length {len(value)} > {max_length})")
+            return value[:max_length]
+        return value if value else None
+
     initial_speaker_count = db.get_statistics()['total_speakers']
 
     for event in events_to_process:
         event_id = event[0]
-        event_url = event[1]      # URL (was incorrectly labeled as event_title)
-        event_title = event[2]    # Actual title
+        event_url = event[1]
+        event_title = event[2]
         body_text = event[3]
 
         # Increment attempt counter before processing (prevents infinite retries)
@@ -275,39 +286,80 @@ def extract_speakers(db, newly_scraped_ids=None, pending_limit=None):
         try:
             result = extractor.extract_speakers(event_title, body_text)
 
-            if result['success'] and result['speakers']:
-                # Add each speaker to database
-                for speaker_data in result['speakers']:
-                    # Skip speakers with no name (Claude extraction issue)
-                    speaker_name = speaker_data.get('name')
-                    if not speaker_name or not speaker_name.strip():
-                        log(f"  ⚠ Skipping speaker with no name: {speaker_data}")
-                        continue
+            if result['success']:
+                # Extraction succeeded
+                if result['speakers']:
+                    # Begin transaction for atomic speaker insertion
+                    db.conn.execute('BEGIN')
 
-                    speaker_id = db.add_speaker(
-                        name=speaker_name.strip(),
-                        title=speaker_data.get('title'),
-                        affiliation=speaker_data.get('affiliation'),
-                        bio=speaker_data.get('bio')
-                    )
+                    try:
+                        speakers_added = 0
+                        # Add each speaker to database
+                        for speaker_data in result['speakers']:
+                            # Skip speakers with no name (Claude extraction issue)
+                            speaker_name = speaker_data.get('name')
+                            if not speaker_name or not speaker_name.strip():
+                                log(f"  ⚠ Skipping speaker with no name: {speaker_data}")
+                                continue
 
-                    # Link speaker to event
-                    if speaker_id:
-                        db.link_speaker_to_event(
-                            event_id=event_id,
-                            speaker_id=speaker_id,
-                            role_in_event=speaker_data.get('role', 'speaker')
-                        )
+                            # Validate and sanitize fields
+                            speaker_id = db.add_speaker(
+                                name=speaker_name.strip(),
+                                title=validate_speaker_field(speaker_data.get('title'), 'title'),
+                                affiliation=validate_speaker_field(speaker_data.get('affiliation'), 'affiliation'),
+                                bio=validate_speaker_field(speaker_data.get('bio'), 'bio', max_length=2000)
+                            )
 
-                # Mark event as completed
-                db.mark_event_processed(event_id, 'completed')
-                log(f"  ✓ Extracted {len(result['speakers'])} speakers from: {event_title}")
+                            # Link speaker to event
+                            if speaker_id:
+                                db.link_speaker_to_event(
+                                    event_id=event_id,
+                                    speaker_id=speaker_id,
+                                    role_in_event=speaker_data.get('role', 'speaker')
+                                )
+                                speakers_added += 1
+
+                        # Commit transaction - all speakers added successfully
+                        db.conn.commit()
+
+                        # Mark event as completed
+                        db.mark_event_processed(event_id, 'completed')
+                        log(f"  ✓ Extracted {speakers_added} speakers from: {event_title}")
+
+                    except Exception as e:
+                        # Rollback transaction on any error during speaker insertion
+                        db.conn.rollback()
+                        db.mark_event_processed(event_id, 'failed')
+                        log(f"  ✗ Database error for event {event_id}: {e}")
+
+                else:
+                    # Extraction succeeded but no speakers found (valid for some events)
+                    db.mark_event_processed(event_id, 'completed')
+                    log(f"  ⚠ No speakers found in: {event_title}")
             else:
-                db.mark_event_processed(event_id, 'failed')
-                log(f"  ✗ FAILED: {event_title}")
-                log(f"    URL: {event_url}")
+                # Extraction failed
+                error_msg = result.get('error', 'Unknown error')
+                is_transient = result.get('is_transient', False)
 
+                # Only mark as failed if it's a permanent error
+                # Transient errors (network, timeout) should leave as pending for retry
+                if not is_transient:
+                    db.mark_event_processed(event_id, 'failed')
+                    log(f"  ✗ FAILED: {event_title}")
+                    log(f"    Error: {error_msg}")
+                    log(f"    URL: {event_url}")
+                else:
+                    log(f"  ⚠ Transient error (will retry): {event_title}")
+                    log(f"    Error: {error_msg}")
+
+        except anthropic.APIConnectionError as e:
+            # Network error - transient, don't mark as failed
+            log(f"  ⚠ Network error for event {event_id}, will retry: {e}")
+        except anthropic.APITimeoutError as e:
+            # Timeout - transient, don't mark as failed
+            log(f"  ⚠ Timeout for event {event_id}, will retry: {e}")
         except Exception as e:
+            # Permanent error (database, validation, etc.)
             log(f"  ERROR processing event {event_id}: {e}")
             db.mark_event_processed(event_id, 'failed')
 
@@ -467,8 +519,15 @@ def enrich_existing_speakers(db, limit=10):
     return enriched_count
 
 
-def save_pipeline_run(db, stats):
-    """Save pipeline run statistics to database"""
+def save_pipeline_run(db, stats, success=True):
+    """
+    Save pipeline run statistics to database
+
+    Args:
+        db: Database connection
+        stats: PipelineStats object
+        success: Whether pipeline completed successfully (default: True)
+    """
     cursor = db.conn.cursor()
 
     # Create pipeline_runs table if it doesn't exist
@@ -519,7 +578,7 @@ def save_pipeline_run(db, stats):
         stats.embedding_cost,
         stats.enrichment_cost,
         stats.total_cost,
-        True
+        success
     ))
 
     db.conn.commit()
@@ -548,52 +607,97 @@ def run_pipeline(event_limit=10, existing_limit=10, pending_limit=5):
     db_path = get_db_path()
     log(f"Using database: {db_path}")
 
+    pipeline_success = False
+    critical_failure = False
+
     with SpeakerDatabase(db_path) as db:
         try:
-            # Step 1: Scrape events (adds to pending, returns IDs of newly scraped)
-            scraped_count, newly_scraped_ids = scrape_events(db, event_limit=event_limit)
-            stats.events_scraped = scraped_count
+            # Step 1: Scrape events (CRITICAL - abort if fails)
+            try:
+                scraped_count, newly_scraped_ids = scrape_events(db, event_limit=event_limit)
+                stats.events_scraped = scraped_count
+                log(f"✓ Scraping phase complete: {scraped_count} events")
+            except Exception as e:
+                log(f"CRITICAL ERROR in scraping phase: {e}")
+                critical_failure = True
+                raise
 
-            # Step 2: Extract speakers from newly scraped events + older pending events
-            # This processes ALL newly scraped events immediately, PLUS pending_limit retries
-            extracted_speakers, events_processed = extract_speakers(
-                db,
-                newly_scraped_ids=newly_scraped_ids,
-                pending_limit=pending_limit
-            )
-            stats.speakers_extracted = extracted_speakers
+            # Step 2: Extract speakers (CRITICAL - abort if fails)
+            try:
+                extracted_speakers, events_processed = extract_speakers(
+                    db,
+                    newly_scraped_ids=newly_scraped_ids,
+                    pending_limit=pending_limit
+                )
+                stats.speakers_extracted = extracted_speakers
 
-            # Track extraction cost (for all events actually processed via Claude API)
-            extraction_cost = events_processed * stats.extraction_cost_per_event
-            stats.extraction_cost += extraction_cost
-            stats.total_cost += extraction_cost
+                # Track extraction cost
+                extraction_cost = events_processed * stats.extraction_cost_per_event
+                stats.extraction_cost += extraction_cost
+                stats.total_cost += extraction_cost
+                log(f"✓ Extraction phase complete: {extracted_speakers} speakers from {events_processed} events")
+            except Exception as e:
+                log(f"CRITICAL ERROR in extraction phase: {e}")
+                critical_failure = True
+                raise
 
-            # Step 3: Enrich NEW speakers first (adds tags before embedding)
+            # Step 3: Enrich NEW speakers (NON-CRITICAL - log warning if fails)
             if extracted_speakers > 0:
-                enriched_new = enrich_new_speakers(db, stats)
-                stats.add_enrichment(enriched_new, is_existing=False)
+                try:
+                    enriched_new = enrich_new_speakers(db, stats)
+                    stats.add_enrichment(enriched_new, is_existing=False)
+                    log(f"✓ New speaker enrichment complete: {enriched_new} speakers")
+                except Exception as e:
+                    log(f"WARNING: Enrichment failed for new speakers: {e}")
+                    log("Continuing pipeline despite enrichment failure...")
 
-                # Step 4: Generate embeddings for new speakers (includes tags now!)
-                embeddings = generate_speaker_embeddings(db)
-                stats.add_embeddings(embeddings)
+                # Step 4: Generate embeddings (NON-CRITICAL - log warning if fails)
+                try:
+                    embeddings = generate_speaker_embeddings(db)
+                    stats.add_embeddings(embeddings)
+                    log(f"✓ Embedding generation complete: {embeddings} embeddings")
+                except Exception as e:
+                    log(f"WARNING: Embedding generation failed: {e}")
+                    log("Continuing pipeline despite embedding failure...")
 
-            # Step 5: Enrich existing untagged speakers (backfill)
-            enriched_existing = enrich_existing_speakers(db, limit=existing_limit)
-            stats.add_enrichment(enriched_existing, is_existing=True)
+            # Step 5: Enrich existing speakers (NON-CRITICAL - log warning if fails)
+            try:
+                enriched_existing = enrich_existing_speakers(db, limit=existing_limit)
+                stats.add_enrichment(enriched_existing, is_existing=True)
+                log(f"✓ Existing speaker enrichment complete: {enriched_existing} speakers")
+            except Exception as e:
+                log(f"WARNING: Existing speaker enrichment failed: {e}")
+                log("Continuing pipeline despite enrichment failure...")
 
-            # Save run statistics
-            save_pipeline_run(db, stats)
+            # If we got here, pipeline succeeded (critical phases completed)
+            pipeline_success = True
+            log("✓ Pipeline completed successfully")
 
-            # Print summary
-            stats.print_summary()
-
-            return True
+        except KeyboardInterrupt:
+            log("Pipeline interrupted by user")
+            critical_failure = True
+            raise
 
         except Exception as e:
+            # Only critical errors reach here (scraping/extraction failures)
             log(f"FATAL ERROR in pipeline: {e}")
             import traceback
             traceback.print_exc()
-            return False
+
+        finally:
+            # ALWAYS save stats and print summary, even on failure
+            try:
+                save_pipeline_run(db, stats, success=pipeline_success)
+                stats.print_summary()
+            except Exception as e:
+                log(f"ERROR saving pipeline stats: {e}")
+
+            # Cleanup note
+            if critical_failure:
+                log("Pipeline terminated due to critical failure in scraping or extraction")
+                log("Non-critical phases (enrichment, embeddings) can be run separately later")
+
+    return pipeline_success
 
 
 if __name__ == "__main__":

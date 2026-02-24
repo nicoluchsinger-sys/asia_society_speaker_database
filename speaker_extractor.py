@@ -156,6 +156,7 @@ Important guidelines:
                 message = self.client.messages.create(
                     model=self.model,
                     max_tokens=max_tokens,
+                    timeout=60.0,  # 60 second timeout to prevent hanging
                     messages=[
                         {"role": "user", "content": prompt}
                     ]
@@ -176,6 +177,35 @@ Important guidelines:
                     'retry_after': getattr(e, 'retry_after', 60)
                 }
 
+            except anthropic.APIConnectionError as e:
+                # Network/connection errors are transient - retry
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 1s, 2s, 4s exponential backoff
+                    print(f"⚠ Connection error, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait_time)
+                    continue
+                # Final attempt failed
+                return {
+                    'success': False,
+                    'error': f'Connection error after {max_retries} attempts: {str(e)}',
+                    'raw_response': None,
+                    'is_transient': True  # Flag for caller to potentially retry later
+                }
+
+            except anthropic.APITimeoutError as e:
+                # Timeout errors are transient - retry
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"⚠ Timeout, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait_time)
+                    continue
+                return {
+                    'success': False,
+                    'error': f'Timeout after {max_retries} attempts: {str(e)}',
+                    'raw_response': None,
+                    'is_transient': True
+                }
+
             except anthropic.APIStatusError as e:
                 status_code = getattr(e, 'status_code', 'unknown')
                 # Retry only on 5xx server errors (transient), not 4xx client errors (permanent)
@@ -188,7 +218,8 @@ Important guidelines:
                 return {
                     'success': False,
                     'error': f'API error (status {status_code}): {str(e)}',
-                    'raw_response': None
+                    'raw_response': None,
+                    'is_transient': status_code >= 500 if isinstance(status_code, int) else False
                 }
 
         # If we got here without a message, something unexpected went wrong

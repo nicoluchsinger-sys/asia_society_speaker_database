@@ -30,14 +30,19 @@ class UnifiedSpeakerEnricher:
         self.model = "claude-3-haiku-20240307"
         self.search_delay = 1.5  # Rate limit for DuckDuckGo searches
 
-    def web_search(self, query: str, max_results: int = 5) -> Dict:
+    def web_search(self, query: str, max_results: int = 5, timeout: int = 30) -> Dict:
         """
         Perform a web search using DuckDuckGo
+
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+            timeout: Timeout in seconds (default: 30)
 
         Returns a dictionary with search results
         """
         try:
-            with DDGS() as ddgs:
+            with DDGS(timeout=timeout) as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))
 
             return {
@@ -45,12 +50,21 @@ class UnifiedSpeakerEnricher:
                 'results': results,
                 'query': query
             }
+        except TimeoutError as e:
+            return {
+                'success': False,
+                'error': f'Search timeout after {timeout}s: {str(e)}',
+                'results': [],
+                'query': query,
+                'is_transient': True
+            }
         except Exception as e:
             return {
                 'success': False,
                 'error': str(e),
                 'results': [],
-                'query': query
+                'query': query,
+                'is_transient': False
             }
 
     def build_search_query(self, speaker: Dict) -> str:
@@ -179,6 +193,7 @@ Important: Return ONLY the JSON, no other text."""
             message = self.client.messages.create(
                 model=self.model,
                 max_tokens=1500,  # Increased for comprehensive extraction
+                timeout=60.0,  # 60 second timeout to prevent hanging
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
@@ -221,17 +236,41 @@ Important: Return ONLY the JSON, no other text."""
                 'demographics': {},
                 'locations': [],
                 'languages': [],
-                'raw_response': response_text if 'response_text' in locals() else None
+                'raw_response': response_text if 'response_text' in locals() else None,
+                'is_transient': False  # JSON parsing errors are permanent
             }
-        except Exception as e:
+        except anthropic.APIConnectionError as e:
             return {
                 'success': False,
-                'error': f'API call failed: {str(e)}',
+                'error': f'Connection error: {str(e)}',
                 'tags': [],
                 'demographics': {},
                 'locations': [],
                 'languages': [],
-                'raw_response': None
+                'raw_response': None,
+                'is_transient': True  # Network errors are transient
+            }
+        except anthropic.APITimeoutError as e:
+            return {
+                'success': False,
+                'error': f'Timeout: {str(e)}',
+                'tags': [],
+                'demographics': {},
+                'locations': [],
+                'languages': [],
+                'raw_response': None,
+                'is_transient': True  # Timeouts are transient
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}',
+                'tags': [],
+                'demographics': {},
+                'locations': [],
+                'languages': [],
+                'raw_response': None,
+                'is_transient': False
             }
 
     def enrich_speaker(self, speaker_id: int, db) -> Dict:
@@ -262,6 +301,11 @@ Important: Return ONLY the JSON, no other text."""
         query = self.build_search_query(speaker)
         search_result = self.web_search(query)
 
+        # Log warning if web search failed but continuing
+        if not search_result['success']:
+            print(f"  ⚠ Web search failed for {speaker['name']}: {search_result.get('error', 'Unknown error')}")
+            print(f"    Continuing with bio-only enrichment...")
+
         # Determine source based on search success
         source = 'web_search' if search_result['success'] and search_result['results'] else 'bio_only'
 
@@ -273,67 +317,109 @@ Important: Return ONLY the JSON, no other text."""
         )
 
         if not extraction_result['success']:
-            # Mark both as failed
-            db.mark_speaker_tagged(speaker_id, 'failed')
+            # Only mark as failed if it's a permanent error
+            is_transient = extraction_result.get('is_transient', False)
+            if not is_transient:
+                db.mark_speaker_tagged(speaker_id, 'failed')
+
             return {
                 'success': False,
                 'error': extraction_result['error'],
-                'speaker_name': speaker['name']
+                'speaker_name': speaker['name'],
+                'is_transient': is_transient
             }
 
-        # Save TAGS to database
-        tags_saved = []
-        for tag_data in extraction_result['tags']:
-            tag_text = tag_data.get('text', '')
-            confidence = tag_data.get('confidence', 0.5)
+        # Validate extracted data
+        def validate_iso_country_code(code):
+            """Basic ISO 3166-1 alpha-2 validation (2 uppercase letters)"""
+            if not code:
+                return None
+            codes = [c.strip().upper() for c in str(code).split(',')]
+            valid_codes = [c for c in codes if c and len(c) == 2 and c.isalpha()]
+            return ','.join(valid_codes) if valid_codes else None
 
-            if tag_text:
-                db.add_speaker_tag(speaker_id, tag_text, confidence, source)
-                tags_saved.append({'text': tag_text, 'confidence': confidence})
+        def validate_gender(gender):
+            """Validate gender value"""
+            valid_genders = ['male', 'female', 'non-binary', 'unknown']
+            return gender.lower() if gender and gender.lower() in valid_genders else None
 
-        # Save DEMOGRAPHICS
-        demographics = extraction_result.get('demographics', {})
-        if demographics and any([
-            demographics.get('gender'),
-            demographics.get('nationality'),
-            demographics.get('birth_year')
-        ]):
-            db.save_speaker_demographics(
-                speaker_id,
-                gender=demographics.get('gender'),
-                gender_confidence=demographics.get('gender_confidence'),
-                nationality=demographics.get('nationality'),
-                nationality_confidence=demographics.get('nationality_confidence'),
-                birth_year=demographics.get('birth_year')
-            )
+        # Begin transaction for atomic save
+        db.conn.execute('BEGIN')
 
-        # Save LOCATIONS
-        locations = extraction_result.get('locations', [])
-        for loc in locations:
-            db.save_speaker_location(
-                speaker_id,
-                location_type=loc.get('location_type', 'unknown'),
-                city=loc.get('city'),
-                country=loc.get('country'),
-                region=loc.get('region'),
-                is_primary=loc.get('is_primary', False),
-                confidence=loc.get('confidence'),
-                source=source
-            )
+        try:
+            # Save TAGS to database
+            tags_saved = []
+            for tag_data in extraction_result['tags']:
+                tag_text = tag_data.get('text', '')
+                confidence = tag_data.get('confidence', 0.5)
 
-        # Save LANGUAGES
-        languages = extraction_result.get('languages', [])
-        for lang in languages:
-            db.save_speaker_language(
-                speaker_id,
-                language=lang.get('language'),
-                proficiency=lang.get('proficiency'),
-                confidence=lang.get('confidence'),
-                source=source
-            )
+                if tag_text and isinstance(tag_text, str):
+                    db.add_speaker_tag(speaker_id, tag_text[:100], confidence, source)  # Limit tag length
+                    tags_saved.append({'text': tag_text, 'confidence': confidence})
 
-        # Mark speaker as tagged AND enriched
-        db.mark_speaker_tagged(speaker_id, 'completed')
+            # Save DEMOGRAPHICS
+            demographics = extraction_result.get('demographics', {})
+            if demographics and any([
+                demographics.get('gender'),
+                demographics.get('nationality'),
+                demographics.get('birth_year')
+            ]):
+                validated_gender = validate_gender(demographics.get('gender'))
+                validated_nationality = validate_iso_country_code(demographics.get('nationality'))
+
+                db.save_speaker_demographics(
+                    speaker_id,
+                    gender=validated_gender,
+                    gender_confidence=demographics.get('gender_confidence'),
+                    nationality=validated_nationality,
+                    nationality_confidence=demographics.get('nationality_confidence'),
+                    birth_year=demographics.get('birth_year')
+                )
+
+            # Save LOCATIONS
+            locations = extraction_result.get('locations', [])
+            for loc in locations:
+                validated_country = validate_iso_country_code(loc.get('country'))
+                if validated_country:  # Only save if country code is valid
+                    db.save_speaker_location(
+                        speaker_id,
+                        location_type=loc.get('location_type', 'unknown'),
+                        city=loc.get('city'),
+                        country=validated_country,
+                        region=loc.get('region'),
+                        is_primary=loc.get('is_primary', False),
+                        confidence=loc.get('confidence'),
+                        source=source
+                    )
+
+            # Save LANGUAGES
+            languages = extraction_result.get('languages', [])
+            for lang in languages:
+                language_name = lang.get('language')
+                if language_name and isinstance(language_name, str):
+                    db.save_speaker_language(
+                        speaker_id,
+                        language=language_name[:50],  # Limit language name length
+                        proficiency=lang.get('proficiency'),
+                        confidence=lang.get('confidence'),
+                        source=source
+                    )
+
+            # Commit transaction - all data saved successfully
+            db.conn.commit()
+
+            # Mark speaker as tagged AND enriched
+            db.mark_speaker_tagged(speaker_id, 'completed')
+
+        except Exception as e:
+            # Rollback transaction on any database error
+            db.conn.rollback()
+            db.mark_speaker_tagged(speaker_id, 'failed')
+            return {
+                'success': False,
+                'error': f'Database error: {str(e)}',
+                'speaker_name': speaker['name']
+            }
 
         return {
             'success': True,

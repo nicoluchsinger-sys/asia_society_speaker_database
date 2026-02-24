@@ -114,41 +114,95 @@ def generate_embeddings(batch_size=50, limit=None, provider='openai', verbose=Tr
             batch_speakers.append(speaker)
             batch_texts.append(text)
 
-        # Generate embeddings for batch
+        # Open database connection for this batch
+        save_db = SpeakerDatabase(db_path)
+        failed_speakers = []
+
         try:
-            embeddings = engine.generate_embeddings_batch(batch_texts)
-
-            # Open fresh database connection for saving (prevents locking issues)
-            save_db = SpeakerDatabase(db_path)
+            # Try batch processing first (more efficient)
             try:
-                # Save to database
+                embeddings = engine.generate_embeddings_batch(batch_texts)
+
+                # Save to database individually (allows partial success)
                 for speaker, embedding, text in zip(batch_speakers, embeddings, batch_texts):
-                    embedding_blob = engine.serialize_embedding(embedding)
-                    save_db.save_speaker_embedding(
-                        speaker['speaker_id'],
-                        embedding_blob,
-                        text,
-                        model=engine.model
-                    )
-            finally:
-                save_db.close()  # Always close connection after batch
+                    try:
+                        # Check for existing embedding to prevent duplicates
+                        cursor = save_db.conn.cursor()
+                        cursor.execute(
+                            'SELECT COUNT(*) FROM speaker_embeddings WHERE speaker_id = ?',
+                            (speaker['speaker_id'],)
+                        )
+                        if cursor.fetchone()[0] > 0:
+                            if verbose:
+                                print(f"  ⚠ Skipping {speaker['name']} (already has embedding)")
+                            continue
 
-            # Track usage
-            usage = engine.get_last_usage()
-            if usage:
-                total_tokens += usage['total_tokens']
+                        embedding_blob = engine.serialize_embedding(embedding)
+                        save_db.save_speaker_embedding(
+                            speaker['speaker_id'],
+                            embedding_blob,
+                            text,
+                            model=engine.model
+                        )
+                        processed += 1
 
-            processed += len(batch)
+                    except Exception as e:
+                        failed_speakers.append((speaker['name'], str(e)))
+                        if verbose:
+                            print(f"  ✗ Failed to save {speaker['name']}: {e}")
 
-            if verbose:
-                print(f"  ✓ Generated {len(embeddings)} embeddings")
+                # Track usage
+                usage = engine.get_last_usage()
                 if usage:
-                    print(f"  Tokens: {usage['total_tokens']}")
+                    total_tokens += usage['total_tokens']
 
-        except Exception as e:
-            if verbose:
-                print(f"  ✗ Error processing batch: {e}")
-            continue
+                if verbose:
+                    successful = len(batch) - len(failed_speakers)
+                    print(f"  ✓ Generated {successful} embeddings")
+                    if usage:
+                        print(f"  Tokens: {usage['total_tokens']}")
+
+            except Exception as batch_error:
+                # Batch processing failed - fall back to individual processing
+                if verbose:
+                    print(f"  ⚠ Batch failed ({batch_error}), processing individually...")
+
+                for speaker, text in zip(batch_speakers, batch_texts):
+                    try:
+                        # Check for existing embedding
+                        cursor = save_db.conn.cursor()
+                        cursor.execute(
+                            'SELECT COUNT(*) FROM speaker_embeddings WHERE speaker_id = ?',
+                            (speaker['speaker_id'],)
+                        )
+                        if cursor.fetchone()[0] > 0:
+                            continue
+
+                        embedding = engine.generate_embedding(text)
+                        embedding_blob = engine.serialize_embedding(embedding)
+                        save_db.save_speaker_embedding(
+                            speaker['speaker_id'],
+                            embedding_blob,
+                            text,
+                            model=engine.model
+                        )
+                        processed += 1
+
+                        usage = engine.get_last_usage()
+                        if usage:
+                            total_tokens += usage.get('total_tokens', 0)
+
+                    except Exception as e:
+                        failed_speakers.append((speaker['name'], str(e)))
+                        if verbose:
+                            print(f"  ✗ Failed {speaker['name']}: {e}")
+
+        finally:
+            save_db.close()
+
+        # Report failed speakers for this batch
+        if failed_speakers and verbose:
+            print(f"  ⚠ {len(failed_speakers)} speakers failed in this batch")
 
     elapsed = time.time() - start_time
 
@@ -283,41 +337,95 @@ def regenerate_all_embeddings(batch_size=50, provider='openai', verbose=True, db
             batch_speakers.append(speaker)
             batch_texts.append(text)
 
-        # Generate embeddings for batch
+        # Open database connection for this batch
+        save_db = SpeakerDatabase(db_path)
+        failed_speakers = []
+
         try:
-            embeddings = engine.generate_embeddings_batch(batch_texts)
-
-            # Open fresh database connection for saving (prevents locking issues)
-            save_db = SpeakerDatabase(db_path)
+            # Try batch processing first (more efficient)
             try:
-                # Save to database
+                embeddings = engine.generate_embeddings_batch(batch_texts)
+
+                # Save to database individually (allows partial success)
                 for speaker, embedding, text in zip(batch_speakers, embeddings, batch_texts):
-                    embedding_blob = engine.serialize_embedding(embedding)
-                    save_db.save_speaker_embedding(
-                        speaker['speaker_id'],
-                        embedding_blob,
-                        text,
-                        model=engine.model
-                    )
-            finally:
-                save_db.close()  # Always close connection after batch
+                    try:
+                        # Check for existing embedding to prevent duplicates
+                        cursor = save_db.conn.cursor()
+                        cursor.execute(
+                            'SELECT COUNT(*) FROM speaker_embeddings WHERE speaker_id = ?',
+                            (speaker['speaker_id'],)
+                        )
+                        if cursor.fetchone()[0] > 0:
+                            if verbose:
+                                print(f"  ⚠ Skipping {speaker['name']} (already has embedding)")
+                            continue
 
-            # Track usage
-            usage = engine.get_last_usage()
-            if usage:
-                total_tokens += usage['total_tokens']
+                        embedding_blob = engine.serialize_embedding(embedding)
+                        save_db.save_speaker_embedding(
+                            speaker['speaker_id'],
+                            embedding_blob,
+                            text,
+                            model=engine.model
+                        )
+                        processed += 1
 
-            processed += len(batch)
+                    except Exception as e:
+                        failed_speakers.append((speaker['name'], str(e)))
+                        if verbose:
+                            print(f"  ✗ Failed to save {speaker['name']}: {e}")
 
-            if verbose:
-                print(f"  ✓ Generated {len(embeddings)} embeddings")
+                # Track usage
+                usage = engine.get_last_usage()
                 if usage:
-                    print(f"  Tokens: {usage['total_tokens']}")
+                    total_tokens += usage['total_tokens']
 
-        except Exception as e:
-            if verbose:
-                print(f"  ✗ Error processing batch: {e}")
-            continue
+                if verbose:
+                    successful = len(batch) - len(failed_speakers)
+                    print(f"  ✓ Generated {successful} embeddings")
+                    if usage:
+                        print(f"  Tokens: {usage['total_tokens']}")
+
+            except Exception as batch_error:
+                # Batch processing failed - fall back to individual processing
+                if verbose:
+                    print(f"  ⚠ Batch failed ({batch_error}), processing individually...")
+
+                for speaker, text in zip(batch_speakers, batch_texts):
+                    try:
+                        # Check for existing embedding
+                        cursor = save_db.conn.cursor()
+                        cursor.execute(
+                            'SELECT COUNT(*) FROM speaker_embeddings WHERE speaker_id = ?',
+                            (speaker['speaker_id'],)
+                        )
+                        if cursor.fetchone()[0] > 0:
+                            continue
+
+                        embedding = engine.generate_embedding(text)
+                        embedding_blob = engine.serialize_embedding(embedding)
+                        save_db.save_speaker_embedding(
+                            speaker['speaker_id'],
+                            embedding_blob,
+                            text,
+                            model=engine.model
+                        )
+                        processed += 1
+
+                        usage = engine.get_last_usage()
+                        if usage:
+                            total_tokens += usage.get('total_tokens', 0)
+
+                    except Exception as e:
+                        failed_speakers.append((speaker['name'], str(e)))
+                        if verbose:
+                            print(f"  ✗ Failed {speaker['name']}: {e}")
+
+        finally:
+            save_db.close()
+
+        # Report failed speakers for this batch
+        if failed_speakers and verbose:
+            print(f"  ⚠ {len(failed_speakers)} speakers failed in this batch")
 
     elapsed = time.time() - start_time
 
