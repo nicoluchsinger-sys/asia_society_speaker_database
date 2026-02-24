@@ -636,14 +636,40 @@ class PipelineMonitor:
         Returns:
             dict: All metrics combined
         """
-        return {
-            'health': self.get_health_status(),
-            'backlog': self.get_backlog_trends(days=7),
-            'success_rates': self.get_success_rates(hours=24),
-            'costs': self.get_cost_metrics(days=7),
-            'errors': self.get_error_patterns(limit=10),
-            'performance': self.get_performance_metrics(days=7)
-        }
+        result = {}
+
+        # Get each metric with individual error handling
+        try:
+            result['health'] = self.get_health_status()
+        except Exception as e:
+            result['health'] = {'status': 'error', 'error': str(e)}
+
+        try:
+            result['backlog'] = self.get_backlog_trends(days=7)
+        except Exception as e:
+            result['backlog'] = {'error': str(e)}
+
+        try:
+            result['success_rates'] = self.get_success_rates(hours=24)
+        except Exception as e:
+            result['success_rates'] = {'error': str(e)}
+
+        try:
+            result['costs'] = self.get_cost_metrics(days=7)
+        except Exception as e:
+            result['costs'] = {'error': str(e)}
+
+        try:
+            result['errors'] = self.get_error_patterns(limit=10)
+        except Exception as e:
+            result['errors'] = {'error': str(e)}
+
+        try:
+            result['performance'] = self.get_performance_metrics(days=7)
+        except Exception as e:
+            result['performance'] = {'error': str(e)}
+
+        return result
 
 
 # CLI interface for quick health checks

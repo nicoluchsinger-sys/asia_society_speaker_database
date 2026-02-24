@@ -332,9 +332,12 @@
         }
 
         function renderBacklogCard(backlog) {
-            const current = backlog.current_events;
-            const totalPending = current.total_pending;
-            const failed = current.failed;
+            if (backlog.error) {
+                return `<div class="card"><h2>📊 Event Backlog</h2><div class="alert alert-critical">Error: ${backlog.error}</div></div>`;
+            }
+            const current = backlog.current_events || {};
+            const totalPending = current.total_pending || 0;
+            const failed = current.failed || 0;
 
             return `
                 <div class="card">
@@ -361,7 +364,10 @@
         }
 
         function renderSpeakerBacklogCard(backlog) {
-            const speakers = backlog.current_speakers;
+            if (backlog.error) {
+                return `<div class="card"><h2>👥 Speaker Backlog</h2><div class="alert alert-critical">Error: ${backlog.error}</div></div>`;
+            }
+            const speakers = backlog.current_speakers || {};
 
             return `
                 <div class="card">
@@ -379,9 +385,12 @@
         }
 
         function renderSuccessRatesCard(success) {
-            const extraction = success.extraction;
-            const enrichment = success.enrichment;
-            const embeddings = success.embeddings;
+            if (success.error) {
+                return `<div class="card"><h2>✅ Success Rates</h2><div class="alert alert-critical">Error: ${success.error}</div></div>`;
+            }
+            const extraction = success.extraction || {};
+            const enrichment = success.enrichment || {};
+            const embeddings = success.embeddings || {};
 
             return `
                 <div class="card">
@@ -413,6 +422,9 @@
         }
 
         function renderCostsCard(costs) {
+            if (costs.error) {
+                return `<div class="card"><h2>💰 Costs</h2><div class="alert alert-critical">Error: ${costs.error}</div></div>`;
+            }
             return `
                 <div class="card">
                     <h2>💰 Costs (7 days)</h2>
@@ -437,7 +449,10 @@
         }
 
         function renderPerformanceCard(performance) {
-            const avg = performance.averages;
+            if (performance.error) {
+                return `<div class="card"><h2>⚡ Performance</h2><div class="alert alert-critical">Error: ${performance.error}</div></div>`;
+            }
+            const avg = performance.averages || {};
 
             return `
                 <div class="card">
@@ -461,8 +476,11 @@
         }
 
         function renderErrorsCard(errors) {
-            const recentErrors = errors.failed_events.slice(0, 5);
-            const commonErrors = errors.common_errors.slice(0, 5);
+            if (errors.error) {
+                return `<div class="card full-width"><h2>❌ Recent Errors</h2><div class="alert alert-critical">Error loading error data: ${errors.error}</div></div>`;
+            }
+            const recentErrors = (errors.failed_events || []).slice(0, 5);
+            const commonErrors = (errors.common_errors || []).slice(0, 5);
 
             let errorsHtml = '';
             if (recentErrors.length > 0) {
@@ -534,10 +552,20 @@
                     throw new Error(data.error);
                 }
 
-                // Validate response structure
-                if (!data.health || !data.health.status) {
+                // Validate response structure (but allow partial failures)
+                if (!data.health) {
                     console.error('Invalid metrics structure:', data);
                     throw new Error('Invalid metrics structure returned from API');
+                }
+
+                // Check if health metric has an error
+                if (data.health.error) {
+                    throw new Error(`Health check failed: ${data.health.error}`);
+                }
+
+                if (!data.health.status) {
+                    console.error('Invalid health structure:', data.health);
+                    throw new Error('Invalid health structure - missing status field');
                 }
 
                 renderDashboard(data);
